@@ -1,0 +1,8 @@
+/* Theme-aware site background */
+html:not([data-theme="dark"]) #web_bg {
+    background-image: url('/img/light-bg.png') !important;
+}
+
+html[data-theme="dark"] #web_bg {
+    background-image: url('/img/dark-bg.png') !important;
+}

@@ -1,0 +1,30 @@
+/* ================== Post Meta ================== */
+
+html:not([data-theme="dark"]) #post-info .post-title,
+html:not([data-theme="dark"]) #post-info #post-meta,
+html:not([data-theme="dark"]) #post-info #post-meta a,
+html:not([data-theme="dark"]) #post-info #post-meta .post-meta-separator,
+html:not([data-theme="dark"]) #post-info #post-meta i {
+    color: #2c3e50 !important;
+    text-shadow: none !important;
+}
+
+html[data-theme="dark"] #post-info .post-title,
+html[data-theme="dark"] #post-info #post-meta,
+html[data-theme="dark"] #post-info #post-meta a,
+html[data-theme="dark"] #post-info #post-meta .post-meta-separator,
+html[data-theme="dark"] #post-info #post-meta i,
+html[data-theme="dark"] .post-copyright__author,
+html[data-theme="dark"] .post-copyright__author .post-copyright-info a,
+html[data-theme="dark"] .post-copyright__type,
+html[data-theme="dark"] .post-copyright__type .post-copyright-info a,
+html[data-theme="dark"] .post-copyright__notice,
+html[data-theme="dark"] .post-copyright__notice .post-copyright-info,
+html[data-theme="dark"] .post-copyright-meta,
+html[data-theme="dark"] .post-meta__tags,
+html[data-theme="dark"] .social-share .social-share-icon,
+html[data-theme="dark"] .pagination-post .pagination-related .info .info-item-1,
+html[data-theme="dark"] .pagination-post .pagination-related .info .info-item-2 {
+    color: var(--text-color) !important;
+    text-shadow: none !important;
+}

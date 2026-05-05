@@ -1,0 +1,11 @@
+/* ================== Header Text ================== */
+
+html:not([data-theme="dark"]) #page-header .page-title {
+    color: #2c3e50 !important;
+    text-shadow: none !important;
+}
+
+html[data-theme="dark"] #page-header .page-title {
+    color: var(--text-color) !important;
+    text-shadow: none !important;
+}

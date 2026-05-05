@@ -1,0 +1,21 @@
+/* ================== Footer ================== */
+
+html:not([data-theme="dark"]) #footer,
+html:not([data-theme="dark"]) #footer a,
+html:not([data-theme="dark"]) #footer div,
+html:not([data-theme="dark"]) #footer p,
+html:not([data-theme="dark"]) #footer span,
+html:not([data-theme="dark"]) #footer .copyright * {
+    color: #ffffff !important;
+    text-shadow: none !important;
+}
+
+html[data-theme="dark"] #footer,
+html[data-theme="dark"] #footer a,
+html[data-theme="dark"] #footer div,
+html[data-theme="dark"] #footer p,
+html[data-theme="dark"] #footer span,
+html[data-theme="dark"] #footer .copyright * {
+    color: #ffffff !important;
+    text-shadow: none !important;
+}

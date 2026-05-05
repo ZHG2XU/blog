@@ -1,0 +1,33 @@
+/* ================== CSS Variables ================== */
+
+html:not([data-theme="dark"]) {
+    --hl-bg: #f4f7fa;
+    --hltools-bg: #e9eef4;
+    --hlnumber-bg: #f4f7fa;
+    --hlnumber-color: #8da4bb;
+    --hlscrollbar-bg: #dbe6f0;
+    --hlexpand-bg: linear-gradient(180deg, rgba(244, 247, 250, 0), rgba(244, 247, 250, 0.9));
+
+    --primary-color: #49b1f5;
+    --hover-color: #ff7142d2;
+    --text-color: #2c3e50;
+    --card-bg: rgba(255, 255, 255, 0.85);
+    --card-border: #e8e8e8;
+    --card-shadow: 0 8px 16px -4px rgba(138, 138, 138, 0.15);
+}
+
+html[data-theme="dark"] {
+    --hl-bg: #0b0f19;
+    --hltools-bg: #111726;
+    --hlnumber-bg: #0b0f19;
+    --hlnumber-color: #5c6c7f;
+    --hlscrollbar-bg: #1e293b;
+    --hlexpand-bg: linear-gradient(180deg, rgba(11, 15, 25, 0), rgba(11, 15, 25, 0.9));
+
+    --primary-color: #49b1f5;
+    --hover-color: #ff7142d2;
+    --text-color: #c9d1d9;
+    --card-bg: rgba(30, 30, 30, 0.85);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
+}

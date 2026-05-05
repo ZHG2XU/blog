@@ -1,0 +1,45 @@
+/* ================== 表格样式 ================== */
+
+/* 表头居中 */
+#article-container table th,
+#article-container table thead th {
+    text-align: center !important;
+}
+
+/* ================== 明亮模式 ================== */
+/* 表格半透明 */
+html:not([data-theme="dark"]) #article-container table {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 边框线条颜色 */
+html:not([data-theme="dark"]) #article-container table,
+html:not([data-theme="dark"]) #article-container table th,
+html:not([data-theme="dark"]) #article-container table td {
+    border-color: #919191da !important;
+    border-width: 1px !important;
+}
+
+/* 偶数行颜色 */
+html:not([data-theme="dark"]) #article-container table tbody tr:nth-child(even) {
+    background-color: rgba(240, 244, 248, 0.5) !important;
+}
+
+/* ================== 夜间模式 ================== */
+/* 表格半透明 */
+html[data-theme="dark"] #article-container table {
+    background-color: rgba(22, 27, 34, 0.5) !important; 
+}
+
+/* 边框线条颜色 */
+html[data-theme="dark"] #article-container table,
+html[data-theme="dark"] #article-container table th,
+html[data-theme="dark"] #article-container table td {
+    border-color: #5c6c7f !important;
+    border-width: 1px !important;
+}
+
+/* 偶数行颜色 */
+html[data-theme="dark"] #article-container table tbody tr:nth-child(even) {
+    background-color: rgba(30, 36, 44, 0.5) !important;
+}

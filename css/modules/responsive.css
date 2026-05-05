@@ -1,0 +1,25 @@
+/* ================== 响应式样式 ================== */
+
+@media screen and (max-width: 768px) {
+    #page-header #post-info {
+        padding: 15px 20px !important;
+        bottom: 20px !important;
+    }
+
+    #post-info #post-meta > .meta-firstline > span:not(.post-meta-wordcount),
+    #post-info #post-meta > .meta-secondline > span:not(.post-meta-wordcount) {
+        display: none !important;
+    }
+
+    #post-info #post-meta > .meta-firstline > .post-meta-separator,
+    #post-info #post-meta > .meta-secondline > .post-meta-separator {
+        display: none !important;
+    }
+
+    #post-info .post-title {
+        text-align: justify !important;
+        text-align-last: left !important;
+        display: block;
+        margin-bottom: 10px;
+    }
+}
