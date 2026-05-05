@@ -1,0 +1,79 @@
+/* ================== Code Highlight ================== */
+
+html:not([data-theme="dark"]) #article-container .highlight table {
+    background-color: var(--hl-bg) !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .keyword,
+html:not([data-theme="dark"]) .highlight .code .built_in,
+html:not([data-theme="dark"]) .highlight .code .type {
+    color: #005cc5 !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .string {
+    color: #22863a !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .comment {
+    color: #677886 !important;
+    font-style: italic !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .number {
+    color: #d130a5 !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .title,
+html:not([data-theme="dark"]) .highlight .code .function {
+    color: #0077aa !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .meta,
+html:not([data-theme="dark"]) .highlight .code .meta-keyword {
+    color: #8b3c9b !important;
+}
+
+html:not([data-theme="dark"]) .highlight .code .attr,
+html:not([data-theme="dark"]) .highlight .code .variable,
+html:not([data-theme="dark"]) .highlight .code .params {
+    color: #212f3b !important;
+}
+
+html[data-theme="dark"] #article-container .highlight table {
+    background-color: var(--hl-bg) !important;
+}
+
+html[data-theme="dark"] .highlight .code .keyword,
+html[data-theme="dark"] .highlight .code .built_in,
+html[data-theme="dark"] .highlight .code .type {
+    color: #569cd6 !important;
+}
+
+html[data-theme="dark"] .highlight .code .string {
+    color: #8fca5c !important;
+}
+
+html[data-theme="dark"] .highlight .code .comment {
+    color: #5c7080 !important;
+    font-style: italic !important;
+}
+
+html[data-theme="dark"] .highlight .code .number {
+    color: #f07178 !important;
+}
+
+html[data-theme="dark"] .highlight .code .title,
+html[data-theme="dark"] .highlight .code .function {
+    color: #82aaff !important;
+}
+
+html[data-theme="dark"] .highlight .code .meta,
+html[data-theme="dark"] .highlight .code .meta-keyword {
+    color: #c792ea !important;
+}
+
+html[data-theme="dark"] .highlight .code .attr,
+html[data-theme="dark"] .highlight .code .variable,
+html[data-theme="dark"] .highlight .code .params {
+    color: #a6bcdc !important;
+}

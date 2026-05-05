@@ -1,0 +1,61 @@
+/* ================== Navigation ================== */
+
+html:not([data-theme="dark"]) #nav {
+    --nav-fg: #000000;
+    --nav-hover: #2f6fef;
+    color: var(--nav-fg);
+}
+
+html:not([data-theme="dark"]) #site-title,
+html:not([data-theme="dark"]) .site-title,
+html:not([data-theme="dark"]) #site-name,
+html:not([data-theme="dark"]) #site-info .site-subtitle,
+html:not([data-theme="dark"]) #subtitle {
+    color: #ffffff !important;
+    text-shadow: none !important;
+}
+
+#nav a,
+#nav a *,
+#nav .site-page,
+#nav .site-page * {
+    color: var(--nav-fg) !important;
+    text-shadow: none !important;
+}
+
+#nav .menus_item:hover > a,
+#nav .menus_item:hover > a *,
+#nav .site-page:hover,
+#nav .site-page:hover *,
+html:not([data-theme="dark"]) #post-info #post-meta a:hover {
+    color: var(--nav-hover) !important;
+}
+
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li:hover,
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li.active {
+    background: transparent !important;
+}
+
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li:hover a,
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li:hover a *,
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li.active a,
+html:not([data-theme="dark"]) #nav .menus_items .menus_item .menus_item_child li.active a * {
+    color: var(--nav-hover) !important;
+}
+
+#page-header.not-top-img #nav,
+#page-header.nav-fixed #nav {
+    --nav-fg: #1f2937;
+    --nav-hover: #2f6fef;
+    background: rgba(255, 255, 255, 0.94) !important;
+    box-shadow: 0 8px 20px -12px rgba(15, 23, 42, 0.28) !important;
+    backdrop-filter: blur(10px);
+}
+
+html[data-theme="dark"] #page-header.not-top-img #nav,
+html[data-theme="dark"] #page-header.nav-fixed #nav {
+    --nav-fg: rgba(255, 255, 255, 0.88);
+    --nav-hover: #8ab4ff;
+    background: rgba(18, 18, 18, 0.82) !important;
+    box-shadow: none !important;
+}

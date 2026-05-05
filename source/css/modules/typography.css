@@ -1,0 +1,32 @@
+/* ================== 排版样式 ================== */
+
+/* 无顶图页面正文标题居中 */
+#body-wrap #page .page-title {
+    text-align: center !important;
+}
+
+/* 文章排版改为两端对齐 */
+#article-container {
+    text-align: justify;
+}
+
+/* 视频自适应页面尺寸 */
+iframe[src*="youtube.com"],
+iframe[src*="youtu.be"],
+iframe[src*="vimeo.com"] {
+    display: block;
+    max-width: 100%;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    height: auto;
+}
+
+/* Mermaid 图表透明背景 */
+#article-container .mermaid,
+#article-container .mermaid svg,
+.mermaid-wrap,
+#article-container .mermaid svg rect.mermaid-bg,
+#article-container .mermaid svg rect:first-child {
+    background: transparent !important;
+    fill: transparent !important;
+}
