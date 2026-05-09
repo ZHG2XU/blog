@@ -118,8 +118,7 @@
 
     scrollToDest: (pos, time = 500) => {
       const currentPos = window.scrollY
-      const isNavFixed = document.getElementById('page-header').classList.contains('fixed')
-      if (currentPos > pos || isNavFixed) pos = pos - 70
+      if (currentPos > pos) pos = pos - 70
 
       if ('scrollBehavior' in document.documentElement.style) {
         window.scrollTo({
@@ -336,3 +335,4 @@
 
   window.btf = { ...window.btf, ...btfFn }
 })()
+
