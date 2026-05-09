@@ -1,5 +1,7 @@
 /* ================== Code Highlight ================== */
 
+/* ── 代码块语法高亮 ── */
+
 html:not([data-theme="dark"]) #article-container .highlight table {
     background-color: var(--hl-bg) !important;
 }
@@ -76,4 +78,46 @@ html[data-theme="dark"] .highlight .code .attr,
 html[data-theme="dark"] .highlight .code .variable,
 html[data-theme="dark"] .highlight .code .params {
     color: #a6bcdc !important;
+}
+
+/* ================== Inline Code (正文行内代码) ================== */
+
+/* 亮色主题：正文行内 code 标签 */
+html:not([data-theme="dark"]) #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > code,
+html:not([data-theme="dark"]) #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > a > code {
+    color: #476582 !important;
+    background: rgba(125, 133, 145, 0.1) !important;
+    border: none !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    font-size: 0.9em !important;
+}
+
+/* 暗色主题：正文行内 code 标签 */
+html[data-theme="dark"] #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > code,
+html[data-theme="dark"] #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > a > code {
+    color: #c9d1d9 !important;
+    background: rgba(110, 118, 129, 0.2) !important;
+    border: none !important;
+    padding: 0.2rem 0.4rem !important;
+    border-radius: 4px !important;
+    font-size: 0.9em !important;
+}
+
+/* ================== 标题中的 code 标签（不作高亮，继承标题样式） ================== */
+
+h1 > code, h2 > code, h3 > code, h4 > code, h5 > code, h6 > code,
+h1 > a > code, h2 > a > code, h3 > a > code, h4 > a > code, h5 > a > code, h6 > a > code,
+#article-container h1 > code,
+#article-container h2 > code,
+#article-container h3 > code,
+#article-container h4 > code,
+#article-container h5 > code,
+#article-container h6 > code {
+    color: inherit !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
 }
