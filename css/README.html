@@ -1,0 +1,615 @@
+<h1 id="source-css-样式文档"><a href="#source-css-样式文档" class="headerlink" title="source/css 样式文档"></a><code>source/css</code> 样式文档</h1><blockquote>
+<p><strong>项目</strong>: Blog-Hexo (Butterfly 主题定制)<br><strong>入口文件</strong>: <code>custom.css</code><br><strong>模块目录</strong>: <code>modules/</code><br><strong>最后更新</strong>: 2026-05-10</p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ul>
+<li><a href="#%E6%9E%B6%E6%9E%84%E6%A6%82%E8%A7%88">架构概览</a></li>
+<li><a href="#%E6%96%87%E4%BB%B6%E5%88%86%E7%B1%BB">文件分类</a></li>
+<li><a href="#%E6%A8%A1%E5%9D%97%E8%AF%A6%E8%A7%A3">模块详解</a><ul>
+<li><a href="#%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F">主题系统</a></li>
+<li><a href="#%E5%85%A8%E5%B1%80%E6%A0%B7%E5%BC%8F">全局样式</a></li>
+<li><a href="#%E5%B8%83%E5%B1%80%E7%BB%84%E4%BB%B6">布局组件</a></li>
+<li><a href="#%E5%86%85%E5%AE%B9%E6%8E%92%E7%89%88">内容排版</a></li>
+<li><a href="#%E5%8D%A1%E7%89%87%E4%B8%8E%E8%A1%A8%E9%9D%A2">卡片与表面</a></li>
+<li><a href="#%E9%A1%B5%E9%9D%A2%E4%B8%93%E7%94%A8">页面专用</a></li>
+<li><a href="#%E5%93%8D%E5%BA%94%E5%BC%8F%E8%AE%BE%E8%AE%A1">响应式设计</a></li>
+</ul>
+</li>
+<li><a href="#%E6%A0%87%E7%AD%BE%E7%B4%A2%E5%BC%95">标签索引</a></li>
+</ul>
+<hr>
+<h2 id="架构概览"><a href="#架构概览" class="headerlink" title="架构概览"></a>架构概览</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">source/css/</span><br><span class="line">├── custom.css              ← 主入口（@import 聚合所有模块）</span><br><span class="line">└── modules/</span><br><span class="line">    ├── variables.css       ← 主题变量（Light/Dark CSS 自定义属性）</span><br><span class="line">    ├── background.css      ← 网站背景图</span><br><span class="line">    ├── base.css            ← 基础全局调整</span><br><span class="line">    ├── scrollbar.css       ← 滚动条样式</span><br><span class="line">    ├── cards.css           ← 卡片表面统一风格</span><br><span class="line">    ├── navigation.css      ← 导航栏样式</span><br><span class="line">    ├── code-highlight.css  ← 代码高亮（VSCode Dark+）</span><br><span class="line">    ├── tables.css          ← 表格样式</span><br><span class="line">    ├── typography.css      ← 排版、视频、Mermaid</span><br><span class="line">    ├── about-page.css      ← 关于页面专属</span><br><span class="line">    ├── header-text.css     ← 页头文字颜色</span><br><span class="line">    ├── footer.css          ← 页脚文字颜色</span><br><span class="line">    ├── post-meta.css       ← 文章元信息色彩</span><br><span class="line">    └── responsive.css      ← 移动端适配</span><br></pre></td></tr></table></figure>
+
+<p>所有模块由 <code>custom.css</code> 通过 <code>@import url(...)</code> 统一引入，形成一条完整的样式链路。</p>
+<hr>
+<h2 id="文件分类"><a href="#文件分类" class="headerlink" title="文件分类"></a>文件分类</h2><table>
+<thead>
+<tr>
+<th>分类</th>
+<th>标签</th>
+<th>包含文件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>主题系统</strong></td>
+<td><code>theme</code>, <code>variable</code>, <code>light-mode</code>, <code>dark-mode</code></td>
+<td><code>variables.css</code></td>
+</tr>
+<tr>
+<td><strong>全局样式</strong></td>
+<td><code>global</code>, <code>background</code>, <code>scrollbar</code>, <code>base</code></td>
+<td><code>custom.css</code>, <code>background.css</code>, <code>base.css</code>, <code>scrollbar.css</code></td>
+</tr>
+<tr>
+<td><strong>布局组件</strong></td>
+<td><code>layout</code>, <code>component</code>, <code>navigation</code>, <code>header</code>, <code>footer</code></td>
+<td><code>navigation.css</code>, <code>header-text.css</code>, <code>footer.css</code></td>
+</tr>
+<tr>
+<td><strong>内容排版</strong></td>
+<td><code>content</code>, <code>typography</code>, <code>code</code>, <code>highlight</code>, <code>table</code>, <code>meta</code></td>
+<td><code>typography.css</code>, <code>tables.css</code>, <code>code-highlight.css</code>, <code>post-meta.css</code></td>
+</tr>
+<tr>
+<td><strong>卡片与表面</strong></td>
+<td><code>card</code>, <code>surface</code>, <code>shadow</code></td>
+<td><code>cards.css</code></td>
+</tr>
+<tr>
+<td><strong>页面专用</strong></td>
+<td><code>page</code>, <code>about</code></td>
+<td><code>about-page.css</code></td>
+</tr>
+<tr>
+<td><strong>响应式设计</strong></td>
+<td><code>responsive</code>, <code>mobile</code>, <code>media-query</code></td>
+<td><code>responsive.css</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="模块详解"><a href="#模块详解" class="headerlink" title="模块详解"></a>模块详解</h2><h3 id="主题系统"><a href="#主题系统" class="headerlink" title="主题系统"></a>主题系统</h3><h4 id="variables-css-mdash-CSS-自定义属性"><a href="#variables-css-mdash-CSS-自定义属性" class="headerlink" title="variables.css &mdash; CSS 自定义属性"></a><code>variables.css</code> &mdash; CSS 自定义属性</h4><ul>
+<li><strong>标签</strong>: <code>#theme</code> <code>#variable</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 定义明亮 &#x2F; 暗黑两套主题的 CSS 变量。</li>
+<li><strong>变量清单</strong>:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>变量名</th>
+<th>用途</th>
+<th>明亮模式值</th>
+<th>暗黑模式值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--hl-bg</code></td>
+<td>代码块背景</td>
+<td><code>#f4f7fa</code></td>
+<td><code>#0b0f19</code></td>
+</tr>
+<tr>
+<td><code>--hltools-bg</code></td>
+<td>代码块工具栏背景</td>
+<td><code>#e9eef4</code></td>
+<td><code>#111726</code></td>
+</tr>
+<tr>
+<td><code>--hlnumber-bg</code></td>
+<td>代码行号背景</td>
+<td><code>#f4f7fa</code></td>
+<td><code>#0b0f19</code></td>
+</tr>
+<tr>
+<td><code>--hlnumber-color</code></td>
+<td>代码行号颜色</td>
+<td><code>#8da4bb</code></td>
+<td><code>#5c6c7f</code></td>
+</tr>
+<tr>
+<td><code>--hlscrollbar-bg</code></td>
+<td>代码块滚动条</td>
+<td><code>#dbe6f0</code></td>
+<td><code>#1e293b</code></td>
+</tr>
+<tr>
+<td><code>--hlexpand-bg</code></td>
+<td>代码展开渐变</td>
+<td><code>rgba(244,247,250,...)</code></td>
+<td><code>rgba(11,15,25,...)</code></td>
+</tr>
+<tr>
+<td><code>--primary-color</code></td>
+<td>主题色</td>
+<td><code>#49b1f5</code></td>
+<td><code>#49b1f5</code></td>
+</tr>
+<tr>
+<td><code>--hover-color</code></td>
+<td>悬停色</td>
+<td><code>#ff7142d2</code></td>
+<td><code>#ff7142d2</code></td>
+</tr>
+<tr>
+<td><code>--text-color</code></td>
+<td>正文颜色</td>
+<td><code>#2c3e50</code></td>
+<td><code>#c9d1d9</code></td>
+</tr>
+<tr>
+<td><code>--card-bg</code></td>
+<td>卡片背景</td>
+<td><code>rgba(255,255,255,0.85)</code></td>
+<td><code>rgba(30,30,30,0.85)</code></td>
+</tr>
+<tr>
+<td><code>--card-border</code></td>
+<td>卡片边框</td>
+<td><code>#e8e8e8</code></td>
+<td><code>rgba(255,255,255,0.08)</code></td>
+</tr>
+<tr>
+<td><code>--card-shadow</code></td>
+<td>卡片阴影</td>
+<td><code>0 8px 16px -4px ...</code></td>
+<td><code>0 8px 16px -4px ...</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>选择器</strong>: <code>html:not([data-theme=&quot;dark&quot;])</code> &#x2F; <code>html[data-theme=&quot;dark&quot;]</code></li>
+</ul>
+<hr>
+<h3 id="全局样式"><a href="#全局样式" class="headerlink" title="全局样式"></a>全局样式</h3><h4 id="custom-css-mdash-主入口"><a href="#custom-css-mdash-主入口" class="headerlink" title="custom.css &mdash; 主入口"></a><code>custom.css</code> &mdash; 主入口</h4><ul>
+<li><strong>标签</strong>: <code>#entry</code> <code>#import</code> <code>#aggregator</code></li>
+<li><strong>功能</strong>: 聚合所有模块，自身不包含样式规则。</li>
+<li><strong>引用清单</strong>:<ol>
+<li><code>variables.css</code></li>
+<li><code>background.css</code></li>
+<li><code>base.css</code></li>
+<li><code>scrollbar.css</code></li>
+<li><code>cards.css</code></li>
+<li><code>navigation.css</code></li>
+<li><code>code-highlight.css</code></li>
+<li><code>tables.css</code></li>
+<li><code>typography.css</code></li>
+<li><code>about-page.css</code></li>
+<li><code>header-text.css</code></li>
+<li><code>footer.css</code></li>
+<li><code>post-meta.css</code></li>
+<li><code>responsive.css</code></li>
+</ol>
+</li>
+</ul>
+<h4 id="background-css-mdash-网站背景"><a href="#background-css-mdash-网站背景" class="headerlink" title="background.css &mdash; 网站背景"></a><code>background.css</code> &mdash; 网站背景</h4><ul>
+<li><strong>标签</strong>: <code>#background</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 根据主题切换网站背景图片。</li>
+<li><strong>规则</strong>:<ul>
+<li>明亮模式 (<code>html:not([data-theme=&quot;dark&quot;])</code>) → <code>/img/light-bg.png</code></li>
+<li>暗黑模式 (<code>html[data-theme=&quot;dark&quot;]</code>) → <code>/img/dark-bg.png</code></li>
+</ul>
+</li>
+<li><strong>目标元素</strong>: <code>#web_bg</code></li>
+</ul>
+<h4 id="base-css-mdash-基础调整"><a href="#base-css-mdash-基础调整" class="headerlink" title="base.css &mdash; 基础调整"></a><code>base.css</code> &mdash; 基础调整</h4><ul>
+<li><strong>标签</strong>: <code>#base</code> <code>#global</code></li>
+<li><strong>功能</strong>: 对所有 <code>&lt;pre&gt;</code> 元素统一设置圆角和间距。</li>
+<li><strong>规则</strong>:<ul>
+<li><code>border-radius: 8px</code></li>
+<li><code>margin: 1em 0</code></li>
+</ul>
+</li>
+</ul>
+<h4 id="scrollbar-css-mdash-滚动条样式"><a href="#scrollbar-css-mdash-滚动条样式" class="headerlink" title="scrollbar.css &mdash; 滚动条样式"></a><code>scrollbar.css</code> &mdash; 滚动条样式</h4><ul>
+<li><strong>标签</strong>: <code>#scrollbar</code> <code>#global</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 自定义 Webkit 滚动条外观。</li>
+<li><strong>规格</strong>:<ul>
+<li>宽度 &#x2F; 高度: <code>8px</code></li>
+<li>轨道圆角: <code>4px</code></li>
+</ul>
+</li>
+<li><strong>主题适配</strong>:<ul>
+<li>明亮: 轨道 <code>rgba(0,0,0,0.05)</code>，滑块 <code>rgba(0,0,0,0.2)</code>，悬停 <code>rgba(0,0,0,0.3)</code></li>
+<li>暗黑: 轨道 <code>rgba(255,255,255,0.05)</code>，滑块 <code>rgba(255,255,255,0.2)</code>，悬停 <code>rgba(255,255,255,0.3)</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="布局组件"><a href="#布局组件" class="headerlink" title="布局组件"></a>布局组件</h3><h4 id="navigation-css-mdash-导航栏"><a href="#navigation-css-mdash-导航栏" class="headerlink" title="navigation.css &mdash; 导航栏"></a><code>navigation.css</code> &mdash; 导航栏</h4><ul>
+<li><strong>标签</strong>: <code>#navigation</code> <code>#component</code> <code>#layout</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 导航栏颜色、链接悬停效果、滚动固定导航栏样式。</li>
+<li><strong>变量</strong>: <code>--nav-fg</code> (前景色), <code>--nav-hover</code> (悬停色)</li>
+<li><strong>关键行为</strong>:<ul>
+<li>明亮默认: 前景 <code>#000000</code>，悬停 <code>#2f6fef</code></li>
+<li>网站标题 (<code>#site-title</code>, <code>#site-name</code> …) 强制白色</li>
+<li>下拉菜单项悬停: 背景 <code>transparent</code>，文字变蓝色</li>
+<li>滚动 &#x2F; 非顶图时 (<code>not-top-img</code> &#x2F; <code>nav-fixed</code>):<ul>
+<li>明亮: 白色半透明背景 + <code>backdrop-filter: blur(10px)</code> + 阴影</li>
+<li>暗黑: 深色半透明背景</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="header-text-css-mdash-页头文字"><a href="#header-text-css-mdash-页头文字" class="headerlink" title="header-text.css &mdash; 页头文字"></a><code>header-text.css</code> &mdash; 页头文字</h4><ul>
+<li><strong>标签</strong>: <code>#header</code> <code>#component</code> <code>#layout</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 页面标题 (<code>.page-title</code> inside <code>#page-header</code>) 的主题适配颜色。</li>
+<li><strong>规则</strong>:<ul>
+<li>明亮: 强制 <code>#2c3e50</code></li>
+<li>暗黑: 使用 <code>var(--text-color)</code></li>
+</ul>
+</li>
+</ul>
+<h4 id="footer-css-mdash-页脚"><a href="#footer-css-mdash-页脚" class="headerlink" title="footer.css &mdash; 页脚"></a><code>footer.css</code> &mdash; 页脚</h4><ul>
+<li><strong>标签</strong>: <code>#footer</code> <code>#component</code> <code>#layout</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 页脚所有文字 (无论主题) 统一强制白色 (<code>#ffffff</code>)。</li>
+</ul>
+<hr>
+<h3 id="内容排版"><a href="#内容排版" class="headerlink" title="内容排版"></a>内容排版</h3><h4 id="typography-css-mdash-排版"><a href="#typography-css-mdash-排版" class="headerlink" title="typography.css &mdash; 排版"></a><code>typography.css</code> &mdash; 排版</h4><ul>
+<li><strong>标签</strong>: <code>#typography</code> <code>#content</code> <code>#video</code> <code>#mermaid</code></li>
+<li><strong>功能</strong>:<ul>
+<li>普通页面标题 (<code>.page-title</code>) 居中</li>
+<li>文章正文 (<code>#article-container</code>) 两端对齐 (<code>text-align: justify</code>)</li>
+<li>YouTube &#x2F; Vimeo 视频 <code>&lt;iframe&gt;</code> 自适应宽度并保持 16:9 比例</li>
+<li>Mermaid 图表强制透明背景</li>
+</ul>
+</li>
+</ul>
+<h4 id="tables-css-mdash-表格"><a href="#tables-css-mdash-表格" class="headerlink" title="tables.css &mdash; 表格"></a><code>tables.css</code> &mdash; 表格</h4><ul>
+<li><strong>标签</strong>: <code>#table</code> <code>#content</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>:<ul>
+<li>表头 (<code>&lt;th&gt;</code>) 文字居中</li>
+<li>明亮模式: 半透明白底表格，边框 <code>#919191da</code>，偶数行 <code>rgba(240,244,248,0.5)</code></li>
+<li>暗黑模式: 半透明深底表格，边框 <code>#5c6c7f</code>，偶数行 <code>rgba(30,36,44,0.5)</code></li>
+</ul>
+</li>
+</ul>
+<h4 id="code-highlight-css-mdash-代码高亮"><a href="#code-highlight-css-mdash-代码高亮" class="headerlink" title="code-highlight.css &mdash; 代码高亮"></a><code>code-highlight.css</code> &mdash; 代码高亮</h4><ul>
+<li><strong>标签</strong>: <code>#code</code> <code>#highlight</code> <code>#vscode</code> <code>#dark-mode</code> <code>#light-mode</code> <code>#inline</code></li>
+<li><strong>功能</strong>:<ul>
+<li>代码块 (<code>figure.highlight</code>) 双主题 Token 配色: 明亮 (One Light 风格) &#x2F; 暗黑 (VSCode Dark+ 风格)</li>
+<li>行内代码 (<code>.container code</code>) 双主题适配</li>
+</ul>
+</li>
+<li><strong>明亮模式配色 (GitHub Primer 风格)</strong>:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Token 类型</th>
+<th>颜色</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>默认文字</td>
+<td><code>#24292f</code></td>
+</tr>
+<tr>
+<td>关键字</td>
+<td><code>#cf222e</code></td>
+</tr>
+<tr>
+<td>函数名</td>
+<td><code>#8250df</code></td>
+</tr>
+<tr>
+<td>字符串</td>
+<td><code>#0a3069</code></td>
+</tr>
+<tr>
+<td>注释</td>
+<td><code>#656d76</code> (斜体)</td>
+</tr>
+<tr>
+<td>数字</td>
+<td><code>#0550ae</code></td>
+</tr>
+<tr>
+<td>类型</td>
+<td><code>#953800</code></td>
+</tr>
+<tr>
+<td>变量</td>
+<td><code>#cf222e</code></td>
+</tr>
+<tr>
+<td>内建函数</td>
+<td><code>#8250df</code></td>
+</tr>
+<tr>
+<td>宏</td>
+<td><code>#bf3989</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>暗黑模式配色 (VSCode Dark+ Modern)</strong>:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Token 类型</th>
+<th>颜色</th>
+<th>对应 VSCode</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>默认文字</td>
+<td><code>#d4d4d4</code></td>
+<td>editor.foreground</td>
+</tr>
+<tr>
+<td>关键字</td>
+<td><code>#569cd6</code></td>
+<td>keyword</td>
+</tr>
+<tr>
+<td>字符串</td>
+<td><code>#ce9178</code></td>
+<td>string</td>
+</tr>
+<tr>
+<td>注释</td>
+<td><code>#6a9955</code> (斜体)</td>
+<td>comment</td>
+</tr>
+<tr>
+<td>数字</td>
+<td><code>#b5cea8</code></td>
+<td>number</td>
+</tr>
+<tr>
+<td>函数</td>
+<td><code>#dcdcaa</code></td>
+<td>function</td>
+</tr>
+<tr>
+<td>类型</td>
+<td><code>#4ec9b0</code></td>
+<td>type</td>
+</tr>
+<tr>
+<td>变量</td>
+<td><code>#9cdcfe</code></td>
+<td>variable</td>
+</tr>
+<tr>
+<td>内建函数</td>
+<td><code>#4ec9b0</code></td>
+<td>type</td>
+</tr>
+<tr>
+<td>宏</td>
+<td><code>#c586c0</code></td>
+<td>—</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>行内代码</strong>:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>主题</th>
+<th>背景</th>
+<th>文字颜色</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>明亮</td>
+<td><code>rgba(175,184,193,0.2)</code></td>
+<td><code>#cf222e</code></td>
+</tr>
+<tr>
+<td>暗黑</td>
+<td><code>rgba(255,255,255,0.08)</code></td>
+<td><code>#ce9178</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>共用: <code>padding: 2px 5px</code>, <code>border-radius: 3px</code>, 等宽字体栈</p>
+</blockquote>
+<h4 id="post-meta-css-mdash-文章元信息"><a href="#post-meta-css-mdash-文章元信息" class="headerlink" title="post-meta.css &mdash; 文章元信息"></a><code>post-meta.css</code> &mdash; 文章元信息</h4><ul>
+<li><strong>标签</strong>: <code>#meta</code> <code>#content</code> <code>#copyright</code> <code>#light-mode</code> <code>#dark-mode</code></li>
+<li><strong>功能</strong>: 文章页 (<code>#post-info</code>) 的标题、元信息 (日期&#x2F;分类&#x2F;标签)、版权声明等文字颜色适配。</li>
+<li><strong>规则</strong>:<ul>
+<li>明亮: 强制 <code>#2c3e50</code></li>
+<li>暗黑: 使用 <code>var(--text-color)</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="卡片与表面"><a href="#卡片与表面" class="headerlink" title="卡片与表面"></a>卡片与表面</h3><h4 id="cards-css-mdash-卡片表面"><a href="#cards-css-mdash-卡片表面" class="headerlink" title="cards.css &mdash; 卡片表面"></a><code>cards.css</code> &mdash; 卡片表面</h4><ul>
+<li><strong>标签</strong>: <code>#card</code> <code>#surface</code> <code>#shadow</code> <code>#pagination</code></li>
+<li><strong>功能</strong>: 统一博客中各类卡片容器的背景、边框、阴影风格。</li>
+<li><strong>影响范围</strong>:<ul>
+<li>文章卡片 (<code>#recent-posts</code> &#x2F; <code>.recent-post-item</code>)</li>
+<li>侧边栏卡片 (<code>.card-widget</code>)</li>
+<li>布局第一子元素 (非文章列表)</li>
+<li>导航下拉菜单 (<code>.menus_item_child</code>)</li>
+<li>分页按钮 (<code>.page-number</code>, <code>.extend</code>)</li>
+<li>文章信息区 (<code>#post-info</code>)</li>
+</ul>
+</li>
+<li><strong>共同属性</strong>:<ul>
+<li><code>background: var(--card-bg)</code></li>
+<li><code>border: 1px solid var(--card-border)</code></li>
+<li><code>box-shadow: var(--card-shadow)</code></li>
+<li><code>transition</code> 平滑过渡</li>
+</ul>
+</li>
+<li><strong>分页悬停</strong>: 背景变为 <code>var(--hover-color)</code>，文字变白</li>
+<li><strong>TOC 文字</strong>: 单行省略号截断</li>
+</ul>
+<hr>
+<h3 id="页面专用"><a href="#页面专用" class="headerlink" title="页面专用"></a>页面专用</h3><h4 id="about-page-css-mdash-关于页面"><a href="#about-page-css-mdash-关于页面" class="headerlink" title="about-page.css &mdash; 关于页面"></a><code>about-page.css</code> &mdash; 关于页面</h4><ul>
+<li><strong>标签</strong>: <code>#about</code> <code>#page</code> <code>#hero</code> <code>#grid</code> <code>#responsive</code></li>
+<li><strong>功能</strong>: 完整的 “关于” 页面布局，包括英雄区、信息网格、社交链接。</li>
+<li><strong>布局结构</strong>:</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>区块</th>
+<th>选择器</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>英雄区</td>
+<td><code>.about-hero</code></td>
+<td>头像 (120×120) + 标题 + 简介，桌面端双列，移动端单列</td>
+</tr>
+<tr>
+<td>标签徽章</td>
+<td><code>.about-eyebrow</code></td>
+<td>主题色胶囊徽章</td>
+</tr>
+<tr>
+<td>信息网格</td>
+<td><code>.about-grid</code></td>
+<td>3 列网格 (含 <code>.about-section</code> → <code>.about-list</code>)，平板 2 列，手机 1 列</td>
+</tr>
+<tr>
+<td>社交链接</td>
+<td><code>.about-links</code></td>
+<td>4 列网格，卡片风格，悬停上浮 + 主题色光晕</td>
+</tr>
+</tbody></table>
+<ul>
+<li><p><strong>响应式断点</strong>:</p>
+<ul>
+<li><code>≤900px</code>: 网格 &#x2F; 链接降至 2 列</li>
+<li><code>≤768px</code>: 英雄区单列居中，标题缩小至 <code>1.8rem</code></li>
+<li><code>≤560px</code>: 网格 &#x2F; 链接降至 1 列</li>
+</ul>
+</li>
+<li><p><strong>动画</strong>: 链接 hover 时 <code>translateY(-3px)</code>，边框变主题色，附蓝色阴影</p>
+</li>
+</ul>
+<hr>
+<h3 id="响应式设计"><a href="#响应式设计" class="headerlink" title="响应式设计"></a>响应式设计</h3><h4 id="responsive-css-mdash-移动端适配"><a href="#responsive-css-mdash-移动端适配" class="headerlink" title="responsive.css &mdash; 移动端适配"></a><code>responsive.css</code> &mdash; 移动端适配</h4><ul>
+<li><strong>标签</strong>: <code>#responsive</code> <code>#mobile</code> <code>#media-query</code></li>
+<li><strong>功能</strong>: 在 <code>≤768px</code> 视口下优化文章信息区 (<code>#post-info</code>) 的显示。</li>
+<li><strong>调整</strong>:<ul>
+<li>内边距缩减至 <code>15px 20px</code></li>
+<li>距底部距离调整为 <code>20px</code></li>
+<li>隐藏元信息中非字数统计的 span 及分隔符</li>
+<li>文章标题改为两端对齐 (<code>text-align: justify</code>)</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="标签索引"><a href="#标签索引" class="headerlink" title="标签索引"></a>标签索引</h2><table>
+<thead>
+<tr>
+<th>标签</th>
+<th>涉及文件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>#theme</code></td>
+<td><code>variables.css</code></td>
+</tr>
+<tr>
+<td><code>#variable</code></td>
+<td><code>variables.css</code></td>
+</tr>
+<tr>
+<td><code>#light-mode</code></td>
+<td><code>variables.css</code>, <code>background.css</code>, <code>scrollbar.css</code>, <code>navigation.css</code>, <code>tables.css</code>, <code>header-text.css</code>, <code>footer.css</code>, <code>post-meta.css</code></td>
+</tr>
+<tr>
+<td><code>#dark-mode</code></td>
+<td><code>variables.css</code>, <code>background.css</code>, <code>scrollbar.css</code>, <code>code-highlight.css</code>, <code>navigation.css</code>, <code>tables.css</code>, <code>header-text.css</code>, <code>footer.css</code>, <code>post-meta.css</code></td>
+</tr>
+<tr>
+<td><code>#global</code></td>
+<td><code>custom.css</code>, <code>base.css</code>, <code>scrollbar.css</code></td>
+</tr>
+<tr>
+<td><code>#background</code></td>
+<td><code>background.css</code></td>
+</tr>
+<tr>
+<td><code>#scrollbar</code></td>
+<td><code>scrollbar.css</code></td>
+</tr>
+<tr>
+<td><code>#base</code></td>
+<td><code>base.css</code></td>
+</tr>
+<tr>
+<td><code>#card</code> <code>#surface</code> <code>#shadow</code></td>
+<td><code>cards.css</code></td>
+</tr>
+<tr>
+<td><code>#pagination</code></td>
+<td><code>cards.css</code></td>
+</tr>
+<tr>
+<td><code>#navigation</code></td>
+<td><code>navigation.css</code></td>
+</tr>
+<tr>
+<td><code>#header</code></td>
+<td><code>header-text.css</code></td>
+</tr>
+<tr>
+<td><code>#footer</code></td>
+<td><code>footer.css</code></td>
+</tr>
+<tr>
+<td><code>#typography</code></td>
+<td><code>typography.css</code></td>
+</tr>
+<tr>
+<td><code>#video</code></td>
+<td><code>typography.css</code></td>
+</tr>
+<tr>
+<td><code>#mermaid</code></td>
+<td><code>typography.css</code></td>
+</tr>
+<tr>
+<td><code>#table</code></td>
+<td><code>tables.css</code></td>
+</tr>
+<tr>
+<td><code>#code</code> <code>#highlight</code> <code>#vscode</code></td>
+<td><code>code-highlight.css</code></td>
+</tr>
+<tr>
+<td><code>#meta</code> <code>#copyright</code></td>
+<td><code>post-meta.css</code></td>
+</tr>
+<tr>
+<td><code>#about</code> <code>#hero</code> <code>#grid</code></td>
+<td><code>about-page.css</code></td>
+</tr>
+<tr>
+<td><code>#responsive</code> <code>#mobile</code></td>
+<td><code>about-page.css</code>, <code>responsive.css</code></td>
+</tr>
+<tr>
+<td><code>#entry</code> <code>#import</code> <code>#aggregator</code></td>
+<td><code>custom.css</code></td>
+</tr>
+<tr>
+<td><code>#component</code></td>
+<td><code>navigation.css</code>, <code>header-text.css</code>, <code>footer.css</code></td>
+</tr>
+<tr>
+<td><code>#layout</code></td>
+<td><code>navigation.css</code>, <code>header-text.css</code>, <code>footer.css</code></td>
+</tr>
+<tr>
+<td><code>#content</code></td>
+<td><code>typography.css</code>, <code>tables.css</code>, <code>code-highlight.css</code>, <code>post-meta.css</code></td>
+</tr>
+<tr>
+<td><code>#page</code></td>
+<td><code>about-page.css</code></td>
+</tr>
+<tr>
+<td><code>#media-query</code></td>
+<td><code>responsive.css</code>, <code>about-page.css</code></td>
+</tr>
+</tbody></table>

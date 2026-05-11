@@ -1,10 +1,7 @@
 /* ================== CSS Variables ================== */
 
 html:not([data-theme="dark"]) {
-    --hl-bg: #f4f7fa;
     --hltools-bg: #e9eef4;
-    --hlnumber-bg: #f4f7fa;
-    --hlnumber-color: #8da4bb;
     --hlscrollbar-bg: #dbe6f0;
     --hlexpand-bg: linear-gradient(180deg, rgba(244, 247, 250, 0), rgba(244, 247, 250, 0.9));
 
@@ -17,10 +14,7 @@ html:not([data-theme="dark"]) {
 }
 
 html[data-theme="dark"] {
-    --hl-bg: #0b0f19;
     --hltools-bg: #111726;
-    --hlnumber-bg: #0b0f19;
-    --hlnumber-color: #5c6c7f;
     --hlscrollbar-bg: #1e293b;
     --hlexpand-bg: linear-gradient(180deg, rgba(11, 15, 25, 0), rgba(11, 15, 25, 0.9));
 
