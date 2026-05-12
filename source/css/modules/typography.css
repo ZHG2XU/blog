@@ -10,6 +10,24 @@
     text-align: justify;
 }
 
+/* ================== Full Width Code Block ================== */
+
+#article-container .highlight,
+#article-container pre {
+width: 100%;
+max-width: 100%;
+box-sizing: border-box;
+}
+
+#article-container .highlight table {
+width: 100%;
+}
+
+#article-container .highlight pre {
+width: 100%;
+}
+
+
 /* 视频自适应页面尺寸 */
 iframe[src*="youtube.com"],
 iframe[src*="youtu.be"],

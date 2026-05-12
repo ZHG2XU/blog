@@ -1,123 +1,163 @@
-/* ================== Code Highlight ================== */
+/* =====================================
+ * Light Theme — GitHub Primer 风格
+ * ===================================== */
 
-/* ── 代码块语法高亮 ── */
-
-html:not([data-theme="dark"]) #article-container .highlight table {
-    background-color: var(--hl-bg) !important;
+html:not([data-theme="dark"]) figure.highlight,
+html:not([data-theme="dark"]) figure.highlight pre,
+html:not([data-theme="dark"]) figure.highlight table,
+html:not([data-theme="dark"]) figure.highlight td {
+    background: #f6f8fa !important;
+    color: #24292f !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .keyword,
-html:not([data-theme="dark"]) .highlight .code .built_in,
-html:not([data-theme="dark"]) .highlight .code .type {
-    color: #005cc5 !important;
+/* 默认文字 */
+html:not([data-theme="dark"]) figure.highlight pre {
+    color: #24292f !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .string {
-    color: #22863a !important;
+/* 关键字 */
+html:not([data-theme="dark"]) figure.highlight .keyword {
+    color: #cf222e !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .comment {
-    color: #677886 !important;
-    font-style: italic !important;
+/* 函数名 */
+html:not([data-theme="dark"]) figure.highlight .title {
+    color: #8250df !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .number {
-    color: #d130a5 !important;
+/* 字符串 */
+html:not([data-theme="dark"]) figure.highlight .string {
+    color: #0a3069 !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .title,
-html:not([data-theme="dark"]) .highlight .code .function {
-    color: #0077aa !important;
+/* 注释 */
+html:not([data-theme="dark"]) figure.highlight .comment {
+    color: #656d76 !important;
+    font-style: italic;
 }
 
-html:not([data-theme="dark"]) .highlight .code .meta,
-html:not([data-theme="dark"]) .highlight .code .meta-keyword {
-    color: #8b3c9b !important;
+/* 数字 */
+html:not([data-theme="dark"]) figure.highlight .number {
+    color: #0550ae !important;
 }
 
-html:not([data-theme="dark"]) .highlight .code .attr,
-html:not([data-theme="dark"]) .highlight .code .variable,
-html:not([data-theme="dark"]) .highlight .code .params {
-    color: #212f3b !important;
+/* 类型 */
+html:not([data-theme="dark"]) figure.highlight .type {
+    color: #953800 !important;
 }
 
-html[data-theme="dark"] #article-container .highlight table {
-    background-color: var(--hl-bg) !important;
+/* 变量 */
+html:not([data-theme="dark"]) figure.highlight .variable {
+    color: #cf222e !important;
 }
 
-html[data-theme="dark"] .highlight .code .keyword,
-html[data-theme="dark"] .highlight .code .built_in,
-html[data-theme="dark"] .highlight .code .type {
+/* 内建函数 */
+html:not([data-theme="dark"]) figure.highlight .built_in {
+    color: #8250df !important;
+}
+
+/* 宏 */
+html:not([data-theme="dark"]) figure.highlight .meta {
+    color: #bf3989 !important;
+}
+
+/* 预处理 / 常量 / 参数 */
+html:not([data-theme="dark"]) figure.highlight .preprocessor,
+html:not([data-theme="dark"]) figure.highlight .literal,
+html:not([data-theme="dark"]) figure.highlight .params,
+html:not([data-theme="dark"]) figure.highlight .constant,
+html:not([data-theme="dark"]) figure.highlight .command {
+    color: #cf222e !important;
+}
+
+/* =====================================
+ * Dark Theme — VSCode Dark+ Modern
+ * ===================================== */
+
+html[data-theme="dark"] figure.highlight,
+html[data-theme="dark"] figure.highlight pre,
+html[data-theme="dark"] figure.highlight table,
+html[data-theme="dark"] figure.highlight td {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+}
+
+/* 默认文字 */
+html[data-theme="dark"] figure.highlight pre {
+    color: #d4d4d4 !important;
+}
+
+/* 关键字 */
+html[data-theme="dark"] figure.highlight .keyword {
     color: #569cd6 !important;
 }
 
-html[data-theme="dark"] .highlight .code .string {
-    color: #8fca5c !important;
+/* 函数名 */
+html[data-theme="dark"] figure.highlight .title {
+    color: #dcdcaa !important;
 }
 
-html[data-theme="dark"] .highlight .code .comment {
-    color: #5c7080 !important;
-    font-style: italic !important;
+/* 字符串 */
+html[data-theme="dark"] figure.highlight .string {
+    color: #ce9178 !important;
 }
 
-html[data-theme="dark"] .highlight .code .number {
-    color: #f07178 !important;
+/* 注释 */
+html[data-theme="dark"] figure.highlight .comment {
+    color: #6a9955 !important;
+    font-style: italic;
 }
 
-html[data-theme="dark"] .highlight .code .title,
-html[data-theme="dark"] .highlight .code .function {
-    color: #82aaff !important;
+/* 数字 */
+html[data-theme="dark"] figure.highlight .number {
+    color: #b5cea8 !important;
 }
 
-html[data-theme="dark"] .highlight .code .meta,
-html[data-theme="dark"] .highlight .code .meta-keyword {
-    color: #c792ea !important;
+/* 类型 */
+html[data-theme="dark"] figure.highlight .type {
+    color: #4ec9b0 !important;
 }
 
-html[data-theme="dark"] .highlight .code .attr,
-html[data-theme="dark"] .highlight .code .variable,
-html[data-theme="dark"] .highlight .code .params {
-    color: #a6bcdc !important;
+/* 变量 */
+html[data-theme="dark"] figure.highlight .variable {
+    color: #9cdcfe !important;
 }
 
-/* ================== Inline Code (正文行内代码) ================== */
-
-/* 亮色主题：正文行内 code 标签 */
-html:not([data-theme="dark"]) #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > code,
-html:not([data-theme="dark"]) #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > a > code {
-    color: #476582 !important;
-    background: rgba(125, 133, 145, 0.1) !important;
-    border: none !important;
-    padding: 0.2rem 0.4rem !important;
-    border-radius: 4px !important;
-    font-size: 0.9em !important;
+/* 内建函数 */
+html[data-theme="dark"] figure.highlight .built_in {
+    color: #4ec9b0 !important;
 }
 
-/* 暗色主题：正文行内 code 标签 */
-html[data-theme="dark"] #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > code,
-html[data-theme="dark"] #article-container :not(h1):not(h2):not(h3):not(h4):not(h5):not(h6) > a > code {
-    color: #c9d1d9 !important;
-    background: rgba(110, 118, 129, 0.2) !important;
-    border: none !important;
-    padding: 0.2rem 0.4rem !important;
-    border-radius: 4px !important;
-    font-size: 0.9em !important;
+/* 宏 */
+html[data-theme="dark"] figure.highlight .meta {
+    color: #c586c0 !important;
 }
 
-/* ================== 标题中的 code 标签（不作高亮，继承标题样式） ================== */
+/* 预处理 / 常量 / 参数 */
+html[data-theme="dark"] figure.highlight .preprocessor,
+html[data-theme="dark"] figure.highlight .literal,
+html[data-theme="dark"] figure.highlight .params,
+html[data-theme="dark"] figure.highlight .constant,
+html[data-theme="dark"] figure.highlight .command {
+    color: #f78c6c !important;
+}
 
-h1 > code, h2 > code, h3 > code, h4 > code, h5 > code, h6 > code,
-h1 > a > code, h2 > a > code, h3 > a > code, h4 > a > code, h5 > a > code, h6 > a > code,
-#article-container h1 > code,
-#article-container h2 > code,
-#article-container h3 > code,
-#article-container h4 > code,
-#article-container h5 > code,
-#article-container h6 > code {
-    color: inherit !important;
-    background: none !important;
-    border: none !important;
-    padding: 0 !important;
-    font-size: inherit !important;
-    font-weight: inherit !important;
+/* =====================================
+ * 行内代码 (inline code)
+ * ===================================== */
+
+html:not([data-theme="dark"]) .container code {
+    padding: 2px 5px;
+    background: rgba(175, 184, 193, 0.2);
+    color: #cf222e;
+    border-radius: 3px;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+}
+
+html[data-theme="dark"] .container code {
+    padding: 2px 5px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ce9178;
+    border-radius: 3px;
+    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
 }
