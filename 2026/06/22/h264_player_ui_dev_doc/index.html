@@ -1,0 +1,703 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="基于 LVGL 和 MSI 媒体流管道的 H.264 硬件解码播放器 UI 组件完整开发文档。涵盖 MSI 管道拓扑（file_msi → h264_decode_msg_msi → h264_decode_msi → R_VIDEO_P0）、按键映射系统、LVGL 事件驱动架构、内存管理策略及 13 个内部函数的详细 API 参考。适用于 TXW82x WiFi 摄像头 SoC（C-Sky CK">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/06/22/h264_player_ui_dev_doc/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="基于 LVGL 和 MSI 媒体流管道的 H.264 硬件解码播放器 UI 组件完整开发文档。涵盖 MSI 管道拓扑（file_msi → h264_decode_msg_msi → h264_decode_msi → R_VIDEO_P0）、按键映射系统、LVGL 事件驱动架构、内存管理策略及 13 个内部函数的详细 API 参考。适用于 TXW82x WiFi 摄像头 SoC（C-Sky CK">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-06-21T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-22T12:07:06.716Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="MSI">
+<meta property="article:tag" content="H.264">
+<meta property="article:tag" content="硬件解码">
+<meta property="article:tag" content="UI组件">
+<meta property="article:tag" content="TXW82x">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档",
+  "url": "https://zhongxu.cyou/2026/06/22/h264_player_ui_dev_doc/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-06-21T16:00:00.000Z",
+  "dateModified": "2026-06-22T12:07:06.716Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/06/22/h264_player_ui_dev_doc/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">22</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-22T12:07:06.716Z" title="更新于 2026-06-22 20:07:06">2026-06-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/SDK%E5%BC%80%E5%8F%91/">SDK开发</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="H264-Player-UI-组件开发文档"><a href="#H264-Player-UI-组件开发文档" class="headerlink" title="H264 Player UI 组件开发文档"></a>H264 Player UI 组件开发文档</h1><h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p><code>h264_player_ui.c</code> 是基于 <strong>LVGL</strong> 图形框架和 <strong>MSI</strong>（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。</p>
+<p><strong>功能：</strong></p>
+<ul>
+<li>在 LCD 上创建 H.264 文件播放器的菜单入口</li>
+<li>遍历文件系统中 <code>H264/</code> 目录下的 <code>*.h264</code> 文件并展示文件列表</li>
+<li>选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（<code>R_VIDEO_P0</code>）显示</li>
+<li>支持播放&#x2F;暂停控制</li>
+<li>支持退出播放并回到主菜单</li>
+</ul>
+<hr>
+<h2 id="2-架构与数据流"><a href="#2-架构与数据流" class="headerlink" title="2. 架构与数据流"></a>2. 架构与数据流</h2><h3 id="2-1-MSI-管道拓扑"><a href="#2-1-MSI-管道拓扑" class="headerlink" title="2.1 MSI 管道拓扑"></a>2.1 MSI 管道拓扑</h3><p>在进入播放界面时，组件建立如下 MSI 数据流管道：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">SD 卡 H.264 文件 (*.h264)</span><br><span class="line">     │</span><br><span class="line">     ▼</span><br><span class="line">h264_file_msi (文件解复用器)</span><br><span class="line">     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE</span><br><span class="line">     │  输出: F_H264 类型 framebuff</span><br><span class="line">     ▼</span><br><span class="line">p0_decode_msg_msi (SR_OTHER_JPG, 帧信息解析)</span><br><span class="line">     │  强制输出类型: FSTYPE_YUV_P0</span><br><span class="line">     │  输出: F_JPG_DECODE_MSG</span><br><span class="line">     ▼</span><br><span class="line">decode_msi (&quot;h264_decode&quot;, H264 硬件解码)</span><br><span class="line">     │  H264 硬件解码 + Scale2 缩放</span><br><span class="line">     │  输出: F_YUV, stype=FSTYPE_YUV_P0</span><br><span class="line">     ▼</span><br><span class="line">R_VIDEO_P0 (LCD 视频层 P0)</span><br><span class="line">     │  MSI_CMD_LCD_VIDEO → MSI_VIDEO_ENABLE 控制开关</span><br><span class="line">     ▼</span><br><span class="line">LCD 屏幕显示</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-UI-层次结构"><a href="#2-2-UI-层次结构" class="headerlink" title="2.2 UI 层次结构"></a>2.2 UI 层次结构</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">lv_scr_act (当前活动屏幕)</span><br><span class="line">   ├── base_ui (主菜单列表, 由调用方传入)</span><br><span class="line">   │     └── &quot;h264_player&quot; 按钮 → 点击进入播放器</span><br><span class="line">   │</span><br><span class="line">   └── now_ui (播放器界面, 全屏)</span><br><span class="line">         ├── 视频显示层 (通过 MSI → R_VIDEO_P0 渲染)</span><br><span class="line">         ├── label_time (&quot;00:00&quot; 时间标签, 顶部居中)</span><br><span class="line">         └── 文件列表弹窗 (按 &#x27;e&#x27; 键触发)</span><br><span class="line">               ├── &quot;exit&quot; 按钮 → 返回播放器</span><br><span class="line">               └── 每个 *.h264 文件按钮 → 点击开始播放</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="3-关键数据结构"><a href="#3-关键数据结构" class="headerlink" title="3. 关键数据结构"></a>3. 关键数据结构</h2><h3 id="3-1-struct-h264-player-ui-s-—-播放器控制块"><a href="#3-1-struct-h264-player-ui-s-—-播放器控制块" class="headerlink" title="3.1 struct h264_player_ui_s — 播放器控制块"></a>3.1 <code>struct h264_player_ui_s</code> — 播放器控制块</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>last_group</code></td>
+<td><code>lv_group_t *</code></td>
+<td>上一级界面的 LVGL 组，退出时恢复</td>
+</tr>
+<tr>
+<td><code>base_ui</code></td>
+<td><code>lv_obj_t *</code></td>
+<td>主菜单列表对象，退出时取消隐藏</td>
+</tr>
+<tr>
+<td><code>w</code>, <code>h</code></td>
+<td><code>uint16_t</code></td>
+<td>视频解码输出宽高</td>
+</tr>
+<tr>
+<td><code>now_group</code></td>
+<td><code>lv_group_t *</code></td>
+<td>当前播放器界面的 LVGL 组</td>
+</tr>
+<tr>
+<td><code>now_ui</code></td>
+<td><code>lv_obj_t *</code></td>
+<td>当前播放器界面对象</td>
+</tr>
+<tr>
+<td><code>timer</code></td>
+<td><code>lv_timer_t *</code></td>
+<td>100ms 周期定时器（用于更新时间显示）</td>
+</tr>
+<tr>
+<td><code>label_time</code></td>
+<td><code>lv_obj_t *</code></td>
+<td>时间标签控件</td>
+</tr>
+<tr>
+<td><code>p0_decode_msg_msi</code></td>
+<td><code>struct msi *</code></td>
+<td>解码帧信息 MSI 组件 (<code>h264_decode_msg_msi</code>)</td>
+</tr>
+<tr>
+<td><code>decode_msi</code></td>
+<td><code>struct msi *</code></td>
+<td>H264 硬件解码 MSI 组件 (<code>h264_decode_msi</code>)</td>
+</tr>
+<tr>
+<td><code>file_msi</code></td>
+<td><code>struct msi *</code></td>
+<td>文件解复用 MSI 组件 (<code>h264_file_msi</code>)</td>
+</tr>
+<tr>
+<td><code>play_name</code></td>
+<td><code>uint8_t *</code></td>
+<td>当前播放流的名称（PSRAM 分配）</td>
+</tr>
+<tr>
+<td><code>playing</code></td>
+<td><code>uint8_t:1</code></td>
+<td>播放状态标志</td>
+</tr>
+</tbody></table>
+<h3 id="3-2-struct-h264-list-param-—-文件列表参数"><a href="#3-2-struct-h264-list-param-—-文件列表参数" class="headerlink" title="3.2 struct h264_list_param — 文件列表参数"></a>3.2 <code>struct h264_list_param</code> — 文件列表参数</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>group</code></td>
+<td><code>lv_group_t *</code></td>
+<td>文件列表的 LVGL 组</td>
+</tr>
+<tr>
+<td><code>ui</code></td>
+<td><code>lv_obj_t *</code></td>
+<td>文件列表的 LVGL list 对象</td>
+</tr>
+<tr>
+<td><code>ui_s</code></td>
+<td><code>h264_player_ui_s *</code></td>
+<td>指向播放器控制块的指针</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="4-外部依赖与声明"><a href="#4-外部依赖与声明" class="headerlink" title="4. 外部依赖与声明"></a>4. 外部依赖与声明</h2><h3 id="4-1-外部-MSI-组件函数"><a href="#4-1-外部-MSI-组件函数" class="headerlink" title="4.1 外部 MSI 组件函数"></a>4.1 外部 MSI 组件函数</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建解码帧信息 MSI 组件（实现在 jpg_decode_msg_msi.c）</span></span><br><span class="line"><span class="keyword">extern</span> <span class="keyword">struct</span> msi *<span class="title function_">h264_decode_msg_msi</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name, <span class="type">uint16_t</span> out_w, <span class="type">uint16_t</span> out_h,</span></span><br><span class="line"><span class="params">                                        <span class="type">uint16_t</span> step_w, <span class="type">uint16_t</span> step_h, <span class="type">uint32_t</span> filter)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建 H264 硬件解码 MSI 组件（实现在 h264_decode_msi.c）</span></span><br><span class="line"><span class="comment">// only_I_H264: 0=解码 I+P 帧, 1=只解码 I 帧</span></span><br><span class="line"><span class="keyword">extern</span> <span class="keyword">struct</span> msi *<span class="title function_">h264_decode_msi</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name, <span class="type">uint8_t</span> only_I_H264)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 创建文件解复用 MSI 组件（实现在 h264_file_msi.c）</span></span><br><span class="line"><span class="keyword">extern</span> <span class="keyword">struct</span> msi *<span class="title function_">h264_file_msi_init</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *msi_name, <span class="type">const</span> <span class="type">char</span> *filename)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// H264 硬件驱动初始化</span></span><br><span class="line"><span class="keyword">extern</span> <span class="type">void</span> <span class="title function_">h264_drv_init</span><span class="params">(<span class="type">void</span>)</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-外部全局变量"><a href="#4-2-外部全局变量" class="headerlink" title="4.2 外部全局变量"></a>4.2 外部全局变量</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">extern</span> <span class="type">lv_style_t</span>  g_style;       <span class="comment">// 全局 LVGL 样式</span></span><br><span class="line"><span class="keyword">extern</span> <span class="type">lv_indev_t</span> *indev_keypad;  <span class="comment">// 全局键盘输入设备</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-引用的头文件"><a href="#4-3-引用的头文件" class="headerlink" title="4.3 引用的头文件"></a>4.3 引用的头文件</h3><table>
+<thead>
+<tr>
+<th>头文件</th>
+<th>路径</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>lvgl/lvgl.h</code></td>
+<td>SDK 内</td>
+<td>LVGL 图形库核心</td>
+</tr>
+<tr>
+<td><code>lvgl_ui.h</code></td>
+<td><code>sdk/app/ui/</code></td>
+<td>UI 组件声明、MSI 组件 extern 声明</td>
+</tr>
+<tr>
+<td><code>keyWork.h</code></td>
+<td><code>sdk/lib/key/</code></td>
+<td>按键回调工作队列</td>
+</tr>
+<tr>
+<td><code>keyScan.h</code></td>
+<td><code>sdk/lib/key/</code></td>
+<td>按键扫描、键值定义（<code>AD_UP</code>, <code>AD_DOWN</code> 等）</td>
+</tr>
+<tr>
+<td><code>av_heap.h</code></td>
+<td><code>lib/heap/</code></td>
+<td>普通堆内存分配</td>
+</tr>
+<tr>
+<td><code>av_psram_heap.h</code></td>
+<td><code>lib/heap/</code></td>
+<td>PSRAM 堆内存分配</td>
+</tr>
+<tr>
+<td><code>avi_player_msi.h</code></td>
+<td><code>sdk/app/playback/</code></td>
+<td>AVI 播放器 MSI 接口</td>
+</tr>
+<tr>
+<td><code>audio_code_ctrl.h</code></td>
+<td><code>audio_media_ctrl/</code></td>
+<td>音频编解码控制</td>
+</tr>
+<tr>
+<td><code>osal_file.h</code></td>
+<td><code>fs/fatfs/</code></td>
+<td>文件系统接口</td>
+</tr>
+<tr>
+<td><code>stream_define.h</code></td>
+<td><code>sdk/app/algorithm/stream_frame/</code></td>
+<td>流名称和 MSI 命令常量定义</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="5-宏定义"><a href="#5-宏定义" class="headerlink" title="5. 宏定义"></a>5. 宏定义</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CHECK_DIR            <span class="string">&quot;H264&quot;</span>     <span class="comment">// 扫描目录名</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> EXT_NAME             <span class="string">&quot;*h264&quot;</span>    <span class="comment">// 文件名匹配模式</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> PLAY_STREAM_NAME_LEN (64)       <span class="comment">// 播放流名称缓冲区大小</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_MALLOC        av_psram_malloc   <span class="comment">// 大块内存分配（PSRAM）</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_FREE          av_psram_free     <span class="comment">// 大块内存释放</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_LIBC_ZALLOC   av_zalloc         <span class="comment">// 零初始化分配</span></span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="6-按键映射"><a href="#6-按键映射" class="headerlink" title="6. 按键映射"></a>6. 按键映射</h2><p>函数 <code>self_key()</code> 将硬件按键事件映射为 LVGL 逻辑按键：</p>
+<table>
+<thead>
+<tr>
+<th>硬件按键</th>
+<th>LVGL 映射值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>AD_UP</code></td>
+<td><code>&#39;q&#39;</code></td>
+<td>返回&#x2F;退出</td>
+</tr>
+<tr>
+<td><code>AD_DOWN</code></td>
+<td><code>&#39;e&#39;</code></td>
+<td>展开文件列表</td>
+</tr>
+<tr>
+<td><code>AD_LEFT</code></td>
+<td><code>&#39;a&#39;</code></td>
+<td>定位控制（预留）</td>
+</tr>
+<tr>
+<td><code>AD_RIGHT</code></td>
+<td><code>&#39;d&#39;</code></td>
+<td>定位控制（预留）</td>
+</tr>
+<tr>
+<td><code>AD_PRESS</code></td>
+<td><code>LV_KEY_ENTER</code></td>
+<td>确认选择</td>
+</tr>
+</tbody></table>
+<p>按键过滤器通过 <code>set_lvgl_get_key_func(self_key)</code> 设置，退出时通过 <code>set_lvgl_get_key_func(NULL)</code> 清除。</p>
+<hr>
+<h2 id="7-函数参考"><a href="#7-函数参考" class="headerlink" title="7. 函数参考"></a>7. 函数参考</h2><h3 id="7-1-公开-API"><a href="#7-1-公开-API" class="headerlink" title="7.1 公开 API"></a>7.1 公开 API</h3><h4 id="h264-player-ui"><a href="#h264-player-ui" class="headerlink" title="h264_player_ui()"></a><code>h264_player_ui()</code></h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">lv_obj_t</span> *<span class="title function_">h264_player_ui</span><span class="params">(<span class="type">lv_group_t</span> *group, <span class="type">lv_obj_t</span> *base_ui, <span class="type">uint16_t</span> w, <span class="type">uint16_t</span> h)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>说明：</strong> 在主菜单列表中添加一个名为 <code>&quot;h264_player&quot;</code> 的按钮入口。</p>
+<p><strong>参数：</strong></p>
+<ul>
+<li><code>group</code> — 主菜单的 LVGL 组</li>
+<li><code>base_ui</code> — 主菜单的 LVGL list 对象</li>
+<li><code>w</code>, <code>h</code> — 视频解码输出宽度和高度</li>
+</ul>
+<p><strong>返回值：</strong> 创建的按钮对象指针，失败返回 <code>NULL</code>。</p>
+<p><strong>调用示例（<code>main_ui.c</code>）：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">btn = h264_player_ui(group, base_ui, <span class="number">320</span>, <span class="number">240</span>);</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-2-内部函数"><a href="#7-2-内部函数" class="headerlink" title="7.2 内部函数"></a>7.2 内部函数</h3><h4 id="self-key-—-按键映射"><a href="#self-key-—-按键映射" class="headerlink" title="self_key() — 按键映射"></a><code>self_key()</code> — 按键映射</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> <span class="title function_">self_key</span><span class="params">(<span class="type">uint32_t</span> val)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>将硬件 <code>AD_*</code> 键值 + <code>KEY_EVENT_SUP</code>（短按释放）事件映射为 LVGL 可识别的字符键值。仅在播放器活跃时生效。</p>
+<h4 id="h264-player-stop-file-—-停止播放"><a href="#h264-player-stop-file-—-停止播放" class="headerlink" title="h264_player_stop_file() — 停止播放"></a><code>h264_player_stop_file()</code> — 停止播放</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">h264_player_stop_file</span><span class="params">(<span class="keyword">struct</span> h264_player_ui_s *ui_s)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>停止文件解复用器（发送 <code>MSI_VIDEO_DEMUX_STOP</code>），销毁 <code>file_msi</code> 组件，关闭 LCD 视频层，释放 <code>play_name</code> 缓冲区。</p>
+<h4 id="enter-player-ui-—-进入播放器界面"><a href="#enter-player-ui-—-进入播放器界面" class="headerlink" title="enter_player_ui() — 进入播放器界面"></a><code>enter_player_ui()</code> — 进入播放器界面</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">enter_player_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_SHORT_CLICKED</code>（点击主菜单的 “h264_player” 按钮）</p>
+<p><strong>流程：</strong></p>
+<ol>
+<li>设置按键过滤器 <code>self_key</code></li>
+<li>调用 <code>h264_drv_init()</code> 初始化 H264 硬件</li>
+<li>隐藏主菜单（<code>base_ui</code>），创建全屏播放器界面（<code>now_ui</code>）</li>
+<li>创建 MSI 管道：<ul>
+<li><code>p0_decode_msg_msi</code> &#x3D; <code>h264_decode_msg_msi(SR_OTHER_JPG, ...)</code> → 帧信息解析</li>
+<li><code>decode_msi</code> &#x3D; <code>h264_decode_msi(&quot;h264_decode&quot;, 0)</code> → 硬件解码</li>
+<li>连接：<code>p0_decode_msg_msi → decode_msi → R_VIDEO_P0</code></li>
+</ul>
+</li>
+<li>创建时间标签 <code>label_time</code>（初始显示 “00:00”）和 100ms 定时器</li>
+<li>创建新的 LVGL 组并注册事件回调</li>
+</ol>
+<h4 id="exit-player-ui-—-退出播放器界面"><a href="#exit-player-ui-—-退出播放器界面" class="headerlink" title="exit_player_ui() — 退出播放器界面"></a><code>exit_player_ui()</code> — 退出播放器界面</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">exit_player_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_KEY</code>，键值 <code>&#39;q&#39;</code></p>
+<p><strong>流程：</strong></p>
+<ol>
+<li>删除定时器</li>
+<li>恢复键盘输入组到上一级</li>
+<li>显示主菜单（清除 <code>base_ui</code> 的隐藏标志）</li>
+<li>销毁当前 LVGL 组、MSI 管道（<code>p0_decode_msg_msi</code>, <code>decode_msi</code>）</li>
+<li>调用 <code>h264_player_stop_file()</code> 停止文件播放</li>
+<li>删除当前界面对象，清除按键过滤器</li>
+</ol>
+<h4 id="show-filelist-—-显示文件列表"><a href="#show-filelist-—-显示文件列表" class="headerlink" title="show_filelist() — 显示文件列表"></a><code>show_filelist()</code> — 显示文件列表</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">show_filelist</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_KEY</code>，键值 <code>&#39;e&#39;</code></p>
+<p><strong>流程：</strong></p>
+<ol>
+<li>清除按键过滤器</li>
+<li>在当前界面创建全屏 LVGL list</li>
+<li>添加 “exit” 返回按钮</li>
+<li>调用 <code>each_read_file()</code> 扫描 <code>H264/</code> 目录，为每个 <code>*.h264</code> 文件添加列表项</li>
+<li>为每个文件按钮注册 <code>enter_playback</code> 事件</li>
+</ol>
+<h4 id="enter-playback-—-开始文件播放"><a href="#enter-playback-—-开始文件播放" class="headerlink" title="enter_playback() — 开始文件播放"></a><code>enter_playback()</code> — 开始文件播放</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">enter_playback</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_CLICKED</code>（点击文件列表中的文件项）</p>
+<p><strong>流程：</strong></p>
+<ol>
+<li>停止当前（如有）正在播放的文件</li>
+<li>获取文件名，构造路径 <code>&quot;0:H264/&lt;filename&gt;&quot;</code></li>
+<li>使用 <code>STREAM_MALLOC(av_psram_malloc)</code> 分配 <code>play_name</code> 缓冲区</li>
+<li>调用 <code>h264_file_msi_init()</code> 创建文件解复用器</li>
+<li>成功：使能 LCD 视频层，连接 <code>file_msi → p0_decode_msg_msi</code>，发送 <code>MSI_VIDEO_DEMUX_START</code></li>
+<li>失败：清理资源，退出文件列表</li>
+</ol>
+<h4 id="player-ctrl-ui-—-播放-暂停控制"><a href="#player-ctrl-ui-—-播放-暂停控制" class="headerlink" title="player_ctrl_ui() — 播放&#x2F;暂停控制"></a><code>player_ctrl_ui()</code> — 播放&#x2F;暂停控制</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">player_ctrl_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_SHORT_CLICKED</code>（点击播放器界面空白区域）</p>
+<p><strong>行为：</strong> 切换 <code>playing</code> 状态。从播放→暂停时发送 <code>MSI_VIDEO_DEMUX_PAUSE</code>，从暂停→播放时发送 <code>MSI_VIDEO_DEMUX_START</code> 并重新使能 LCD 视频层。</p>
+<h4 id="player-locate-ctrl-ui-—-定位控制（预留）"><a href="#player-locate-ctrl-ui-—-定位控制（预留）" class="headerlink" title="player_locate_ctrl_ui() — 定位控制（预留）"></a><code>player_locate_ctrl_ui()</code> — 定位控制（预留）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">player_locate_ctrl_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>事件：</strong> <code>LV_EVENT_KEY</code>，键值 <code>&#39;a&#39;</code> &#x2F; <code>&#39;d&#39;</code></p>
+<p>当前仅捕获事件，未实现具体逻辑（switch case 为空）。可用于实现快退&#x2F;快进功能。</p>
+<h4 id="player-ui-timer-—-定时器回调（预留）"><a href="#player-ui-timer-—-定时器回调（预留）" class="headerlink" title="player_ui_timer() — 定时器回调（预留）"></a><code>player_ui_timer()</code> — 定时器回调（预留）</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">player_ui_timer</span><span class="params">(<span class="type">lv_timer_t</span> *t)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>100ms 周期定时器。当前框架已创建，函数体为空。可用于实现播放时间更新显示。</p>
+<h4 id="h264-list-show-—-单个列表项创建回调"><a href="#h264-list-show-—-单个列表项创建回调" class="headerlink" title="h264_list_show() — 单个列表项创建回调"></a><code>h264_list_show()</code> — 单个列表项创建回调</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">h264_list_show</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *filename, <span class="type">void</span> *data)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>为每个 <code>*.h264</code> 文件在列表中添加一个按钮，绑定 <code>enter_playback</code> 事件。</p>
+<h4 id="each-read-file-—-文件系统遍历"><a href="#each-read-file-—-文件系统遍历" class="headerlink" title="each_read_file() — 文件系统遍历"></a><code>each_read_file()</code> — 文件系统遍历</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">each_read_file</span><span class="params">(create_h264_list_ui fn, <span class="type">void</span> *param)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>使用 FatFS API 遍历 <code>H264/</code> 目录下匹配 <code>*h264</code> 的文件，对每个文件调用回调函数 <code>fn</code>。</p>
+<h4 id="exit-show-filelist-—-退出文件列表"><a href="#exit-show-filelist-—-退出文件列表" class="headerlink" title="exit_show_filelist() — 退出文件列表"></a><code>exit_show_filelist()</code> — 退出文件列表</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">exit_show_filelist</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>恢复按键过滤器，恢复键盘输入组，延迟删除列表对象。</p>
+<h4 id="clear-list-group-ui-—-列表销毁时清理组"><a href="#clear-list-group-ui-—-列表销毁时清理组" class="headerlink" title="clear_list_group_ui() — 列表销毁时清理组"></a><code>clear_list_group_ui()</code> — 列表销毁时清理组</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">clear_list_group_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>在 LVGL list 对象被删除时，自动释放关联的 LVGL 组。</p>
+<hr>
+<h2 id="8-关键事件注册汇总"><a href="#8-关键事件注册汇总" class="headerlink" title="8. 关键事件注册汇总"></a>8. 关键事件注册汇总</h2><table>
+<thead>
+<tr>
+<th>LVGL 事件</th>
+<th>对象</th>
+<th>回调函数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>LV_EVENT_SHORT_CLICKED</code></td>
+<td>“h264_player” 按钮</td>
+<td><code>enter_player_ui</code></td>
+<td>进入播放器</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_KEY</code></td>
+<td>播放器界面 (<code>now_ui</code>)</td>
+<td><code>exit_player_ui</code></td>
+<td>按 <code>&#39;q&#39;</code> 退出</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_KEY</code></td>
+<td>播放器界面 (<code>now_ui</code>)</td>
+<td><code>player_locate_ctrl_ui</code></td>
+<td>按 <code>&#39;a&#39;</code>&#x2F;<code>&#39;d&#39;</code> 定位</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_KEY</code></td>
+<td>播放器界面 (<code>now_ui</code>)</td>
+<td><code>show_filelist</code></td>
+<td>按 <code>&#39;e&#39;</code> 显示文件列表</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_SHORT_CLICKED</code></td>
+<td>播放器界面 (<code>now_ui</code>)</td>
+<td><code>player_ctrl_ui</code></td>
+<td>短按切换播放&#x2F;暂停</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_SHORT_CLICKED</code></td>
+<td>文件列表中的 “exit” 按钮</td>
+<td><code>exit_show_filelist</code></td>
+<td>返回播放器</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_CLICKED</code></td>
+<td>文件列表中的文件名按钮</td>
+<td><code>enter_playback</code></td>
+<td>开始播放该文件</td>
+</tr>
+<tr>
+<td><code>LV_EVENT_DELETE</code></td>
+<td>文件列表对象</td>
+<td><code>clear_list_group_ui</code></td>
+<td>释放 LVGL 组</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="9-MSI-命令使用汇总"><a href="#9-MSI-命令使用汇总" class="headerlink" title="9. MSI 命令使用汇总"></a>9. MSI 命令使用汇总</h2><table>
+<thead>
+<tr>
+<th>命令</th>
+<th>目标</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MSI_CMD_VIDEO_DEMUX_CTRL</code> &#x2F; <code>MSI_VIDEO_DEMUX_START</code></td>
+<td><code>file_msi</code></td>
+<td>开始解复用（播放）</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_VIDEO_DEMUX_CTRL</code> &#x2F; <code>MSI_VIDEO_DEMUX_STOP</code></td>
+<td><code>file_msi</code></td>
+<td>停止解复用</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_VIDEO_DEMUX_CTRL</code> &#x2F; <code>MSI_VIDEO_DEMUX_PAUSE</code></td>
+<td><code>file_msi</code></td>
+<td>暂停解复用</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_LCD_VIDEO</code> &#x2F; <code>MSI_VIDEO_ENABLE=1</code></td>
+<td><code>R_VIDEO_P0</code></td>
+<td>使能 LCD 视频层 P0</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_LCD_VIDEO</code> &#x2F; <code>MSI_VIDEO_ENABLE=0</code></td>
+<td><code>R_VIDEO_P0</code></td>
+<td>关闭 LCD 视频层 P0</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_DECODE_JPEG_MSG</code> &#x2F; <code>MSI_JPEG_DECODE_FORCE_TYPE</code></td>
+<td><code>p0_decode_msg_msi</code></td>
+<td>强制解码输出类型为 <code>FSTYPE_YUV_P0</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="10-内存管理"><a href="#10-内存管理" class="headerlink" title="10. 内存管理"></a>10. 内存管理</h2><table>
+<thead>
+<tr>
+<th>分配点</th>
+<th>分配函数</th>
+<th>堆类型</th>
+<th>释放点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>h264_player_ui_s</code> 控制块</td>
+<td><code>av_zalloc</code></td>
+<td>系统堆（SRAM）</td>
+<td>当前未显式释放（TODO）</td>
+</tr>
+<tr>
+<td><code>play_name</code> 缓冲区</td>
+<td><code>av_psram_malloc</code></td>
+<td>PSRAM</td>
+<td><code>h264_player_stop_file()</code></td>
+</tr>
+<tr>
+<td><code>file_msi</code> 组件</td>
+<td>MSI 框架内部</td>
+<td>视组件实现</td>
+<td><code>msi_destroy()</code></td>
+</tr>
+<tr>
+<td><code>p0_decode_msg_msi</code></td>
+<td>MSI 框架内部</td>
+<td>视组件实现</td>
+<td><code>msi_destroy()</code></td>
+</tr>
+<tr>
+<td><code>decode_msi</code></td>
+<td>MSI 框架内部</td>
+<td>视组件实现</td>
+<td><code>msi_destroy()</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>注意：</strong> 控制块 <code>ui_s</code> 在退出播放器时未显式释放（<code>STREAM_FREE</code>），因为 <code>h264_player_ui()</code> 只调用一次且控制块需要在整个应用生命周期内保持。如需动态创建&#x2F;销毁，应在 <code>exit_player_ui</code> 或 <code>h264_player_stop_file</code> 中添加 <code>STREAM_FREE(ui_s)</code> 并置空指针。</p>
+</blockquote>
+<hr>
+<h2 id="11-调用链路"><a href="#11-调用链路" class="headerlink" title="11. 调用链路"></a>11. 调用链路</h2><h3 id="11-1-入口注册（在-main-ui-c-中）"><a href="#11-1-入口注册（在-main-ui-c-中）" class="headerlink" title="11.1 入口注册（在 main_ui.c 中）"></a>11.1 入口注册（在 <code>main_ui.c</code> 中）</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main_pocket_camera_ui():</span></span><br><span class="line">btn = h264_player_ui(group, base_ui, <span class="number">320</span>, <span class="number">240</span>);</span><br><span class="line"><span class="comment">//     ↓</span></span><br><span class="line"><span class="comment">// h264_player_ui():</span></span><br><span class="line"><span class="comment">//   1. av_zalloc(sizeof(h264_player_ui_s)) → ui_s</span></span><br><span class="line"><span class="comment">//   2. lv_list_add_btn(base_ui, NULL, &quot;h264_player&quot;) → btn</span></span><br><span class="line"><span class="comment">//   3. lv_obj_add_event_cb(btn, enter_player_ui, LV_EVENT_SHORT_CLICKED, ui_s)</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="11-2-完整用户操作流"><a href="#11-2-完整用户操作流" class="headerlink" title="11.2 完整用户操作流"></a>11.2 完整用户操作流</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">主菜单列表</span><br><span class="line">  │  选择 &quot;h264_player&quot; → 短按确认</span><br><span class="line">  ▼</span><br><span class="line">enter_player_ui()        ← 创建播放器界面 + MSI 管道</span><br><span class="line">  │  按 &#x27;e&#x27; 键</span><br><span class="line">  ▼</span><br><span class="line">show_filelist()          ← 弹出文件列表</span><br><span class="line">  │  选择文件 → 点击</span><br><span class="line">  ▼</span><br><span class="line">enter_playback()         ← 创建 file_msi，开始播放</span><br><span class="line">  │  (视频通过 MSI 管道自动渲染到 LCD)</span><br><span class="line">  │  短按屏幕 → 暂停/恢复</span><br><span class="line">  │  按 &#x27;q&#x27; 键 → 回到文件列表</span><br><span class="line">  ▼</span><br><span class="line">exit_show_filelist()     ← 返回播放器界面</span><br><span class="line">  │  在播放器界面按 &#x27;q&#x27; 键</span><br><span class="line">  ▼</span><br><span class="line">exit_player_ui()         ← 销毁 MSI 管道，回到主菜单</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="12-待完善-预留功能"><a href="#12-待完善-预留功能" class="headerlink" title="12. 待完善&#x2F;预留功能"></a>12. 待完善&#x2F;预留功能</h2><ol>
+<li><p><strong>播放时间更新：</strong> <code>player_ui_timer()</code> 函数体为空，<code>label_time</code> 始终显示 “00:00”。需要从 <code>file_msi</code> 或 <code>p0_decode_msg_msi</code> 获取当前播放进度更新标签。</p>
+</li>
+<li><p><strong>快进&#x2F;快退：</strong> <code>player_locate_ctrl_ui()</code> 已注册 <code>&#39;a&#39;</code> &#x2F; <code>&#39;d&#39;</code> 按键事件，但 switch case 为空。可根据需要调用 <code>MSI_VIDEO_DEMUX_FORWARD_TIME</code> &#x2F; <code>MSI_VIDEO_DEMUX_REWIND_TIME</code> 命令实现。</p>
+</li>
+<li><p><strong>控制块生命周期：</strong> <code>h264_player_ui_s</code> 对象在 <code>h264_player_ui()</code> 中分配后未释放。如果多次进入&#x2F;退出播放器，应增加销毁逻辑。</p>
+</li>
+<li><p><strong>文件列表刷新：</strong> 当前每次按 <code>&#39;e&#39;</code> 都会重新扫描文件系统并创建新的列表，但旧的列表对象会在 <code>exit_show_filelist</code> 中通过 <code>lv_obj_del_async</code> 延迟删除，可能有短暂的重叠。</p>
+</li>
+</ol>
+<hr>
+<h2 id="13-依赖的文件"><a href="#13-依赖的文件" class="headerlink" title="13. 依赖的文件"></a>13. 依赖的文件</h2><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>路径</th>
+<th>关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>h264_player_ui.c</code></td>
+<td><code>sdk/app/ui/</code></td>
+<td>本组件源文件</td>
+</tr>
+<tr>
+<td><code>lvgl_ui.h</code></td>
+<td><code>sdk/app/ui/</code></td>
+<td>公开 API 声明</td>
+</tr>
+<tr>
+<td><code>main_ui.c</code></td>
+<td><code>sdk/app/ui/</code></td>
+<td>调用 <code>h264_player_ui()</code> 注册入口</td>
+</tr>
+<tr>
+<td><code>h264_file_msi.c</code></td>
+<td><code>sdk/app/h264_demux/</code></td>
+<td>文件解复用 MSI 组件</td>
+</tr>
+<tr>
+<td><code>jpg_decode_msg_msi.c</code></td>
+<td>SDK 内</td>
+<td>H264 帧信息解析 MSI 组件</td>
+</tr>
+<tr>
+<td><code>h264_decode_msi.c</code></td>
+<td>SDK 内</td>
+<td>H264 硬件解码 MSI 组件</td>
+</tr>
+<tr>
+<td><code>stream_define.h</code></td>
+<td><code>sdk/app/algorithm/stream_frame/</code></td>
+<td>流名称常量 (<code>R_VIDEO_P0</code>, <code>SR_OTHER_JPG</code>)</td>
+</tr>
+<tr>
+<td><code>msi.h</code></td>
+<td><code>sdk/include/lib/multimedia/</code></td>
+<td>MSI 核心接口</td>
+</tr>
+<tr>
+<td><code>framebuff.h</code></td>
+<td><code>sdk/include/lib/multimedia/</code></td>
+<td>Framebuff 类型定义 (<code>FSTYPE_YUV_P0</code>)</td>
+</tr>
+<tr>
+<td><code>keyWork.h</code> &#x2F; <code>keyScan.h</code></td>
+<td><code>sdk/lib/key/</code></td>
+<td>按键系统</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="14-注意事项"><a href="#14-注意事项" class="headerlink" title="14. 注意事项"></a>14. 注意事项</h2><ul>
+<li><strong>内存：</strong> 视频帧数据量大，<code>STREAM_MALLOC</code> 使用 PSRAM（<code>av_psram_malloc</code>），轻量对象使用 SRAM（<code>av_zalloc</code>）。</li>
+<li><strong>MSI 管道生命周期：</strong> <code>p0_decode_msg_msi</code> 和 <code>decode_msi</code> 在 <code>enter_player_ui()</code> 中创建、在 <code>exit_player_ui()</code> 中销毁。<code>file_msi</code> 在每次选择文件播放时创建、在停止播放或切换文件时销毁。</li>
+<li><strong>LCD 视频层竞争：</strong> <code>R_VIDEO_P0</code> 是全局 LCD 视频层 P0 通道，确保在进入播放器时使能、退出时关闭，避免影响其他 UI 组件。</li>
+<li><strong>文件系统路径：</strong> 文件路径格式为 <code>&quot;0:H264/&lt;filename&gt;&quot;</code>，其中 <code>&quot;0:&quot;</code> 是 FatFS 驱动号。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/06/22/h264_player_ui_dev_doc/">https://zhongxu.cyou/2026/06/22/h264_player_ui_dev_doc/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/MSI/">MSI</a><a class="post-meta__tags" href="/tags/H-264/">H.264</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E8%A7%A3%E7%A0%81/">硬件解码</a><a class="post-meta__tags" href="/tags/UI%E7%BB%84%E4%BB%B6/">UI组件</a><a class="post-meta__tags" href="/tags/TXW82x/">TXW82x</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">source/css 样式文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10   目录 架构概览  文件分类  模块详解  主题系统 全局样式 布局组件 内容排版 卡片与表面 页面专用 响应式设计   标签索引    架构概览1234567891011121314151617source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── r...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） 🔴 高   Bug home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行 🟡 中   性能 Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU 🟡 中   代码质量 menu_view.c 中残留 3 处 printf 调试语句 🟡 中   可维护性 颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码 🟡 中   可维护性 字体 &amp;lv_font...</div></div></div></a><a class="pagination-related" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。 1.2 UI 包含哪些功能页面   页面 功能 代码路径    Home（主页） 显示时间、日期、天气、WiFi 状态、电量 home/   Plan List（计划列表） 日期选择条 + 待办事项管理 plan_list/   AI Q&amp;A（AI 问答） AI 对话入口页面 ai_qa/   Timing（计时器） 倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">22</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#H264-Player-UI-%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3"><span class="toc-text">H264 Player UI 组件开发文档</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A6%82%E8%BF%B0"><span class="toc-text">1. 概述</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%9E%B6%E6%9E%84%E4%B8%8E%E6%95%B0%E6%8D%AE%E6%B5%81"><span class="toc-text">2. 架构与数据流</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-MSI-%E7%AE%A1%E9%81%93%E6%8B%93%E6%89%91"><span class="toc-text">2.1 MSI 管道拓扑</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-UI-%E5%B1%82%E6%AC%A1%E7%BB%93%E6%9E%84"><span class="toc-text">2.2 UI 层次结构</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%85%B3%E9%94%AE%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">3. 关键数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-struct-h264-player-ui-s-%E2%80%94-%E6%92%AD%E6%94%BE%E5%99%A8%E6%8E%A7%E5%88%B6%E5%9D%97"><span class="toc-text">3.1 struct h264_player_ui_s — 播放器控制块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-struct-h264-list-param-%E2%80%94-%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8%E5%8F%82%E6%95%B0"><span class="toc-text">3.2 struct h264_list_param — 文件列表参数</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%A4%96%E9%83%A8%E4%BE%9D%E8%B5%96%E4%B8%8E%E5%A3%B0%E6%98%8E"><span class="toc-text">4. 外部依赖与声明</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%A4%96%E9%83%A8-MSI-%E7%BB%84%E4%BB%B6%E5%87%BD%E6%95%B0"><span class="toc-text">4.1 外部 MSI 组件函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%A4%96%E9%83%A8%E5%85%A8%E5%B1%80%E5%8F%98%E9%87%8F"><span class="toc-text">4.2 外部全局变量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%BC%95%E7%94%A8%E7%9A%84%E5%A4%B4%E6%96%87%E4%BB%B6"><span class="toc-text">4.3 引用的头文件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%8F%E5%AE%9A%E4%B9%89"><span class="toc-text">5. 宏定义</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%8C%89%E9%94%AE%E6%98%A0%E5%B0%84"><span class="toc-text">6. 按键映射</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E5%87%BD%E6%95%B0%E5%8F%82%E8%80%83"><span class="toc-text">7. 函数参考</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%85%AC%E5%BC%80-API"><span class="toc-text">7.1 公开 API</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#h264-player-ui"><span class="toc-text">h264_player_ui()</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%86%85%E9%83%A8%E5%87%BD%E6%95%B0"><span class="toc-text">7.2 内部函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#self-key-%E2%80%94-%E6%8C%89%E9%94%AE%E6%98%A0%E5%B0%84"><span class="toc-text">self_key() — 按键映射</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#h264-player-stop-file-%E2%80%94-%E5%81%9C%E6%AD%A2%E6%92%AD%E6%94%BE"><span class="toc-text">h264_player_stop_file() — 停止播放</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#enter-player-ui-%E2%80%94-%E8%BF%9B%E5%85%A5%E6%92%AD%E6%94%BE%E5%99%A8%E7%95%8C%E9%9D%A2"><span class="toc-text">enter_player_ui() — 进入播放器界面</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#exit-player-ui-%E2%80%94-%E9%80%80%E5%87%BA%E6%92%AD%E6%94%BE%E5%99%A8%E7%95%8C%E9%9D%A2"><span class="toc-text">exit_player_ui() — 退出播放器界面</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#show-filelist-%E2%80%94-%E6%98%BE%E7%A4%BA%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8"><span class="toc-text">show_filelist() — 显示文件列表</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#enter-playback-%E2%80%94-%E5%BC%80%E5%A7%8B%E6%96%87%E4%BB%B6%E6%92%AD%E6%94%BE"><span class="toc-text">enter_playback() — 开始文件播放</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#player-ctrl-ui-%E2%80%94-%E6%92%AD%E6%94%BE-%E6%9A%82%E5%81%9C%E6%8E%A7%E5%88%B6"><span class="toc-text">player_ctrl_ui() — 播放&#x2F;暂停控制</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#player-locate-ctrl-ui-%E2%80%94-%E5%AE%9A%E4%BD%8D%E6%8E%A7%E5%88%B6%EF%BC%88%E9%A2%84%E7%95%99%EF%BC%89"><span class="toc-text">player_locate_ctrl_ui() — 定位控制（预留）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#player-ui-timer-%E2%80%94-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%9B%9E%E8%B0%83%EF%BC%88%E9%A2%84%E7%95%99%EF%BC%89"><span class="toc-text">player_ui_timer() — 定时器回调（预留）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#h264-list-show-%E2%80%94-%E5%8D%95%E4%B8%AA%E5%88%97%E8%A1%A8%E9%A1%B9%E5%88%9B%E5%BB%BA%E5%9B%9E%E8%B0%83"><span class="toc-text">h264_list_show() — 单个列表项创建回调</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#each-read-file-%E2%80%94-%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E9%81%8D%E5%8E%86"><span class="toc-text">each_read_file() — 文件系统遍历</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#exit-show-filelist-%E2%80%94-%E9%80%80%E5%87%BA%E6%96%87%E4%BB%B6%E5%88%97%E8%A1%A8"><span class="toc-text">exit_show_filelist() — 退出文件列表</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#clear-list-group-ui-%E2%80%94-%E5%88%97%E8%A1%A8%E9%94%80%E6%AF%81%E6%97%B6%E6%B8%85%E7%90%86%E7%BB%84"><span class="toc-text">clear_list_group_ui() — 列表销毁时清理组</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E5%85%B3%E9%94%AE%E4%BA%8B%E4%BB%B6%E6%B3%A8%E5%86%8C%E6%B1%87%E6%80%BB"><span class="toc-text">8. 关键事件注册汇总</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-MSI-%E5%91%BD%E4%BB%A4%E4%BD%BF%E7%94%A8%E6%B1%87%E6%80%BB"><span class="toc-text">9. MSI 命令使用汇总</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86"><span class="toc-text">10. 内存管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E8%B0%83%E7%94%A8%E9%93%BE%E8%B7%AF"><span class="toc-text">11. 调用链路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#11-1-%E5%85%A5%E5%8F%A3%E6%B3%A8%E5%86%8C%EF%BC%88%E5%9C%A8-main-ui-c-%E4%B8%AD%EF%BC%89"><span class="toc-text">11.1 入口注册（在 main_ui.c 中）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-2-%E5%AE%8C%E6%95%B4%E7%94%A8%E6%88%B7%E6%93%8D%E4%BD%9C%E6%B5%81"><span class="toc-text">11.2 完整用户操作流</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%BE%85%E5%AE%8C%E5%96%84-%E9%A2%84%E7%95%99%E5%8A%9F%E8%83%BD"><span class="toc-text">12. 待完善&#x2F;预留功能</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-%E4%BE%9D%E8%B5%96%E7%9A%84%E6%96%87%E4%BB%B6"><span class="toc-text">13. 依赖的文件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">14. 注意事项</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档">source/css 样式文档</a><time datetime="2026-05-10T04:25:45.000Z" title="发表于 2026-05-10 12:25:45">2026-05-10</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档">TXW828 AI 闹钟 — UI 模块工程说明文档</a><time datetime="2026-05-08T16:00:00.000Z" title="发表于 2026-05-09 00:00:00">2026-05-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</a><time datetime="2026-05-08T16:00:00.000Z" title="发表于 2026-05-09 00:00:00">2026-05-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/03/hello-world/" title="Hello World">Hello World</a><time datetime="2026-05-03T05:15:42.000Z" title="发表于 2026-05-03 13:15:42">2026-05-03</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

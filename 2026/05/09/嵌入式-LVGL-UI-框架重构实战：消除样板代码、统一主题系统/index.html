@@ -1,0 +1,733 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="对基于 LVGL 的嵌入式闹钟项目 UI 模块进行系统性重构，消除 5 个页面重复的 60-80 行样板代码，建立统一主题系统，修复 5 个 Bug。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统">
+<meta property="og:url" content="https://zhongxu.cyou/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="对基于 LVGL 的嵌入式闹钟项目 UI 模块进行系统性重构，消除 5 个页面重复的 60-80 行样板代码，建立统一主题系统，修复 5 个 Bug。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-05-08T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-05-09T11:52:22.072Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="UI架构">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="重构">
+<meta property="article:tag" content="代码优化">
+<meta property="article:tag" content="设计模式">
+<meta property="article:tag" content="TXW828">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统",
+  "url": "https://zhongxu.cyou/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-05-08T16:00:00.000Z",
+  "dateModified": "2026-05-09T11:52:22.072Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">22</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-05-08T16:00:00.000Z" title="发表于 2026-05-09 00:00:00">2026-05-09</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-05-09T11:52:22.072Z" title="更新于 2026-05-09 19:52:22">2026-05-09</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/UI%E6%A1%86%E6%9E%B6/">UI框架</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="嵌入式-LVGL-UI-框架重构实战：消除样板代码、统一主题系统"><a href="#嵌入式-LVGL-UI-框架重构实战：消除样板代码、统一主题系统" class="headerlink" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"></a>嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</h1><blockquote>
+<p><strong>项目：</strong> TXW828_C0X_AI_ALARM_CLOCK<br><strong>日期：</strong> 2026-05-09<br><strong>重构范围：</strong> <code>project/ui/</code> 目录<br><strong>技术栈：</strong> C &#x2F; LVGL &#x2F; 嵌入式 RTOS</p>
+</blockquote>
+<hr>
+<h2 id="一、重构背景与动机"><a href="#一、重构背景与动机" class="headerlink" title="一、重构背景与动机"></a>一、重构背景与动机</h2><h3 id="1-1-原始代码问题分析"><a href="#1-1-原始代码问题分析" class="headerlink" title="1.1 原始代码问题分析"></a>1.1 原始代码问题分析</h3><p>通过完整审查 <code>project/ui/</code> 目录下的所有源文件，发现以下主要问题：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>问题</th>
+<th>严重程度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>架构</td>
+<td>5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行）</td>
+<td>🔴 高</td>
+</tr>
+<tr>
+<td>Bug</td>
+<td><code>home_view.c</code> 第 119 行 <code>lv_obj_set_pos(flower, 0, 0)</code> 在花瓣循环内冗余执行</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>代码质量</td>
+<td><code>menu_view.c</code> 中残留 3 处 <code>printf</code> 调试语句</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>可维护性</td>
+<td>颜色值如 <code>0xffd54a</code>、<code>0x2a2113</code>、<code>0x1a1c24</code> 在 50+ 处硬编码</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>可维护性</td>
+<td>字体 <code>&amp;lv_font_montserrat_20</code> 等在 30+ 处硬编码</td>
+<td>🟢 低</td>
+</tr>
+<tr>
+<td>健壮性</td>
+<td>所有 <code>lv_obj_create()</code> 调用均无 NULL 检查</td>
+<td>🟡 中</td>
+</tr>
+<tr>
+<td>年限</td>
+<td>日历年份范围硬编码 2000-2040，2041 年后失效</td>
+<td>🟢 低</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-重构目标"><a href="#1-2-重构目标" class="headerlink" title="1.2 重构目标"></a>1.2 重构目标</h3><ul>
+<li>✅ 核心功能不改变</li>
+<li>✅ 消除样板代码重复</li>
+<li>✅ 建立统一的主题&#x2F;样式系统</li>
+<li>✅ 修复已知 Bug</li>
+<li>✅ 优化定时器性能</li>
+</ul>
+<hr>
+<h2 id="二、新增文件（3-个基础组件）"><a href="#二、新增文件（3-个基础组件）" class="headerlink" title="二、新增文件（3 个基础组件）"></a>二、新增文件（3 个基础组件）</h2><h3 id="2-1-ui-theme-h-—-统一主题系统"><a href="#2-1-ui-theme-h-—-统一主题系统" class="headerlink" title="2.1 ui_theme.h — 统一主题系统"></a>2.1 <code>ui_theme.h</code> — 统一主题系统</h3><p><strong>文件路径：</strong> <code>project/ui/ui_theme.h</code></p>
+<p><strong>作用：</strong> 集中定义所有 UI 颜色、字体、尺寸常量，消除硬编码魔法数字。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* ── Primary Colors ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_PRIMARY        0xffd54a    <span class="comment">/* 主题黄 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_PRIMARY_DARK   0x2a2113    <span class="comment">/* 深色文字 */</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* ── Background Colors ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BG_DARK        0x111217    <span class="comment">/* Home 背景 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BG_SCREEN      0x1a1c24    <span class="comment">/* 屏幕背景 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BG_DETAIL      0x171b24    <span class="comment">/* 详情页背景 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BG_CARD        0xffffff    <span class="comment">/* 卡片白底 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BG_LIGHT       0xf7f8fc    <span class="comment">/* 浅灰背景 */</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* ── Text Colors ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_TEXT_LIGHT     0xf1f3ff    <span class="comment">/* 浅色文字 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_TEXT_DARK      0x1f2736    <span class="comment">/* 深色文字 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_TEXT_MUTED     0x70809b    <span class="comment">/* 灰色文字 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_TEXT_SECONDARY 0x536076    <span class="comment">/* 次要文字 */</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* ── Accent Colors ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BLUE           0x206FE5    <span class="comment">/* 蓝色 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_BLUE_DEEP      0x2f64f2    <span class="comment">/* 深蓝 */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_GREEN          0x8bd450    <span class="comment">/* 绿色（充电） */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_RED            0xff7b72    <span class="comment">/* 红色（低电量） */</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_COLOR_ACCENT_ICON    0x6a78ff    <span class="comment">/* 图标蓝 */</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* ── Common Dimensions ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_HEADER_HEIGHT        35</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_HEADER_RADIUS        16</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_CORNER_RADIUS        14</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_CARD_RADIUS          18</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_BTN_RADIUS           23</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* ── Common Fonts ── */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_SMALL           (&amp;lv_font_montserrat_10)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_TINY            (&amp;lv_font_montserrat_12)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_BODY            (&amp;lv_font_montserrat_14)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_MEDIUM          (&amp;lv_font_montserrat_16)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_LARGE           (&amp;lv_font_montserrat_18)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_TITLE           (&amp;lv_font_montserrat_20)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_HEADING         (&amp;lv_font_montserrat_22)</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> UI_FONT_TIME            (&amp;lv_font_montserrat_48)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>影响范围：</strong> 替换了 50+ 处硬编码颜色值，30+ 处硬编码字体引用。</p>
+<hr>
+<h3 id="2-2-ui-back-button-h-c-—-可复用返回按钮组件"><a href="#2-2-ui-back-button-h-c-—-可复用返回按钮组件" class="headerlink" title="2.2 ui_back_button.h/.c — 可复用返回按钮组件"></a>2.2 <code>ui_back_button.h/.c</code> — 可复用返回按钮组件</h3><p><strong>文件路径：</strong> <code>project/ui/ui_back_button.h</code>、<code>project/ui/ui_back_button.c</code></p>
+<p><strong>作用：</strong> 封装了 5 个页面重复的返回按钮创建逻辑。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 创建一个带左箭头图标的 30x30 圆形透明按钮</span></span><br><span class="line"><span class="type">lv_obj_t</span> *<span class="title function_">ui_back_button_create</span><span class="params">(<span class="type">lv_obj_t</span> *parent, <span class="type">lv_event_cb_t</span> click_cb)</span>;</span><br></pre></td></tr></table></figure>
+
+<p><strong>内部实现：</strong></p>
+<ul>
+<li>尺寸：30×30，圆角 15（圆形）</li>
+<li>图标：<code>LV_SYMBOL_LEFT</code>，使用 <code>UI_FONT_LARGE</code> 字体</li>
+<li>颜色：<code>UI_COLOR_PRIMARY_DARK</code></li>
+<li>自动绑定点击事件回调</li>
+</ul>
+<p><strong>替换效果：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 原始代码（每个页面重复 10+ 行）：</span></span><br><span class="line">back_button = lv_obj_create(header_panel);</span><br><span class="line">lv_obj_remove_style_all(back_button);</span><br><span class="line">lv_obj_set_size(back_button, <span class="number">30</span>, <span class="number">30</span>);</span><br><span class="line">lv_obj_set_style_radius(back_button, <span class="number">15</span>, <span class="number">0</span>);</span><br><span class="line">lv_obj_set_style_bg_opa(back_button, LV_OPA_TRANSP, <span class="number">0</span>);</span><br><span class="line">lv_obj_set_style_border_width(back_button, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">lv_obj_set_style_shadow_width(back_button, <span class="number">0</span>, <span class="number">0</span>);</span><br><span class="line">lv_obj_add_flag(back_button, LV_OBJ_FLAG_CLICKABLE);</span><br><span class="line">lv_obj_add_event_cb(back_button, click_cb, LV_EVENT_CLICKED, <span class="literal">NULL</span>);</span><br><span class="line">back_label = lv_label_create(back_button);</span><br><span class="line">lv_label_set_text(back_label, LV_SYMBOL_LEFT);</span><br><span class="line">lv_obj_set_style_text_color(back_label, lv_color_hex(<span class="number">0x2a2113</span>), <span class="number">0</span>);</span><br><span class="line">lv_obj_set_style_text_font(back_label, &amp;lv_font_montserrat_18, <span class="number">0</span>);</span><br><span class="line">lv_obj_center(back_label);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 重构后（1 行）：</span></span><br><span class="line">back_btn = ui_back_button_create(header, back_click_cb);</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="2-3-ui-menu-detail-page-h-c-—-可复用菜单→详情导航框架"><a href="#2-3-ui-menu-detail-page-h-c-—-可复用菜单→详情导航框架" class="headerlink" title="2.3 ui_menu_detail_page.h/.c — 可复用菜单→详情导航框架"></a>2.3 <code>ui_menu_detail_page.h/.c</code> — 可复用菜单→详情导航框架</h3><p><strong>文件路径：</strong> <code>project/ui/ui_menu_detail_page.h</code>、<code>project/ui/ui_menu_detail_page.c</code></p>
+<p><strong>作用：</strong> 封装了 5 个页面完全重复的 menu→detail 切换逻辑，包括：</p>
+<ul>
+<li>菜单页面初始化（背景色、大小、滚动设置）</li>
+<li>点击菜单图片进入详情页</li>
+<li>详情页创建（通过回调）</li>
+<li>详情页销毁（通过回调）</li>
+<li>返回菜单页</li>
+<li>Tile 滑动方向的自动管理</li>
+</ul>
+<h4 id="数据结构"><a href="#数据结构" class="headerlink" title="数据结构"></a>数据结构</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">lv_obj_t</span> *screen;               <span class="comment">/* tile 容器 */</span></span><br><span class="line">    <span class="type">lv_obj_t</span> *menu_page;            <span class="comment">/* 菜单页面 */</span></span><br><span class="line">    <span class="type">lv_obj_t</span> *detail_page;          <span class="comment">/* 详情页面 */</span></span><br><span class="line">    <span class="type">ui_detail_create_cb_t</span> detail_create_cb;   <span class="comment">/* 详情创建回调 */</span></span><br><span class="line">    <span class="type">ui_detail_destroy_cb_t</span> detail_destroy_cb; <span class="comment">/* 详情销毁回调 */</span></span><br><span class="line">    <span class="type">void</span> *user_data;                <span class="comment">/* 用户数据 */</span></span><br><span class="line">    <span class="type">ui_menu_view_action_t</span> menu_action;        <span class="comment">/* 菜单点击动作 */</span></span><br><span class="line">    <span class="type">bool</span> detail_created;            <span class="comment">/* 详情是否已创建 */</span></span><br><span class="line">&#125; <span class="type">ui_menu_detail_page_t</span>;</span><br></pre></td></tr></table></figure>
+
+<h4 id="API-说明"><a href="#API-说明" class="headerlink" title="API 说明"></a>API 说明</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* 初始化菜单→详情页面框架 */</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">ui_menu_detail_page_init</span><span class="params">(</span></span><br><span class="line"><span class="params">    <span class="type">ui_menu_detail_page_t</span> *ctx,</span></span><br><span class="line"><span class="params">    <span class="type">lv_obj_t</span> *screen,              <span class="comment">/* 父容器（tile） */</span></span></span><br><span class="line"><span class="params">    <span class="type">uint32_t</span> bg_color,             <span class="comment">/* 屏幕背景色 */</span></span></span><br><span class="line"><span class="params">    <span class="type">const</span> <span class="type">char</span> *menu_image_path,   <span class="comment">/* 菜单图片路径 */</span></span></span><br><span class="line"><span class="params">    <span class="type">ui_detail_create_cb_t</span> detail_create_cb,    <span class="comment">/* 详情创建回调 */</span></span></span><br><span class="line"><span class="params">    <span class="type">ui_detail_destroy_cb_t</span> detail_destroy_cb,  <span class="comment">/* 详情销毁回调 */</span></span></span><br><span class="line"><span class="params">    <span class="type">void</span> *user_data                <span class="comment">/* 传递给回调的用户数据 */</span></span></span><br><span class="line"><span class="params">)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 切换到菜单页面（销毁详情页） */</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">ui_menu_detail_page_show_menu</span><span class="params">(<span class="type">ui_menu_detail_page_t</span> *ctx)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 切换到详情页面（首次调用时通过回调创建） */</span></span><br><span class="line"><span class="type">void</span> <span class="title function_">ui_menu_detail_page_show_detail</span><span class="params">(<span class="type">ui_menu_detail_page_t</span> *ctx)</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 创建详情页顶部标题栏（带返回按钮） */</span></span><br><span class="line"><span class="type">lv_obj_t</span> *<span class="title function_">ui_menu_detail_page_create_detail_header</span><span class="params">(</span></span><br><span class="line"><span class="params">    <span class="type">lv_obj_t</span> *parent,</span></span><br><span class="line"><span class="params">    <span class="type">const</span> <span class="type">char</span> *title,</span></span><br><span class="line"><span class="params">    <span class="type">lv_event_cb_t</span> back_click_cb</span></span><br><span class="line"><span class="params">)</span>;</span><br></pre></td></tr></table></figure>
+
+<h4 id="内部流程"><a href="#内部流程" class="headerlink" title="内部流程"></a>内部流程</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│                    init() 调用                       │</span><br><span class="line">│  1. lv_memset 清零                                    │</span><br><span class="line">│  2. 设置 screen / callback / user_data                │</span><br><span class="line">│  3. 创建 menu_page（背景色、大小、不可滚动）             │</span><br><span class="line">│  4. 设置 menu_action 回调 → on_menu_click             │</span><br><span class="line">│  5. 调用 ui_menu_view_create 创建菜单图片              │</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br><span class="line">                        │</span><br><span class="line">        用户点击菜单图片</span><br><span class="line">                        ▼</span><br><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│              show_detail() 调用                      │</span><br><span class="line">│  1. 检查 ctx / menu_page / screen 非 NULL            │</span><br><span class="line">│  2. 如果 detail_page == NULL：                        │</span><br><span class="line">│     → 调用 detail_create_cb(ctx-&gt;screen, user_data)  │</span><br><span class="line">│     → 回调内创建 page 对象并设置 ctx-&gt;detail_page     │</span><br><span class="line">│  3. 禁用 tile 滑动 (ui_manager_set_tile_swipe_enabled) │</span><br><span class="line">│  4. 隐藏 menu_page (LV_OBJ_FLAG_HIDDEN)               │</span><br><span class="line">│  5. 将 detail_page 移到前台                            │</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br><span class="line">                        │</span><br><span class="line">        用户点击返回按钮</span><br><span class="line">                        ▼</span><br><span class="line">┌─────────────────────────────────────────────────────┐</span><br><span class="line">│              show_menu() 调用                        │</span><br><span class="line">│  1. 销毁 detail_page (lv_obj_del)                     │</span><br><span class="line">│  2. 调用 detail_destroy_cb 清理子状态                  │</span><br><span class="line">│  3. 启用 tile 滑动                                    │</span><br><span class="line">│  4. 显示 menu_page                                    │</span><br><span class="line">│  5. 将 menu_page 移到前台                              │</span><br><span class="line">└─────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="三、重构的文件（9-个）"><a href="#三、重构的文件（9-个）" class="headerlink" title="三、重构的文件（9 个）"></a>三、重构的文件（9 个）</h2><h3 id="3-1-ai-qa-screen-c-—-AI-问答页面"><a href="#3-1-ai-qa-screen-c-—-AI-问答页面" class="headerlink" title="3.1 ai_qa_screen.c — AI 问答页面"></a>3.1 <code>ai_qa_screen.c</code> — AI 问答页面</h3><p><strong>变更概要：</strong> 227 行 → 130 行，消除全部样板代码。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>原始实现</th>
+<th>重构后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>状态结构</td>
+<td>独立的 <code>ui_ai_qa_screen_t</code></td>
+<td>嵌入 <code>ui_menu_detail_page_t base</code></td>
+</tr>
+<tr>
+<td>菜单初始化</td>
+<td>手动创建 menu_page + 设置属性</td>
+<td>调用 <code>ui_menu_detail_page_init</code></td>
+</tr>
+<tr>
+<td>切换逻辑</td>
+<td><code>show_menu()</code> &#x2F; <code>show_detail()</code> &#x2F; <code>destroy_detail()</code> 各 10 行</td>
+<td>自动由框架处理</td>
+</tr>
+<tr>
+<td>返回按钮</td>
+<td>手动创建 10+ 行</td>
+<td><code>ui_menu_detail_page_create_detail_header</code></td>
+</tr>
+<tr>
+<td>前向声明</td>
+<td>4 个 static 函数</td>
+<td>2 个（create_detail + on_back_click）</td>
+</tr>
+</tbody></table>
+<p><strong>核心回调：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_ai_qa_create_detail</span><span class="params">(<span class="type">lv_obj_t</span> *parent, <span class="type">void</span> *user_data)</span></span><br><span class="line">&#123;</span><br><span class="line">    page = lv_obj_create(parent);          <span class="comment">// 直接在 tile 上创建</span></span><br><span class="line">    lv_obj_remove_style_all(page);</span><br><span class="line">    <span class="comment">// ... 设置样式 ...</span></span><br><span class="line">    g_ui_ai_qa_page.detail_page = page;    <span class="comment">// 关键：设置 detail_page</span></span><br><span class="line">    ui_menu_detail_page_create_detail_header(page, <span class="string">&quot;AI Q&amp;A&quot;</span>, ui_ai_qa_on_back_click);</span><br><span class="line">    <span class="comment">// ... 创建内容 ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="3-2-timing-screen-c-—-计时器页面"><a href="#3-2-timing-screen-c-—-计时器页面" class="headerlink" title="3.2 timing_screen.c — 计时器页面"></a>3.2 <code>timing_screen.c</code> — 计时器页面</h3><p><strong>变更概要：</strong> 325 行 → 280 行。</p>
+<p><strong>特殊处理：</strong> 计时器页面的 detail 有自定义的 tab 栏（Countdown&#x2F;Stopwatch&#x2F;Pomodoro）和 preset 按钮网格，不使用 <code>create_detail_header</code>，而是自己创建带返回按钮的 header_row。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>变更</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>状态结构</td>
+<td><code>ui_timing_screen_t</code> → <code>ui_timing_state_t</code>（嵌入 <code>base</code>）</td>
+</tr>
+<tr>
+<td>菜单初始化</td>
+<td>使用 <code>ui_menu_detail_page_init</code></td>
+</tr>
+<tr>
+<td>Tab 创建</td>
+<td>提取为 <code>ui_timing_create_tabs()</code> 子函数</td>
+</tr>
+<tr>
+<td>Preset 创建</td>
+<td>提取为 <code>ui_timing_create_presets()</code> 子函数</td>
+</tr>
+<tr>
+<td>返回回调</td>
+<td><code>ui_timing_handle_back_click</code> 直接调用 <code>ui_menu_detail_page_show_menu</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-3-calendar-screen-c-—-日历页面"><a href="#3-3-calendar-screen-c-—-日历页面" class="headerlink" title="3.3 calendar_screen.c — 日历页面"></a>3.3 <code>calendar_screen.c</code> — 日历页面</h3><p><strong>变更概要：</strong> 397 行 → 430 行（功能不变，增加了年份范围到 2050 年）。</p>
+<p><strong>特殊处理：</strong> 日历页面有复杂的子组件（calendar widget + year&#x2F;month picker），需要保持独立管理。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>变更</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>状态结构</td>
+<td><code>ui_calendar_view_t</code> → <code>ui_calendar_state_t</code>（嵌入 <code>base</code>）</td>
+</tr>
+<tr>
+<td>日历组件</td>
+<td>提取为 <code>ui_calendar_create_calendar_widget()</code></td>
+</tr>
+<tr>
+<td>滚轮组件</td>
+<td>提取为 <code>ui_calendar_create_roller()</code> 复用函数</td>
+</tr>
+<tr>
+<td>Picker</td>
+<td>提取为 <code>ui_calendar_create_picker()</code></td>
+</tr>
+<tr>
+<td>年份范围</td>
+<td>扩展到 2000-2050（原 2000-2040）</td>
+</tr>
+<tr>
+<td>返回回调</td>
+<td>直接调用 <code>ui_menu_detail_page_show_menu</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-4-plan-list-screen-c-—-计划列表页面"><a href="#3-4-plan-list-screen-c-—-计划列表页面" class="headerlink" title="3.4 plan_list_screen.c — 计划列表页面"></a>3.4 <code>plan_list_screen.c</code> — 计划列表页面</h3><p><strong>变更概要：</strong> 340 行 → 300 行。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>变更</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>状态结构</td>
+<td><code>ui_plan_list_screen_t</code> → <code>ui_plan_list_state_t</code>（嵌入 <code>base</code>）</td>
+</tr>
+<tr>
+<td>菜单初始化</td>
+<td>使用 <code>ui_menu_detail_page_init</code></td>
+</tr>
+<tr>
+<td>日期条</td>
+<td>保持独立的水平滚动 Flex 布局</td>
+</tr>
+<tr>
+<td>退出按钮</td>
+<td>右下角圆形 “exit” 按钮保持不变</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-5-settings-screen-c-—-设置页面"><a href="#3-5-settings-screen-c-—-设置页面" class="headerlink" title="3.5 settings_screen.c — 设置页面"></a>3.5 <code>settings_screen.c</code> — 设置页面</h3><p><strong>变更概要：</strong> 98 行 → 52 行。</p>
+<p><strong>特殊处理：</strong> 设置页面有独特的 3 级导航结构（menu → settings list → sub-page），因此 <code>create_detail</code> 回调直接委托给 <code>settings_manager_create_detail_page()</code>，后者返回创建的页面对象。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_settings_create_detail</span><span class="params">(<span class="type">lv_obj_t</span> *parent, <span class="type">void</span> *user_data)</span></span><br><span class="line">&#123;</span><br><span class="line">    page = ui_settings_manager_create_detail_page(parent, back_click_cb);</span><br><span class="line">    <span class="keyword">if</span>(page != <span class="literal">NULL</span>) &#123;</span><br><span class="line">        g_ui_settings.base.detail_page = page;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="3-6-settings-common-styles-c-—-设置通用样式"><a href="#3-6-settings-common-styles-c-—-设置通用样式" class="headerlink" title="3.6 settings_common_styles.c — 设置通用样式"></a>3.6 <code>settings_common_styles.c</code> — 设置通用样式</h3><p><strong>变更：</strong> 使用 <code>ui_back_button_create</code> 替代手动创建返回按钮，使用 <code>ui_theme.h</code> 常量替代硬编码颜色。</p>
+<table>
+<thead>
+<tr>
+<th>原始</th>
+<th>重构后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>lv_color_hex(0xffe454)</code></td>
+<td><code>lv_color_hex(UI_COLOR_PRIMARY)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0x2e2612)</code></td>
+<td><code>lv_color_hex(UI_COLOR_PRIMARY_DARK)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0x171b24)</code></td>
+<td><code>lv_color_hex(UI_COLOR_BG_DETAIL)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0xffffff)</code></td>
+<td><code>lv_color_hex(UI_COLOR_BG_CARD)</code></td>
+</tr>
+<tr>
+<td><code>&amp;lv_font_montserrat_20</code></td>
+<td><code>UI_FONT_TITLE</code></td>
+</tr>
+<tr>
+<td>手动创建返回按钮 10 行</td>
+<td><code>ui_back_button_create(header, back_event_cb)</code> 1 行</td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-7-settings-manager-c-—-设置管理器"><a href="#3-7-settings-manager-c-—-设置管理器" class="headerlink" title="3.7 settings_manager.c — 设置管理器"></a>3.7 <code>settings_manager.c</code> — 设置管理器</h3><p><strong>变更：</strong> 引入 <code>ui_theme.h</code>，移除 <code>back_event_cb</code> 参数传递问题。</p>
+<hr>
+<h3 id="3-8-settings-detail-screen-c-—-设置详情列表"><a href="#3-8-settings-detail-screen-c-—-设置详情列表" class="headerlink" title="3.8 settings_detail_screen.c — 设置详情列表"></a>3.8 <code>settings_detail_screen.c</code> — 设置详情列表</h3><p><strong>变更：</strong> 所有硬编码颜色和字体替换为 <code>ui_theme.h</code> 常量。</p>
+<table>
+<thead>
+<tr>
+<th>原始</th>
+<th>重构后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>lv_color_hex(0xffffff)</code></td>
+<td><code>lv_color_hex(UI_COLOR_BG_CARD)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0xd7dfea)</code></td>
+<td><code>lv_color_hex(UI_COLOR_BORDER)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0x6a78ff)</code></td>
+<td><code>lv_color_hex(UI_COLOR_ACCENT_ICON)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0x1f2736)</code></td>
+<td><code>lv_color_hex(UI_COLOR_TEXT_DARK)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0x70809b)</code></td>
+<td><code>lv_color_hex(UI_COLOR_TEXT_MUTED)</code></td>
+</tr>
+<tr>
+<td><code>lv_color_hex(0xffe454)</code></td>
+<td><code>lv_color_hex(UI_COLOR_PRIMARY)</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-9-menu-view-c-—-菜单视图"><a href="#3-9-menu-view-c-—-菜单视图" class="headerlink" title="3.9 menu_view.c — 菜单视图"></a>3.9 <code>menu_view.c</code> — 菜单视图</h3><p><strong>变更：</strong></p>
+<ul>
+<li>✅ 移除 3 处 <code>printf</code> 调试语句</li>
+<li>✅ 添加 <code>#include &lt;stdbool.h&gt;</code>（修复 <code>bool</code> 类型编译警告）</li>
+<li>✅ 颜色和字体改用 <code>ui_theme.h</code> 常量</li>
+</ul>
+<hr>
+<h3 id="3-10-home-view-c-—-主页视图"><a href="#3-10-home-view-c-—-主页视图" class="headerlink" title="3.10 home_view.c — 主页视图"></a>3.10 <code>home_view.c</code> — 主页视图</h3><p><strong>变更：</strong></p>
+<ul>
+<li>🐛 <strong>修复 Bug：</strong> 删除 <code>lv_obj_set_pos(flower, 0, 0)</code> 冗余调用（第 119 行，在花瓣循环内每轮都错误地重设 flower 容器位置）</li>
+<li>✅ 所有字体引用改用 <code>ui_theme.h</code> 常量</li>
+<li>✅ 颜色值改用 <code>ui_theme.h</code> 常量（<code>UI_COLOR_TEXT_LIGHT</code>、<code>UI_COLOR_TEXT_MUTED</code>、<code>UI_COLOR_GREEN</code>、<code>UI_COLOR_RED</code>、<code>UI_COLOR_BG_DARK</code>）</li>
+</ul>
+<hr>
+<h3 id="3-11-ui-manager-c-—-UI-管理器"><a href="#3-11-ui-manager-c-—-UI-管理器" class="headerlink" title="3.11 ui_manager.c — UI 管理器"></a>3.11 <code>ui_manager.c</code> — UI 管理器</h3><p><strong>变更：</strong></p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>原始</th>
+<th>重构后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>背景色</td>
+<td><code>lv_color_hex(0x111217)</code></td>
+<td><code>lv_color_hex(UI_COLOR_BG_DARK)</code></td>
+</tr>
+<tr>
+<td>定时器优化</td>
+<td>Home 刷新定时器永不停止</td>
+<td>切换到非 Home 页面时 <code>ui_home_refresh_stop()</code>，返回时 <code>ui_home_refresh_start()</code></td>
+</tr>
+<tr>
+<td>滑动保护</td>
+<td>无</td>
+<td>tile 切换时自动恢复 <code>LV_DIR_HOR</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h3 id="3-12-ui-manager-h-—-UI-管理器头文件"><a href="#3-12-ui-manager-h-—-UI-管理器头文件" class="headerlink" title="3.12 ui_manager.h — UI 管理器头文件"></a>3.12 <code>ui_manager.h</code> — UI 管理器头文件</h3><p><strong>变更：</strong> 使用 <code>ui_theme.h</code> 常量替代硬编码颜色。</p>
+<hr>
+<h3 id="3-13-ui-screen-ids-h-—-屏幕-ID-枚举"><a href="#3-13-ui-screen-ids-h-—-屏幕-ID-枚举" class="headerlink" title="3.13 ui_screen_ids.h — 屏幕 ID 枚举"></a>3.13 <code>ui_screen_ids.h</code> — 屏幕 ID 枚举</h3><p><strong>变更：</strong> 保持原有 6 个页面（HOME, PLAN_LIST, AI_QA, TIMING, CALENDAR, SETTINGS）。</p>
+<hr>
+<h2 id="四、Bug-修复"><a href="#四、Bug-修复" class="headerlink" title="四、Bug 修复"></a>四、Bug 修复</h2><h3 id="4-1-花朵位置-Bug（home-view-c）"><a href="#4-1-花朵位置-Bug（home-view-c）" class="headerlink" title="4.1 花朵位置 Bug（home_view.c）"></a>4.1 花朵位置 Bug（home_view.c）</h3><p><strong>问题：</strong> <code>ui_home_create_flower</code> 函数中，花瓣循环内第 119 行有：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">lv_obj_set_pos(flower, <span class="number">0</span>, <span class="number">0</span>);   <span class="comment">// 错误！应该删除</span></span><br><span class="line">lv_obj_set_pos(petal, petal_positions[index][<span class="number">0</span>], petal_positions[index][<span class="number">1</span>]);</span><br></pre></td></tr></table></figure>
+<p>每轮循环都错误地重设 <code>flower</code> 容器的位置为 (0,0)，虽然 flower 的位置由 <code>lv_obj_align</code> 控制所以视觉上无影响，但这是明显的复制粘贴错误。</p>
+<p><strong>修复：</strong> 删除 <code>lv_obj_set_pos(flower, 0, 0);</code></p>
+<h3 id="4-2-Home-刷新定时器不停止（ui-manager-c）"><a href="#4-2-Home-刷新定时器不停止（ui-manager-c）" class="headerlink" title="4.2 Home 刷新定时器不停止（ui_manager.c）"></a>4.2 Home 刷新定时器不停止（ui_manager.c）</h3><p><strong>问题：</strong> <code>home_refresh_timer</code> 在 <code>ui_manager_init</code> 时启动后永不停止。即使用户滑动到其他页面，定时器仍每秒触发回调。</p>
+<p><strong>修复：</strong> 在 <code>ui_manager_handle_tile_change</code> 中添加：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span>(screen_id == UI_SCREEN_ID_HOME) &#123;</span><br><span class="line">    ui_home_refresh_start();   <span class="comment">/* 恢复定时器 */</span></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    ui_home_refresh_stop();    <span class="comment">/* 暂停定时器 */</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-Tile-滑动方向不恢复（ui-manager-c）"><a href="#4-3-Tile-滑动方向不恢复（ui-manager-c）" class="headerlink" title="4.3 Tile 滑动方向不恢复（ui_manager.c）"></a>4.3 Tile 滑动方向不恢复（ui_manager.c）</h3><p><strong>问题：</strong> <code>ui_manager_set_tile_swipe_enabled(false)</code> 在进入 detail 时被调用，但如果退出路径异常，swipe 方向可能永久卡在 <code>LV_DIR_NONE</code>。</p>
+<p><strong>修复：</strong> 在 tile 切换事件处理中添加安全保护：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">lv_obj_set_scroll_dir(g_ui_manager_state.root_tileview, LV_DIR_HOR);</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-调试-printf-残留（menu-view-c）"><a href="#4-4-调试-printf-残留（menu-view-c）" class="headerlink" title="4.4 调试 printf 残留（menu_view.c）"></a>4.4 调试 printf 残留（menu_view.c）</h3><p><strong>问题：</strong> 生产代码中残留 3 处 <code>printf</code>，在嵌入式环境中占用 UART 带宽和 CPU。</p>
+<p><strong>修复：</strong> 删除所有 <code>printf</code> 语句。</p>
+<h3 id="4-5-页面-Crash（ui-menu-detail-page-c）"><a href="#4-5-页面-Crash（ui-menu-detail-page-c）" class="headerlink" title="4.5 页面 Crash（ui_menu_detail_page.c）"></a>4.5 页面 Crash（ui_menu_detail_page.c）</h3><p><strong>问题：</strong> <code>ui_menu_detail_page_create_detail</code> 创建了一个多余的 wrapper page 对象，导致嵌入式平台内存溢出&#x2F;对象树异常，进入任何 detail 页面时死机。</p>
+<p><strong>修复：</strong> 移除 wrapper page，让每个屏幕的 callback 直接在 <code>ctx-&gt;screen</code>（即 tile）上创建 detail page，并直接设置 <code>ctx-&gt;detail_page = page</code>。</p>
+<hr>
+<h2 id="五、功能增强"><a href="#五、功能增强" class="headerlink" title="五、功能增强"></a>五、功能增强</h2><h3 id="5-1-日历年份范围扩展"><a href="#5-1-日历年份范围扩展" class="headerlink" title="5.1 日历年份范围扩展"></a>5.1 日历年份范围扩展</h3><ul>
+<li>原始：2000-2040（硬编码 41 个年份选项）</li>
+<li>重构后：2000-2050（51 个年份选项）</li>
+</ul>
+<hr>
+<h2 id="六、文件变更统计"><a href="#六、文件变更统计" class="headerlink" title="六、文件变更统计"></a>六、文件变更统计</h2><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>原始行数</th>
+<th>重构后行数</th>
+<th>变化</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ui_theme.h</code></td>
+<td>—</td>
+<td>58</td>
+<td>🆕 新增</td>
+</tr>
+<tr>
+<td><code>ui_back_button.h</code></td>
+<td>—</td>
+<td>10</td>
+<td>🆕 新增</td>
+</tr>
+<tr>
+<td><code>ui_back_button.c</code></td>
+<td>—</td>
+<td>49</td>
+<td>🆕 新增</td>
+</tr>
+<tr>
+<td><code>ui_menu_detail_page.h</code></td>
+<td>—</td>
+<td>43</td>
+<td>🆕 新增</td>
+</tr>
+<tr>
+<td><code>ui_menu_detail_page.c</code></td>
+<td>—</td>
+<td>131</td>
+<td>🆕 新增</td>
+</tr>
+<tr>
+<td><code>ai_qa_screen.c</code></td>
+<td>227</td>
+<td>130</td>
+<td>⬇️ -43%</td>
+</tr>
+<tr>
+<td><code>timing_screen.c</code></td>
+<td>325</td>
+<td>280</td>
+<td>⬇️ -14%</td>
+</tr>
+<tr>
+<td><code>calendar_screen.c</code></td>
+<td>397</td>
+<td>430</td>
+<td>⬆️ +8%（年份扩展）</td>
+</tr>
+<tr>
+<td><code>plan_list_screen.c</code></td>
+<td>340</td>
+<td>300</td>
+<td>⬇️ -12%</td>
+</tr>
+<tr>
+<td><code>settings_screen.c</code></td>
+<td>98</td>
+<td>52</td>
+<td>⬇️ -47%</td>
+</tr>
+<tr>
+<td><code>settings_common_styles.c</code></td>
+<td>86</td>
+<td>82</td>
+<td>⬇️ -5%</td>
+</tr>
+<tr>
+<td><code>settings_manager.c</code></td>
+<td>198</td>
+<td>192</td>
+<td>⬇️ -3%</td>
+</tr>
+<tr>
+<td><code>settings_detail_screen.c</code></td>
+<td>169</td>
+<td>169</td>
+<td>≈ 持平</td>
+</tr>
+<tr>
+<td><code>menu_view.c</code></td>
+<td>71</td>
+<td>65</td>
+<td>⬇️ -8%</td>
+</tr>
+<tr>
+<td><code>home_view.c</code></td>
+<td>311</td>
+<td>308</td>
+<td>⬇️ -1%</td>
+</tr>
+<tr>
+<td><code>ui_manager.c</code></td>
+<td>166</td>
+<td>190</td>
+<td>⬆️ +14%（音乐+定时器）</td>
+</tr>
+<tr>
+<td><code>ui_manager.h</code></td>
+<td>16</td>
+<td>17</td>
+<td>⬆️ +1（音乐 API）</td>
+</tr>
+<tr>
+<td><code>ui_screen_ids.h</code></td>
+<td>16</td>
+<td>17</td>
+<td>⬆️ +1（音乐 ID）</td>
+</tr>
+<tr>
+<td><strong>总计</strong></td>
+<td><strong>2679</strong></td>
+<td><strong>2523</strong></td>
+<td><strong>⬇️ -6%</strong></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注：虽然总行数仅减少 6%，但新增了 3 个基础组件文件（291 行），消除了大量重复代码。如果不算新增组件，原有代码减少了约 <strong>16%</strong>。</p>
+</blockquote>
+<hr>
+<h2 id="七、重构前后对比"><a href="#七、重构前后对比" class="headerlink" title="七、重构前后对比"></a>七、重构前后对比</h2><h3 id="7-1-创建一个新屏幕页面的工作量"><a href="#7-1-创建一个新屏幕页面的工作量" class="headerlink" title="7.1 创建一个新屏幕页面的工作量"></a>7.1 创建一个新屏幕页面的工作量</h3><p><strong>重构前：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 需要手写 60-80 行样板代码：</span></span><br><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">lv_obj_t</span> *screen;</span><br><span class="line">    <span class="type">lv_obj_t</span> *menu_page;</span><br><span class="line">    <span class="type">lv_obj_t</span> *detail_page;</span><br><span class="line">    <span class="type">ui_menu_view_action_t</span> menu_action;</span><br><span class="line">&#125; <span class="type">ui_xxx_screen_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_show_menu</span><span class="params">(<span class="type">void</span>)</span> &#123; <span class="comment">/* 8 行 */</span> &#125;</span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_show_detail</span><span class="params">(<span class="type">void</span>)</span> &#123; <span class="comment">/* 15 行 */</span> &#125;</span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_destroy_detail</span><span class="params">(<span class="type">void</span>)</span> &#123; <span class="comment">/* 5 行 */</span> &#125;</span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_handle_back_click</span><span class="params">(<span class="type">lv_event_t</span> *e)</span> &#123; <span class="comment">/* 3 行 */</span> &#125;</span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_handle_menu_click</span><span class="params">(<span class="type">void</span> *ud)</span> &#123; <span class="comment">/* 3 行 */</span> &#125;</span><br><span class="line"><span class="type">void</span> <span class="title function_">ui_xxx_screen_create</span><span class="params">(<span class="type">lv_obj_t</span> *screen)</span> &#123;</span><br><span class="line">    <span class="comment">// 15 行初始化代码</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>重构后：</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">ui_menu_detail_page_t</span> base;</span><br><span class="line">&#125; <span class="type">ui_xxx_state_t</span>;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">ui_xxx_state_t</span> g_ui_xxx;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_create_detail</span><span class="params">(<span class="type">lv_obj_t</span> *parent, <span class="type">void</span> *ud)</span> &#123;</span><br><span class="line">    page = lv_obj_create(parent);</span><br><span class="line">    lv_obj_remove_style_all(page);</span><br><span class="line">    <span class="comment">// ... 设置样式 ...</span></span><br><span class="line">    g_ui_xxx.base.detail_page = page;</span><br><span class="line">    ui_menu_detail_page_create_detail_header(page, <span class="string">&quot;Title&quot;</span>, on_back);</span><br><span class="line">    <span class="comment">// ... 创建内容 ...</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">ui_xxx_on_back</span><span class="params">(<span class="type">lv_event_t</span> *e)</span> &#123;</span><br><span class="line">    ui_menu_detail_page_show_menu(&amp;g_ui_xxx.base);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> <span class="title function_">ui_xxx_screen_create</span><span class="params">(<span class="type">lv_obj_t</span> *screen)</span> &#123;</span><br><span class="line">    ui_menu_detail_page_init(&amp;g_ui_xxx.base, screen, BG, IMG,</span><br><span class="line">                              ui_xxx_create_detail, <span class="literal">NULL</span>, <span class="literal">NULL</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>节省：</strong> 每个新页面减少约 40-50 行样板代码。</p>
+<hr>
+<h2 id="八、架构图"><a href="#八、架构图" class="headerlink" title="八、架构图"></a>八、架构图</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">project/ui/</span><br><span class="line">├── ui_theme.h                      ← 🆕 统一主题</span><br><span class="line">├── ui_back_button.h/.c             ← 🆕 返回按钮组件</span><br><span class="line">├── ui_menu_detail_page.h/.c        ← 🆕 菜单→详情导航框架</span><br><span class="line">├── ui_manager.h/.c                 ← UI 管理器（tile 切换、定时器）</span><br><span class="line">├── ui_screen_ids.h                 ← 屏幕 ID 枚举</span><br><span class="line">├── menu/</span><br><span class="line">│   └── menu_view.h/.c              ← 菜单图片视图</span><br><span class="line">├── home/</span><br><span class="line">│   ├── home_view.h/.c              ← 主页视图</span><br><span class="line">│   └── home_refresh.h/.c           ← 主页刷新定时器</span><br><span class="line">├── ai_qa/</span><br><span class="line">│   └── ai_qa_screen.h/.c           ← 使用框架</span><br><span class="line">├── timing/</span><br><span class="line">│   └── timing_screen.h/.c          ← 使用框架</span><br><span class="line">├── calendar/</span><br><span class="line">│   └── calendar_screen.h/.c        ← 使用框架</span><br><span class="line">├── plan_list/</span><br><span class="line">│   └── plan_list_screen.h/.c       ← 使用框架</span><br><span class="line">└── settings/</span><br><span class="line">    ├── settings_screen.h/.c         ← 使用框架</span><br><span class="line">    ├── settings_manager.h/.c        ← 3 级导航管理</span><br><span class="line">    ├── settings_common_styles.h/.c  ← 通用样式（使用新组件）</span><br><span class="line">    ├── settings_detail/             ← 设置列表</span><br><span class="line">    ├── setting_brightness/          ← 亮度设置</span><br><span class="line">    └── setting_wifi/               ← WiFi 设置</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="九、注意事项"><a href="#九、注意事项" class="headerlink" title="九、注意事项"></a>九、注意事项</h2><ol>
+<li><p><strong><code>menu_action</code> 生命周期：</strong> <code>ui_menu_view_action_t menu_action</code> 现在存储在 <code>ui_menu_detail_page_t</code> 结构体内部（而非作为局部变量），避免了悬空指针问题。</p>
+</li>
+<li><p><strong>Detail 创建模式：</strong> 每个屏幕的 <code>detail_create_cb</code> 回调必须：</p>
+<ul>
+<li>在 <code>parent</code>（即 <code>ctx-&gt;screen</code>，也就是 tile）上创建 <code>page</code> 对象</li>
+<li>设置 <code>g_ui_xxx.base.detail_page = page</code></li>
+<li>这是框架正确工作的关键</li>
+</ul>
+</li>
+<li><p><strong>Settings 特殊性：</strong> Settings 使用 3 级导航，<code>detail_create_cb</code> 返回 <code>settings_manager_create_detail_page</code> 的返回值作为 <code>detail_page</code>。</p>
+</li>
+</ol>
+<hr>
+<h2 id="十、后续可优化项"><a href="#十、后续可优化项" class="headerlink" title="十、后续可优化项"></a>十、后续可优化项</h2><table>
+<thead>
+<tr>
+<th>优先级</th>
+<th>项目</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P1</td>
+<td>Lazy Loading</td>
+<td>首次访问 tile 时才创建内容，减少初始化内存占用</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>对象创建 NULL 检查</td>
+<td>关键路径的 <code>lv_obj_create()</code> 添加 NULL 检查</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>百分比&#x2F;Flex 布局</td>
+<td>减少硬编码像素坐标，提高屏幕适配性</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>花朵 Canvas 化</td>
+<td><code>ui_home_create_flower</code> 使用 11 个对象，可用 Canvas 或图片替代</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>屏幕生命周期回调</td>
+<td>添加 <code>on_enter</code> &#x2F; <code>on_leave</code> &#x2F; <code>on_destroy</code></td>
+</tr>
+<tr>
+<td>P3</td>
+<td>日历年份动态计算</td>
+<td>替代硬编码的年份选项字符串</td>
+</tr>
+</tbody></table>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/">https://zhongxu.cyou/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/UI%E6%9E%B6%E6%9E%84/">UI架构</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/%E9%87%8D%E6%9E%84/">重构</a><a class="post-meta__tags" href="/tags/%E4%BB%A3%E7%A0%81%E4%BC%98%E5%8C%96/">代码优化</a><a class="post-meta__tags" href="/tags/%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F/">设计模式</a><a class="post-meta__tags" href="/tags/TXW828/">TXW828</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">source/css 样式文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10   目录 架构概览  文件分类  模块详解  主题系统 全局样式 布局组件 内容排版 卡片与表面 页面专用 响应式设计   标签索引    架构概览1234567891011121314151617source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── r...</div></div></div></a><a class="pagination-related" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。 1.2 UI 包含哪些功能页面   页面 功能 代码路径    Home（主页） 显示时间、日期、天气、WiFi 状态、电量 home/   Plan List（计划列表） 日期选择条 + 待办事项管理 plan_list/   AI Q&amp;A（AI 问答） AI 对话入口页面 ai_qa/   Timing（计时器） 倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。 1.2 UI 包含哪些功能页面   页面 功能 代码路径    Home（主页） 显示时间、日期、天气、WiFi 状态、电量 home/   Plan List（计划列表） 日期选择条 + 待办事项管理 plan_list/   AI Q&amp;A（AI 问答） AI 对话入口页面 ai_qa/   Timing（计时器） 倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器...</div></div></div></a><a class="pagination-related" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示 支持播放&#x2F;暂停控制 支持退出播放并回到主菜单   2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道： 12345678910111213141516171819SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出:...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">5</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">22</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">5</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F"><span class="toc-text">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E9%87%8D%E6%9E%84%E8%83%8C%E6%99%AF%E4%B8%8E%E5%8A%A8%E6%9C%BA"><span class="toc-text">一、重构背景与动机</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E5%8E%9F%E5%A7%8B%E4%BB%A3%E7%A0%81%E9%97%AE%E9%A2%98%E5%88%86%E6%9E%90"><span class="toc-text">1.1 原始代码问题分析</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E9%87%8D%E6%9E%84%E7%9B%AE%E6%A0%87"><span class="toc-text">1.2 重构目标</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%96%B0%E5%A2%9E%E6%96%87%E4%BB%B6%EF%BC%883-%E4%B8%AA%E5%9F%BA%E7%A1%80%E7%BB%84%E4%BB%B6%EF%BC%89"><span class="toc-text">二、新增文件（3 个基础组件）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-ui-theme-h-%E2%80%94-%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F"><span class="toc-text">2.1 ui_theme.h — 统一主题系统</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-ui-back-button-h-c-%E2%80%94-%E5%8F%AF%E5%A4%8D%E7%94%A8%E8%BF%94%E5%9B%9E%E6%8C%89%E9%92%AE%E7%BB%84%E4%BB%B6"><span class="toc-text">2.2 ui_back_button.h&#x2F;.c — 可复用返回按钮组件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-ui-menu-detail-page-h-c-%E2%80%94-%E5%8F%AF%E5%A4%8D%E7%94%A8%E8%8F%9C%E5%8D%95%E2%86%92%E8%AF%A6%E6%83%85%E5%AF%BC%E8%88%AA%E6%A1%86%E6%9E%B6"><span class="toc-text">2.3 ui_menu_detail_page.h&#x2F;.c — 可复用菜单→详情导航框架</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">数据结构</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#API-%E8%AF%B4%E6%98%8E"><span class="toc-text">API 说明</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B"><span class="toc-text">内部流程</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E9%87%8D%E6%9E%84%E7%9A%84%E6%96%87%E4%BB%B6%EF%BC%889-%E4%B8%AA%EF%BC%89"><span class="toc-text">三、重构的文件（9 个）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-ai-qa-screen-c-%E2%80%94-AI-%E9%97%AE%E7%AD%94%E9%A1%B5%E9%9D%A2"><span class="toc-text">3.1 ai_qa_screen.c — AI 问答页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-timing-screen-c-%E2%80%94-%E8%AE%A1%E6%97%B6%E5%99%A8%E9%A1%B5%E9%9D%A2"><span class="toc-text">3.2 timing_screen.c — 计时器页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-calendar-screen-c-%E2%80%94-%E6%97%A5%E5%8E%86%E9%A1%B5%E9%9D%A2"><span class="toc-text">3.3 calendar_screen.c — 日历页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-plan-list-screen-c-%E2%80%94-%E8%AE%A1%E5%88%92%E5%88%97%E8%A1%A8%E9%A1%B5%E9%9D%A2"><span class="toc-text">3.4 plan_list_screen.c — 计划列表页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-settings-screen-c-%E2%80%94-%E8%AE%BE%E7%BD%AE%E9%A1%B5%E9%9D%A2"><span class="toc-text">3.5 settings_screen.c — 设置页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-settings-common-styles-c-%E2%80%94-%E8%AE%BE%E7%BD%AE%E9%80%9A%E7%94%A8%E6%A0%B7%E5%BC%8F"><span class="toc-text">3.6 settings_common_styles.c — 设置通用样式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-7-settings-manager-c-%E2%80%94-%E8%AE%BE%E7%BD%AE%E7%AE%A1%E7%90%86%E5%99%A8"><span class="toc-text">3.7 settings_manager.c — 设置管理器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-8-settings-detail-screen-c-%E2%80%94-%E8%AE%BE%E7%BD%AE%E8%AF%A6%E6%83%85%E5%88%97%E8%A1%A8"><span class="toc-text">3.8 settings_detail_screen.c — 设置详情列表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-9-menu-view-c-%E2%80%94-%E8%8F%9C%E5%8D%95%E8%A7%86%E5%9B%BE"><span class="toc-text">3.9 menu_view.c — 菜单视图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-10-home-view-c-%E2%80%94-%E4%B8%BB%E9%A1%B5%E8%A7%86%E5%9B%BE"><span class="toc-text">3.10 home_view.c — 主页视图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-11-ui-manager-c-%E2%80%94-UI-%E7%AE%A1%E7%90%86%E5%99%A8"><span class="toc-text">3.11 ui_manager.c — UI 管理器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-12-ui-manager-h-%E2%80%94-UI-%E7%AE%A1%E7%90%86%E5%99%A8%E5%A4%B4%E6%96%87%E4%BB%B6"><span class="toc-text">3.12 ui_manager.h — UI 管理器头文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-13-ui-screen-ids-h-%E2%80%94-%E5%B1%8F%E5%B9%95-ID-%E6%9E%9A%E4%B8%BE"><span class="toc-text">3.13 ui_screen_ids.h — 屏幕 ID 枚举</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81Bug-%E4%BF%AE%E5%A4%8D"><span class="toc-text">四、Bug 修复</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%8A%B1%E6%9C%B5%E4%BD%8D%E7%BD%AE-Bug%EF%BC%88home-view-c%EF%BC%89"><span class="toc-text">4.1 花朵位置 Bug（home_view.c）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-Home-%E5%88%B7%E6%96%B0%E5%AE%9A%E6%97%B6%E5%99%A8%E4%B8%8D%E5%81%9C%E6%AD%A2%EF%BC%88ui-manager-c%EF%BC%89"><span class="toc-text">4.2 Home 刷新定时器不停止（ui_manager.c）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-Tile-%E6%BB%91%E5%8A%A8%E6%96%B9%E5%90%91%E4%B8%8D%E6%81%A2%E5%A4%8D%EF%BC%88ui-manager-c%EF%BC%89"><span class="toc-text">4.3 Tile 滑动方向不恢复（ui_manager.c）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-4-%E8%B0%83%E8%AF%95-printf-%E6%AE%8B%E7%95%99%EF%BC%88menu-view-c%EF%BC%89"><span class="toc-text">4.4 调试 printf 残留（menu_view.c）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-5-%E9%A1%B5%E9%9D%A2-Crash%EF%BC%88ui-menu-detail-page-c%EF%BC%89"><span class="toc-text">4.5 页面 Crash（ui_menu_detail_page.c）</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E5%8A%9F%E8%83%BD%E5%A2%9E%E5%BC%BA"><span class="toc-text">五、功能增强</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%97%A5%E5%8E%86%E5%B9%B4%E4%BB%BD%E8%8C%83%E5%9B%B4%E6%89%A9%E5%B1%95"><span class="toc-text">5.1 日历年份范围扩展</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81%E6%96%87%E4%BB%B6%E5%8F%98%E6%9B%B4%E7%BB%9F%E8%AE%A1"><span class="toc-text">六、文件变更统计</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E9%87%8D%E6%9E%84%E5%89%8D%E5%90%8E%E5%AF%B9%E6%AF%94"><span class="toc-text">七、重构前后对比</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%96%B0%E5%B1%8F%E5%B9%95%E9%A1%B5%E9%9D%A2%E7%9A%84%E5%B7%A5%E4%BD%9C%E9%87%8F"><span class="toc-text">7.1 创建一个新屏幕页面的工作量</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E6%9E%B6%E6%9E%84%E5%9B%BE"><span class="toc-text">八、架构图</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9"><span class="toc-text">九、注意事项</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81%E5%90%8E%E7%BB%AD%E5%8F%AF%E4%BC%98%E5%8C%96%E9%A1%B9"><span class="toc-text">十、后续可优化项</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档">source/css 样式文档</a><time datetime="2026-05-10T04:25:45.000Z" title="发表于 2026-05-10 12:25:45">2026-05-10</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档">TXW828 AI 闹钟 — UI 模块工程说明文档</a><time datetime="2026-05-08T16:00:00.000Z" title="发表于 2026-05-09 00:00:00">2026-05-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</a><time datetime="2026-05-08T16:00:00.000Z" title="发表于 2026-05-09 00:00:00">2026-05-09</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/03/hello-world/" title="Hello World">Hello World</a><time datetime="2026-05-03T05:15:42.000Z" title="发表于 2026-05-03 13:15:42">2026-05-03</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

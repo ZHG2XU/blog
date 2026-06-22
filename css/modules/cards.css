@@ -33,3 +33,10 @@
     text-align: left;
     border-radius: 10px;
 }
+
+/* TOC文字优化 */
+#card-toc .toc-link {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

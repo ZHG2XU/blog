@@ -527,7 +527,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!target) return
 
         e.preventDefault()
-        btf.scrollToDest(btf.getEleTop(document.getElementById(decodeURI(target.getAttribute('href')).replace('#', ''))), 300)
+        const targetId = decodeURI(target.getAttribute('href')).replace('#', '')
+        const targetEle = document.getElementById(targetId)
+        if (targetEle) {
+          targetEle.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
         if (window.innerWidth < 900) {
           $cardTocLayout.classList.remove('open')
         }
@@ -577,7 +581,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (let i = 0; i < headerList.length; i++) {
         const item = headerList[i]
-        if (top > item.top - 80) {
+        if (top >= item.top - 80) {
           currentId = item.id ? '#' + encodeURI(item.id) : ''
           currentIndex = i
         } else {
