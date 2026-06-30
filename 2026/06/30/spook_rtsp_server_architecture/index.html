@@ -1,0 +1,761 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW82x Spook RTSP 流媒体服务器架构文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="TXW82x 平台基于 Spook 开源框架的 RTSP 流媒体服务器完整架构文档。涵盖 MJPEG&#x2F;H.264 硬件编码、RTP 封包、RTSP 协议交互、MSI 管道流水线、Stream 发布-订阅模型及完整调用链分析。适用于 TXW82x（CK810 CPU + 硬件JPEG&#x2F;H264编码器 + lwIP协议栈）平台的 Wi-Fi 图传（FPV）开发。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW82x Spook RTSP 流媒体服务器架构文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/06/30/spook_rtsp_server_architecture/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="TXW82x 平台基于 Spook 开源框架的 RTSP 流媒体服务器完整架构文档。涵盖 MJPEG&#x2F;H.264 硬件编码、RTP 封包、RTSP 协议交互、MSI 管道流水线、Stream 发布-订阅模型及完整调用链分析。适用于 TXW82x（CK810 CPU + 硬件JPEG&#x2F;H264编码器 + lwIP协议栈）平台的 Wi-Fi 图传（FPV）开发。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-06-29T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-30T11:38:08.000Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="MSI">
+<meta property="article:tag" content="H.264">
+<meta property="article:tag" content="TXW82x">
+<meta property="article:tag" content="JPEG">
+<meta property="article:tag" content="RTSP">
+<meta property="article:tag" content="RTP">
+<meta property="article:tag" content="流媒体">
+<meta property="article:tag" content="Wi-Fi图传">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW82x Spook RTSP 流媒体服务器架构文档",
+  "url": "https://zhongxu.cyou/2026/06/30/spook_rtsp_server_architecture/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-06-29T16:00:00.000Z",
+  "dateModified": "2026-06-30T11:38:08.000Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/06/30/spook_rtsp_server_architecture/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW82x Spook RTSP 流媒体服务器架构文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">29</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW82x Spook RTSP 流媒体服务器架构文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW82x Spook RTSP 流媒体服务器架构文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-30T11:38:08.000Z" title="更新于 2026-06-30 19:38:08">2026-06-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="TXW82x-Spook-RTSP-流媒体服务器架构文档"><a href="#TXW82x-Spook-RTSP-流媒体服务器架构文档" class="headerlink" title="TXW82x Spook RTSP 流媒体服务器架构文档"></a>TXW82x Spook RTSP 流媒体服务器架构文档</h1><h2 id="1-概述"><a href="#1-概述" class="headerlink" title="1. 概述"></a>1. 概述</h2><p>Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 <strong>RTSP 流媒体服务器</strong>，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。</p>
+<h3 id="1-1-核心能力"><a href="#1-1-核心能力" class="headerlink" title="1.1 核心能力"></a>1.1 核心能力</h3><table>
+<thead>
+<tr>
+<th>能力</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>视频编码</td>
+<td>MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.264 编码器)</td>
+</tr>
+<tr>
+<td>音频编码</td>
+<td>AAC (硬件音频编码器)</td>
+</tr>
+<tr>
+<td>传输协议</td>
+<td>RTP&#x2F;AVP over UDP、RTP&#x2F;AVP over TCP (RTSP 交织)</td>
+</tr>
+<tr>
+<td>默认端口</td>
+<td>554</td>
+</tr>
+<tr>
+<td>多路流</td>
+<td>同时注册多个 RTSP 路径，独立推流</td>
+</tr>
+<tr>
+<td>录像回放</td>
+<td>支持通过 RTSP 回放 SD 卡中的 MP4&#x2F;AVI 文件</td>
+</tr>
+<tr>
+<td>并发客户端</td>
+<td>多客户端同时连接同一路流</td>
+</tr>
+</tbody></table>
+<h3 id="1-2-硬件平台"><a href="#1-2-硬件平台" class="headerlink" title="1.2 硬件平台"></a>1.2 硬件平台</h3><table>
+<thead>
+<tr>
+<th>组件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CPU</td>
+<td>CK810 (C-SKY 架构)</td>
+</tr>
+<tr>
+<td>视频编码</td>
+<td>硬件 JPEG 编码器 + 硬件 H.264 编码器</td>
+</tr>
+<tr>
+<td>音频编码</td>
+<td>硬件 AAC 编码器</td>
+</tr>
+<tr>
+<td>网络</td>
+<td>Wi-Fi (AP 模式，默认 IP 192.168.169.1)</td>
+</tr>
+<tr>
+<td>内存</td>
+<td>SRAM + PSRAM 混合堆</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="2-软件架构"><a href="#2-软件架构" class="headerlink" title="2. 软件架构"></a>2. 软件架构</h2><h3 id="2-1-模块层次图"><a href="#2-1-模块层次图" class="headerlink" title="2.1 模块层次图"></a>2.1 模块层次图</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────────────────┐</span><br><span class="line">│                         应用层 (app_fpv.c)                            │</span><br><span class="line">│     spook_init() → 初始化基础设施                                      │</span><br><span class="line">│     rtsp_mjpeg_live_init() → 注册 /webcam 路径                        │</span><br><span class="line">│     rtsp_h264_live_init()  → 注册 /h264 路径                          │</span><br><span class="line">└───────────────────────────┬──────────────────────────────────────────┘</span><br><span class="line">                            │</span><br><span class="line">┌───────────────────────────▼──────────────────────────────────────────┐</span><br><span class="line">│  Spook RTSP Server 内核                                                │</span><br><span class="line">│                                                                       │</span><br><span class="line">│  ┌──────────────┐   ┌──────────────────┐   ┌──────────────────────┐  │</span><br><span class="line">│  │  spook.c     │   │  rtsp_common.c   │   │  tcp.c               │  │</span><br><span class="line">│  │  模块入口     │   │  RTSP协议层      │   │  TCP连接管理         │  │</span><br><span class="line">│  │  随机数工具   │   │  路径注册/会话管理 │   │  事件驱动I/O         │  │</span><br><span class="line">│  └──────────────┘   └────────┬─────────┘   └──────────────────────┘  │</span><br><span class="line">│                              │                                        │</span><br><span class="line">│  ┌───────────────────────────┼────────────────────────────────────┐   │</span><br><span class="line">│  │   RTSP 路径注册            按需调用                              │   │</span><br><span class="line">│  │                                                               │   │</span><br><span class="line">│  │  ┌─────────────────────┐  ┌─────────────────────┐            │   │</span><br><span class="line">│  │  │ rtsp_mjpeg_live.c   │  │ rtsp_h264_live.c    │            │   │</span><br><span class="line">│  │  │ /webcam (MJPEG)     │  │ /h264 (H.264)       │            │   │</span><br><span class="line">│  │  └─────────┬───────────┘  └─────────┬───────────┘            │   │</span><br><span class="line">│  │            │                        │                        │   │</span><br><span class="line">│  │  ┌─────────▼───────────┐  ┌─────────▼───────────┐           │   │</span><br><span class="line">│  │  │ custom_rtsp_jpg.c   │  │ webfile.c            │           │   │</span><br><span class="line">│  │  │ /custom (动态源)    │  │ /file (文件回放)     │           │   │</span><br><span class="line">│  │  └─────────────────────┘  └─────────────────────┘           │   │</span><br><span class="line">│  └─────────────────────────────────────────────────────────────┘   │</span><br><span class="line">│                                                                     │</span><br><span class="line">│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐   │</span><br><span class="line">│  │  rtp.c       │   │  rtp-jpeg.c  │   │  rtp-h264.c          │   │</span><br><span class="line">│  │  RTP协议层    │   │  JPEG分包     │   │  H.264 FU-A分片     │   │</span><br><span class="line">│  └──────────────┘   └──────────────┘   └──────────────────────┘   │</span><br><span class="line">│                                                                     │</span><br><span class="line">│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐   │</span><br><span class="line">│  │  session.c   │   │  stream.c    │   │  frame.c             │   │</span><br><span class="line">│  │  会话管理     │   │  流管道      │   │  帧管理/MSI接口      │   │</span><br><span class="line">│  └──────────────┘   └──────────────┘   └──────────────────────┘   │</span><br><span class="line">│                                                                     │</span><br><span class="line">│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────┐   │</span><br><span class="line">│  │  encoder-    │   │  encoder-    │   │  encoder-            │   │</span><br><span class="line">│  │  jpeg.c/h    │   │  h264.c      │   │  audio.c/h           │   │</span><br><span class="line">│  │  JPEG适配    │   │  H264适配    │   │  音频适配             │   │</span><br><span class="line">│  └──────────────┘   └──────────────┘   └──────────────────────┘   │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br><span class="line">                            │</span><br><span class="line">┌───────────────────────────▼─────────────────────────────────────────┐</span><br><span class="line">│  SDK 底层依赖                                                        │</span><br><span class="line">│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌────────┐  │</span><br><span class="line">│  │ lwIP     │ │ csi_     │ │  MSI     │ │ video_app  │ │audio   │  │</span><br><span class="line">│  │ TCP/IP   │ │ kernel   │ │ 多媒体   │ │ 视频应用   │ │媒体    │  │</span><br><span class="line">│  └──────────┘ └──────────┘ └──────────┘ └────────────┘ └────────┘  │</span><br><span class="line">│                                                                     │</span><br><span class="line">│  ┌──────────────────────────────────────────────────────────────┐  │</span><br><span class="line">│  │  硬件层: 摄像头(CSI/DVP) → ISP → JPEG/H264编码器 → Wi-Fi     │  │</span><br><span class="line">│  └──────────────────────────────────────────────────────────────┘  │</span><br><span class="line">└─────────────────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-文件清单"><a href="#2-2-文件清单" class="headerlink" title="2.2 文件清单"></a>2.2 文件清单</h3><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>行数</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>spook.c</strong></td>
+<td>~145</td>
+<td>模块入口：<code>spook_init()</code>，随机数工具，<code>rtp_name</code> 定义</td>
+</tr>
+<tr>
+<td><strong>spook.h</strong></td>
+<td>~10</td>
+<td>对外接口声明</td>
+</tr>
+<tr>
+<td><strong>spook_config.h</strong></td>
+<td>~70</td>
+<td>全局配置宏、编码器名称、<code>rtp_name</code> 结构体</td>
+</tr>
+<tr>
+<td><strong>rtsp.c</strong></td>
+<td>-</td>
+<td>RTSP 协议解析器</td>
+</tr>
+<tr>
+<td><strong>rtsp_common.c</strong></td>
+<td>~500+</td>
+<td>路径注册、轨道设置、SDP 生成、会话管理</td>
+</tr>
+<tr>
+<td><strong>rtsp_common.h</strong></td>
+<td>~70</td>
+<td><code>rtsp_source</code>、<code>rtsp_session</code>、<code>rtsp_track</code> 定义</td>
+</tr>
+<tr>
+<td><strong>rtsp_mjpeg_live.c</strong></td>
+<td>~180</td>
+<td><code>/webcam</code> — MJPEG 实时预览路径实现</td>
+</tr>
+<tr>
+<td><strong>rtsp_h264_live.c</strong></td>
+<td>~260</td>
+<td><code>/h264</code> — H.264 实时流 + <code>/loop/RECA/</code> 回放</td>
+</tr>
+<tr>
+<td><strong>custom_rtsp_jpg.c</strong></td>
+<td>~160</td>
+<td><code>/custom</code> — 自定义视频源路径</td>
+</tr>
+<tr>
+<td><strong>webfile.c</strong></td>
+<td>~230</td>
+<td><code>/file</code> — SD 卡文件回放(已注释)</td>
+</tr>
+<tr>
+<td><strong>rtp.h</strong></td>
+<td>-</td>
+<td>RTP 核心结构体定义</td>
+</tr>
+<tr>
+<td><strong>rtp.c</strong></td>
+<td>~700</td>
+<td>RTP 包收发、UDP&#x2F;TCP 传输、RTCP</td>
+</tr>
+<tr>
+<td><strong>rtp-jpeg.c</strong></td>
+<td>~560</td>
+<td>JPEG RTP 封包(RFC 2435)</td>
+</tr>
+<tr>
+<td><strong>rtp-h264.c</strong></td>
+<td>~320</td>
+<td>H.264 RTP 封包(RFC 3984, FU-A)</td>
+</tr>
+<tr>
+<td><strong>rtp-audio.c</strong></td>
+<td>-</td>
+<td>AAC RTP 封包</td>
+</tr>
+<tr>
+<td><strong>stream.c</strong></td>
+<td>~120</td>
+<td>Stream 发布-订阅管道</td>
+</tr>
+<tr>
+<td><strong>stream.h</strong></td>
+<td>~40</td>
+<td>Stream 结构体定义</td>
+</tr>
+<tr>
+<td><strong>frame.h</strong></td>
+<td>~160</td>
+<td>Frame 结构体、FrameExchanger、回调函数类型</td>
+</tr>
+<tr>
+<td><strong>frame.c</strong></td>
+<td>~410</td>
+<td>帧管理、MSI 接口、<strong>主发送线程</strong></td>
+</tr>
+<tr>
+<td><strong>session.c</strong></td>
+<td>~60</td>
+<td>RTP 媒体会话管理</td>
+</tr>
+<tr>
+<td><strong>session.h</strong></td>
+<td>~10</td>
+<td>会话接口声明</td>
+</tr>
+<tr>
+<td><strong>rtp_media.h</strong></td>
+<td>~50</td>
+<td>RTP 媒体接口定义</td>
+</tr>
+<tr>
+<td><strong>encoder-jpeg.c</strong></td>
+<td>~150</td>
+<td>JPEG 编码器适配</td>
+</tr>
+<tr>
+<td><strong>encoder-jpeg.h</strong></td>
+<td>~25</td>
+<td>JPEG 编码器结构体</td>
+</tr>
+<tr>
+<td><strong>encoder-h264.c</strong></td>
+<td>~140</td>
+<td>H.264 编码器适配</td>
+</tr>
+<tr>
+<td><strong>encoder-audio.c</strong></td>
+<td>~145</td>
+<td>AAC 音频编码器适配</td>
+</tr>
+<tr>
+<td><strong>encoder-audio.h</strong></td>
+<td>~15</td>
+<td>音频编码器结构体</td>
+</tr>
+<tr>
+<td><strong>event.h</strong></td>
+<td>-</td>
+<td>事件驱动框架(基于 eloop)</td>
+</tr>
+<tr>
+<td><strong>tcp.c</strong></td>
+<td>-</td>
+<td>TCP 连接管理</td>
+</tr>
+<tr>
+<td><strong>pmsg.h&#x2F;c</strong></td>
+<td>-</td>
+<td>HTTP&#x2F;RTSP 协议消息解析</td>
+</tr>
+<tr>
+<td><strong>log.h</strong></td>
+<td>-</td>
+<td>日志宏(已注释禁用)</td>
+</tr>
+<tr>
+<td><strong>access_log.c</strong></td>
+<td>-</td>
+<td>访问日志</td>
+</tr>
+<tr>
+<td><strong>ephoto.c</strong></td>
+<td>-</td>
+<td>测试 JPEG 图片数据</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="3-核心数据结构"><a href="#3-核心数据结构" class="headerlink" title="3. 核心数据结构"></a>3. 核心数据结构</h2><h3 id="3-1-rtp-name-—-路径描述符"><a href="#3-1-rtp-name-—-路径描述符" class="headerlink" title="3.1 rtp_name — 路径描述符"></a>3.1 <code>rtp_name</code> — 路径描述符</h3><p>定义于 <code>spook_config.h</code>，描述一条 RTSP 流所需的编码器和路径信息。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">typedef</span> <span class="class"><span class="keyword">struct</span> &#123;</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *video_encode_name;   <span class="comment">// 视频编码器 stream 名称 (如 &quot;jpg_encoder&quot;)</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *audio_encode_name;   <span class="comment">// 音频编码器 stream 名称 (如 &quot;audio_aac_encoder&quot;)</span></span><br><span class="line">    <span class="type">const</span> <span class="type">char</span> *path;                <span class="comment">// RTSP URL 路径 (如 &quot;/webcam&quot;)</span></span><br><span class="line">&#125; rtp_name;</span><br></pre></td></tr></table></figure>
+
+<p>使用示例：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> rtp_name live_dvp = &#123;</span><br><span class="line">    .video_encode_name = JPG_ENCODER_NAME,       <span class="comment">// &quot;jpg_encoder&quot;</span></span><br><span class="line">    .audio_encode_name = AUDIO_AAC_ENCODER_NAME,  <span class="comment">// &quot;audio_aac_encoder&quot;</span></span><br><span class="line">    .path              = <span class="string">&quot;/webcam&quot;</span>,</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-rtsp-source-—-RTSP-源"><a href="#3-2-rtsp-source-—-RTSP-源" class="headerlink" title="3.2 rtsp_source — RTSP 源"></a>3.2 <code>rtsp_source</code> — RTSP 源</h3><p>定义于 <code>rtsp_common.h</code>，代表一个 RTSP 路径的完整状态。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtsp_source</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtsp_session</span> *<span class="title">sess_list</span>;</span>         <span class="comment">// 当前连接的 session 链表</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtsp_track</span> <span class="title">track</span>[<span class="title">MAX_TRACKS</span>];</span>    <span class="comment">// 轨道数组 (MAX_TRACKS=4)</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">os_task</span> <span class="title">handle</span>;</span>                  <span class="comment">// 发送线程句柄</span></span><br><span class="line">    <span class="type">void</span> *signal;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtp_node</span> <span class="title">live_node</span>;</span>              <span class="comment">// video_ex / audio_ex 指针</span></span><br><span class="line">    <span class="type">int</span> head_len;</span><br><span class="line">    rtsp_creat creat;                       <span class="comment">// 创建回调 → self_creat()</span></span><br><span class="line">    rtsp_release release;                   <span class="comment">// 释放回调 → self_destory()</span></span><br><span class="line">    rtsp_play_fn play;                      <span class="comment">// 播放回调</span></span><br><span class="line">    <span class="type">void</span> *priv;                             <span class="comment">// 私有数据 → rtsp_priv</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-rtsp-track-—-轨道"><a href="#3-3-rtsp-track-—-轨道" class="headerlink" title="3.3 rtsp_track — 轨道"></a>3.3 <code>rtsp_track</code> — 轨道</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtsp_track</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> index;                          <span class="comment">// 轨道索引 (0=视频, 1=音频)</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtsp_source</span> *<span class="title">source</span>;</span>         <span class="comment">// 所属 source</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">stream_destination</span> *<span class="title">stream</span>;</span>  <span class="comment">// 连接到编码器 stream 的消费者</span></span><br><span class="line">    <span class="type">int</span> ready;                          <span class="comment">// PLAY 后置 1</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtp_media</span> *<span class="title">rtp</span>;</span>              <span class="comment">// RTP 媒体处理接口</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-4-rtp-media-—-RTP-媒体接口"><a href="#3-4-rtp-media-—-RTP-媒体接口" class="headerlink" title="3.4 rtp_media — RTP 媒体接口"></a>3.4 <code>rtp_media</code> — RTP 媒体接口</h3><p>定义于 <code>rtp_media.h</code>，纯函数指针结构体，定义了对一种媒体类型的全部操作。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtp_media</span> &#123;</span></span><br><span class="line">    rtp_media_get_sdp_func get_sdp;          <span class="comment">// 生成 SDP 描述行</span></span><br><span class="line">    rtp_media_get_payload_func get_payload;  <span class="comment">// 获取 RTP payload 类型号</span></span><br><span class="line">    rtp_media_frame_func frame;              <span class="comment">// 处理视频帧 (解析头)</span></span><br><span class="line">    rtp_media_send_func send;                <span class="comment">// 已废弃</span></span><br><span class="line">    rtp_media_send_more_func send_more;      <span class="comment">// 发送给所有连接客户端</span></span><br><span class="line">    rtp_media_send_func rtcp_send;           <span class="comment">// RTCP 发送</span></span><br><span class="line">    <span class="type">void</span> *private;                           <span class="comment">// 私有数据 (如 rtp_jpeg *)</span></span><br><span class="line">    <span class="type">int</span> per_ms_incr;                         <span class="comment">// 每毫秒时间戳增量</span></span><br><span class="line">    <span class="type">uint32_t</span> sample_rate;                    <span class="comment">// 采样率</span></span><br><span class="line">    <span class="type">uint8_t</span> type;                            <span class="comment">// 0=视频, 1=音频</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-5-frame-exchanger-—-帧交换器"><a href="#3-5-frame-exchanger-—-帧交换器" class="headerlink" title="3.5 frame_exchanger — 帧交换器"></a>3.5 <code>frame_exchanger</code> — 帧交换器</h3><p>定义于 <code>frame.h</code>，单 slot 的帧转发器，是编码器输出和 stream 管道之间的桥梁。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">frame_exchanger</span> &#123;</span></span><br><span class="line">    <span class="type">int</span> ready;                        <span class="comment">// 是否就绪</span></span><br><span class="line">    <span class="type">int</span> scan_ready;                   <span class="comment">// 编码器是否运行</span></span><br><span class="line">    frame_deliver_func f;             <span class="comment">// 帧递送回调 (get_back_frame)</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">frame</span> *<span class="title">jf</span>;</span>                 <span class="comment">// 单 slot 帧指针</span></span><br><span class="line">    <span class="type">void</span> *d;                          <span class="comment">// 回调参数 (jpeg_encoder *)</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-6-rtp-node-—-音视频出口节点"><a href="#3-6-rtp-node-—-音视频出口节点" class="headerlink" title="3.6 rtp_node — 音视频出口节点"></a>3.6 <code>rtp_node</code> — 音视频出口节点</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtp_node</span> &#123;</span></span><br><span class="line">    <span class="type">void</span> *video_ex;     <span class="comment">// → frame_exchanger * (jpeg_encoder-&gt;ex)</span></span><br><span class="line">    <span class="type">void</span> *audio_ex;     <span class="comment">// → frame_exchanger * (audio_encoder-&gt;ex)</span></span><br><span class="line">    <span class="type">void</span> *priv;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-7-rtsp-priv-—-路径私有数据"><a href="#3-7-rtsp-priv-—-路径私有数据" class="headerlink" title="3.7 rtsp_priv — 路径私有数据"></a>3.7 <code>rtsp_priv</code> — 路径私有数据</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtsp_priv</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">rtp_node</span> *<span class="title">live_node</span>;</span></span><br><span class="line">    stream *webfile_s;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">video_msi</span>;</span>       <span class="comment">// 视频编码器 MSI (如 AUTO_JPG)</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">audio_msi</span>;</span>       <span class="comment">// 音频编码器 MSI</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">v_msi</span>;</span>           <span class="comment">// RTSP 接收 MSI (如 R_RTP_JPEG)</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">a_msi</span>;</span>           <span class="comment">// RTSP 音频接收 MSI</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-8-rtp-endpoint-—-RTP-端点"><a href="#3-8-rtp-endpoint-—-RTP-端点" class="headerlink" title="3.8 rtp_endpoint — RTP 端点"></a>3.8 <code>rtp_endpoint</code> — RTP 端点</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">rtp_endpoint</span> &#123;</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">session</span> *<span class="title">session</span>;</span>     <span class="comment">// 所属 RTSP session</span></span><br><span class="line">    <span class="type">int</span> payload;                 <span class="comment">// RTP payload 类型 (26=MJPEG, 96=H264)</span></span><br><span class="line">    <span class="type">int</span> max_data_size;           <span class="comment">// 最大数据包大小 (1440)</span></span><br><span class="line">    <span class="type">unsigned</span> <span class="type">int</span> ssrc;           <span class="comment">// 同步源标识 (随机生成)</span></span><br><span class="line">    <span class="type">unsigned</span> <span class="type">int</span> start_timestamp;</span><br><span class="line">    <span class="type">unsigned</span> <span class="type">int</span> last_timestamp;</span><br><span class="line">    <span class="type">int</span> seqnum;                  <span class="comment">// 序列号 (从随机值开始递增)</span></span><br><span class="line">    <span class="type">int</span> packet_count;</span><br><span class="line">    <span class="type">int</span> octet_count;</span><br><span class="line">    <span class="type">int</span> sendEnable;              <span class="comment">// 是否允许发送</span></span><br><span class="line">    <span class="type">int</span> trans_type;              <span class="comment">// RTP_TRANS_UDP 或 RTP_TRANS_INTER(TCP)</span></span><br><span class="line">    <span class="class"><span class="keyword">union</span> &#123;</span></span><br><span class="line">        <span class="class"><span class="keyword">struct</span> &#123;</span> <span class="comment">/* UDP: fd, port, event */</span> &#125; udp;</span><br><span class="line">        <span class="class"><span class="keyword">struct</span> &#123;</span> <span class="comment">/* TCP: conn, channel */</span> &#125; inter;</span><br><span class="line">    &#125; trans;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="4-完整-MJPEG-流调用链"><a href="#4-完整-MJPEG-流调用链" class="headerlink" title="4. 完整 MJPEG 流调用链"></a>4. 完整 MJPEG 流调用链</h2><h3 id="4-1-初始化阶段"><a href="#4-1-初始化阶段" class="headerlink" title="4.1 初始化阶段"></a>4.1 初始化阶段</h3><h4 id="阶段流程图"><a href="#阶段流程图" class="headerlink" title="阶段流程图"></a>阶段流程图</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br></pre></td><td class="code"><pre><span class="line">main() → fpv_app_init() → user_protocol()</span><br><span class="line">  │</span><br><span class="line">  └─ spook_init()                              [spook.c]</span><br><span class="line">       │</span><br><span class="line">       └─ spook_thread()</span><br><span class="line">            │</span><br><span class="line">            ├─ init_random()</span><br><span class="line">            │    └─ random_key = 0x12345678</span><br><span class="line">            │</span><br><span class="line">            ├─ global_init()</span><br><span class="line">            │    └─ config_port(554)           [spook.c]</span><br><span class="line">            │</span><br><span class="line">            ├─ jpeg_encode_init(&quot;jpg_encoder&quot;) [encoder-jpeg.c]</span><br><span class="line">            │    ├─ start_block()</span><br><span class="line">            │    │    └─ malloc(jpeg_encoder)   ← 分配编码器结构体</span><br><span class="line">            │    ├─ set_output(&quot;jpg_encoder&quot;, en)</span><br><span class="line">            │    │    └─ new_stream(&quot;jpg_encoder&quot;, FORMAT_JPEG, en)</span><br><span class="line">            │    │       └─ 创建 stream 节点，挂入全局链表</span><br><span class="line">            │    └─ end_block(en)</span><br><span class="line">            │         └─ new_exchanger(16, get_back_frame, en)</span><br><span class="line">            │            └─ 创建 frame_exchanger，回调=get_back_frame</span><br><span class="line">            │</span><br><span class="line">            ├─ h264_encode_init(&quot;h264_encoder&quot;) [encoder-h264.c]</span><br><span class="line">            │    └─ 同上，创建 &quot;h264_encoder&quot; stream</span><br><span class="line">            │</span><br><span class="line">            ├─ rtsp_audio_encode_init(&quot;audio_aac_encoder&quot;)  [encoder-audio.c]</span><br><span class="line">            │    └─ 创建 &quot;audio_aac_encoder&quot; stream</span><br><span class="line">            │</span><br><span class="line">            ├─ rtsp_audio_encode_init(&quot;audio_aac_encoder2&quot;)</span><br><span class="line">            │    └─ 创建 &quot;audio_aac_encoder2&quot; stream</span><br><span class="line">            │</span><br><span class="line">            ├─ rtsp_mjpeg_live_init(&amp;live_dvp) [rtsp_mjpeg_live.c]</span><br><span class="line">            │    ├─ rtsp_start_block()</span><br><span class="line">            │    │    └─ malloc(rtsp_source)</span><br><span class="line">            │    ├─ rtsp_set_path(&quot;/webcam&quot;, source, self_rtsp_open)</span><br><span class="line">            │    ├─ set_video_track(&quot;jpg_encoder&quot;, source)</span><br><span class="line">            │    │    ├─ connect_to_stream(&quot;jpg_encoder&quot;, rtsp_common_send, &amp;track)</span><br><span class="line">            │    │    │   → 查找已存在的 stream(&quot;jpg_encoder&quot;)</span><br><span class="line">            │    │    │   → 创建 stream_destination，注册回调 rtsp_common_send</span><br><span class="line">            │    │    ├─ source-&gt;live_node.video_ex = get_video_ex(en)</span><br><span class="line">            │    │    │   → en-&gt;ex (jpeg_encoder 的 frame_exchanger)</span><br><span class="line">            │    │    └─ track-&gt;rtp = new_rtp_media_jpeg_stream(stream)</span><br><span class="line">            │    │        → 创建 rtp_media &#123;</span><br><span class="line">            │    │            .frame     = jpeg_process_frame,</span><br><span class="line">            │    │            .send_more = jpeg_send_more,</span><br><span class="line">            │    │            .get_sdp   = jpeg_get_sdp</span><br><span class="line">            │    │          &#125;</span><br><span class="line">            │    │</span><br><span class="line">            │    ├─ set_audio_track(&quot;audio_aac_encoder&quot;, source)</span><br><span class="line">            │    │    └─ 同上，音频轨道</span><br><span class="line">            │    ├─ register_live_fn(source, self_creat, self_destory, NULL)</span><br><span class="line">            │    └─ rtsp_end_block(source)</span><br><span class="line">            │</span><br><span class="line">            ├─ rtsp_h264_live_init(&amp;live_h264)        ← 注册 /h264</span><br><span class="line">            ├─ custom_rtsp_jpeg_init(&amp;live_custom)    ← 注册 /custom</span><br><span class="line">            └─ rtsp_h264_live_init(&amp;live_h264_2)      ← 注册 /loop/RECA/</span><br></pre></td></tr></table></figure>
+
+<h4 id="初始化后内存结构"><a href="#初始化后内存结构" class="headerlink" title="初始化后内存结构"></a>初始化后内存结构</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">stream 全局链表</span><br><span class="line">  ├─ &quot;jpg_encoder&quot; (FORMAT_JPEG)</span><br><span class="line">  │    ├─ private → jpeg_encoder</span><br><span class="line">  │    │              ├─ output → stream(&quot;jpg_encoder&quot;) 自指</span><br><span class="line">  │    │              └─ ex → frame_exchanger</span><br><span class="line">  │    │                      ├─ f = get_back_frame</span><br><span class="line">  │    │                      ├─ d = jpeg_encoder</span><br><span class="line">  │    │                      └─ jf = frame *</span><br><span class="line">  │    └─ dest_list</span><br><span class="line">  │         └─ stream_destination [video track of /webcam]</span><br><span class="line">  │              ├─ process_frame = rtsp_common_send</span><br><span class="line">  │              └─ d = &amp;rtsp_source.track[0]</span><br><span class="line">  │</span><br><span class="line">  ├─ &quot;h264_encoder&quot; (FORMAT_H264)</span><br><span class="line">  ├─ &quot;audio_aac_encoder&quot; (FORMAT_AUDIO)</span><br><span class="line">  └─ &quot;audio_aac_encoder2&quot; (FORMAT_AUDIO)</span><br><span class="line"></span><br><span class="line">RTSP 路径注册表</span><br><span class="line">  ├─ &quot;/webcam&quot; → rtsp_source</span><br><span class="line">  │    ├─ track[0]: video → rtp_media(jpeg_process_frame)</span><br><span class="line">  │    ├─ track[1]: audio → rtp_media(audio_send)</span><br><span class="line">  │    └─ live_node.video_ex → frame_exchanger(get_back_frame)</span><br><span class="line">  │</span><br><span class="line">  ├─ &quot;/h264&quot; → rtsp_source</span><br><span class="line">  ├─ &quot;/custom&quot; → rtsp_source</span><br><span class="line">  └─ &quot;/loop/RECA/&quot; → rtsp_source</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-客户端连接阶段"><a href="#4-2-客户端连接阶段" class="headerlink" title="4.2 客户端连接阶段"></a>4.2 客户端连接阶段</h3><h4 id="RTSP-协议交互"><a href="#RTSP-协议交互" class="headerlink" title="RTSP 协议交互"></a>RTSP 协议交互</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">客户端 (VLC/ffplay)             服务器 (端口 554)</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── TCP connect ──►            │  tcp.c: accept → conn</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── OPTIONS ──►                │  rtsp.c: 回复支持方法</span><br><span class="line">      │  ◄── 200 OK ──                │</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── DESCRIBE /webcam ──►       │</span><br><span class="line">      │                                │  → 查找路径 &quot;/webcam&quot;</span><br><span class="line">      │                                │  → self_rtsp_open()</span><br><span class="line">      │                                │  → rtsp_open() 创建 session</span><br><span class="line">      │  ◄── SDP ──                    │</span><br><span class="line">      │    m=video 0 RTP/AVP 26       │  track0: MJPEG</span><br><span class="line">      │    m=audio 0 RTP/AVP 97       │  track1: AAC</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── SETUP track0 ──►           │  ★ 首次 SETUP 触发重量级初始化</span><br><span class="line">      │                                │  rtsp_setup(s, t=0)</span><br><span class="line">      │                                │    └─ source-&gt;creat(source, path)</span><br><span class="line">      │                                │       → self_creat() [rtsp_mjpeg_live.c]</span><br><span class="line">      │                                │         ├─ os_zalloc(rtsp_priv)</span><br><span class="line">      │                                │         ├─ r-&gt;video_msi = msi_find(AUTO_JPG,1)</span><br><span class="line">      │                                │         ├─ r-&gt;v_msi = rtsp_msi_init(...)</span><br><span class="line">      │                                │         ├─ msi_add_output(video_msi, NULL, R_RTP_JPEG)</span><br><span class="line">      │                                │         └─ OS_TASK_INIT(&quot;live_rtsp_mjpeg&quot;, ...)</span><br><span class="line">      │                                │  → new_rtp_endpoint(26)</span><br><span class="line">      │  ◄── 200 OK (channel 0-1) ──   │</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── SETUP track1 ──►           │  (线程已存在，不再创建)</span><br><span class="line">      │  ◄── 200 OK (channel 2-3) ──   │</span><br><span class="line">      │                                │</span><br><span class="line">      │  ── PLAY ──►                   │</span><br><span class="line">      │                                │  rtsp_play(s, start)</span><br><span class="line">      │                                │    ├─ ls-&gt;playing = 1</span><br><span class="line">      │                                │    ├─ track-&gt;ready = 1</span><br><span class="line">      │                                │    └─ set_waiting(stream, 1)</span><br><span class="line">      │                                │       → jpeg_encoder-&gt;running = 1</span><br><span class="line">      │                                │       → ex-&gt;scan_ready = 1</span><br><span class="line">      │  ◄── 200 OK ──                │</span><br><span class="line">      │                                │</span><br><span class="line">      │  ◄══ RTP 数据流 ══►           │  发送线程开始推流</span><br><span class="line">      │    $ (interleaved data)        │  TCP 交织通道 0-1 持续发送</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-数据发送阶段"><a href="#4-3-数据发送阶段" class="headerlink" title="4.3 数据发送阶段"></a>4.3 数据发送阶段</h3><h4 id="核心发送线程-spook-send-thread-stream"><a href="#核心发送线程-spook-send-thread-stream" class="headerlink" title="核心发送线程 spook_send_thread_stream()"></a>核心发送线程 <code>spook_send_thread_stream()</code></h4><p>定义于 <code>frame.c:316</code>，是整个流媒体服务的<strong>心脏</strong>。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">void</span> <span class="title function_">spook_send_thread_stream</span><span class="params">(<span class="keyword">struct</span> rtsp_priv *r)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">while</span> (<span class="number">1</span>)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// ── [可选] 音频处理 ──</span></span><br><span class="line">        <span class="keyword">if</span> (audio_rtsp) &#123;</span><br><span class="line">            audio_fb = msi_get_fb(audio_rtsp-&gt;msi, <span class="number">0</span>);   <span class="comment">// 取音频帧</span></span><br><span class="line">            <span class="keyword">if</span> (audio_fb) &#123;</span><br><span class="line">                audio_ex-&gt;f(audio, audio_ex-&gt;d);          <span class="comment">// → 发送音频</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// ── [核心] 视频处理 ──</span></span><br><span class="line">        fb = msi_get_fb(jpg_rtsp-&gt;msi, <span class="number">0</span>);                <span class="comment">// ① 取视频帧(MSI队列)</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (fb) &#123;</span><br><span class="line">            jpeg = ex-&gt;jf;                                 <span class="comment">// ② 取 frame slot</span></span><br><span class="line">            jpeg-&gt;get_f = fb;                              <span class="comment">// ③ 绑定 framebuff</span></span><br><span class="line">            jpeg-&gt;d      = fb-&gt;data;</span><br><span class="line">            jpeg-&gt;length = fb-&gt;len;</span><br><span class="line">            jpeg-&gt;timestamp = fb-&gt;time;</span><br><span class="line"></span><br><span class="line">            ex-&gt;f(jpeg, ex-&gt;d);                            <span class="comment">// ④ 送入 stream 管道</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// ── 无帧时休眠 ──</span></span><br><span class="line">        <span class="keyword">if</span> (!fb &amp;&amp; !audio_fb) &#123;</span><br><span class="line">            os_sleep_ms(<span class="number">1</span>);                                <span class="comment">// 等 1ms</span></span><br><span class="line">            <span class="keyword">if</span> (超时&gt;<span class="number">1000</span>ms) ex-&gt;f(<span class="literal">NULL</span>, ex-&gt;d);            <span class="comment">// 空帧保活</span></span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="帧处理完整调用链"><a href="#帧处理完整调用链" class="headerlink" title="帧处理完整调用链"></a>帧处理完整调用链</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line">① msi_get_fb(v_msi, 0)     ← 从 MSI 队列取帧 (缓冲区 28 帧)</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">② 填充 frame 结构体</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">③ ex-&gt;f(jpeg, ex-&gt;d)</span><br><span class="line">   │  ex-&gt;f = get_back_frame    [encoder-jpeg.c]</span><br><span class="line">   │  ex-&gt;d = jpeg_encoder *</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">④ get_back_frame(f, en)       [encoder-jpeg.c]</span><br><span class="line">      │</span><br><span class="line">      ▼</span><br><span class="line">⑤ deliver_frame_to_stream(f, en-&gt;output)  [stream.c]</span><br><span class="line">      │  en-&gt;output = stream(&quot;jpg_encoder&quot;)</span><br><span class="line">      │</span><br><span class="line">      ▼  [遍历 stream 的 dest_list]</span><br><span class="line">      │</span><br><span class="line">⑥ dest-&gt;process_frame(f, &amp;track[t])</span><br><span class="line">   │  = rtsp_common_send(f, track)          [rtsp_common.c]</span><br><span class="line">      │</span><br><span class="line">      ├─ [6a] JPEG 头解析 ──────────────────────────────────┐</span><br><span class="line">      │  track-&gt;rtp-&gt;frame(f, track-&gt;rtp)                   │</span><br><span class="line">      │  = jpeg_process_frame(f, rtp)     [rtp-jpeg.c]      │</span><br><span class="line">      │    │                                                 │</span><br><span class="line">      │    ├─ 遍历 JPEG 标记:                                │</span><br><span class="line">      │    │  0xFFD8 SOI (图像起始)                          │</span><br><span class="line">      │    │  0xFFDB DQT → parse_DQT()  解析量化表           │</span><br><span class="line">      │    │  0xFFC0 SOF → parse_SOF()  解析宽/高/采样       │</span><br><span class="line">      │    │  0xFFC4 DHT → parse_DHT()  解析哈夫曼表         │</span><br><span class="line">      │    │  0xFFDD DRI → parse_DRI()  解析重置间隔         │</span><br><span class="line">      │    │  0xFFDA SOS → 找到扫描数据起始位置              │</span><br><span class="line">      │    │                                                  │</span><br><span class="line">      │    ├─ out-&gt;scan_data = f-&gt;d + offset                 │</span><br><span class="line">      │    ├─ out-&gt;scan_data_len = data_length               │</span><br><span class="line">      │    ├─ out-&gt;init_done = 1                             │</span><br><span class="line">      │    └─ return 1 (解析完成)                            │</span><br><span class="line">      └─────────────────────────────────────────────────────┘</span><br><span class="line">              │</span><br><span class="line">              ▼</span><br><span class="line">      └─ [6b] RTP 分包发送 ─────────────────────────────────┐</span><br><span class="line">         track-&gt;rtp-&gt;send_more(loop_search_ep,              │</span><br><span class="line">             ls, track, track-&gt;rtp-&gt;private)                │</span><br><span class="line">         = jpeg_send_more(...)           [rtp-jpeg.c]       │</span><br><span class="line">           │                                                │</span><br><span class="line">           └─ 遍历所有连接的客户端 session:                   │</span><br><span class="line">                │                                           │</span><br><span class="line">                ▼                                           │</span><br><span class="line">              jpeg_send_frame_to_endpoint(ep, out, fb)      │</span><br><span class="line">                │                                           │</span><br><span class="line">                ├─ 构建 RTP 固定头 (12字节)                  │</span><br><span class="line">                │  V=2, P=0, PT=26, sequence++, timestamp   │</span><br><span class="line">                │                                           │</span><br><span class="line">                ├─ 构建 JPEG 特定头 (8或12字节)              │</span><br><span class="line">                │  type, width/8, height/8, quant tables    │</span><br><span class="line">                │                                           │</span><br><span class="line">                ├─ 附加量化表 (128字节)                      │</span><br><span class="line">                │                                           │</span><br><span class="line">                ├─ [可选] 扩展头 (EXTHDR)                    │</span><br><span class="line">                │  Huffman 表 + DRI 信息                     │</span><br><span class="line">                │                                           │</span><br><span class="line">                └─ 循环分包:                                │</span><br><span class="line">                     while i &lt; scan_data_len:               │</span><br><span class="line">                       ├─ max_size = rtp_get_payload_size() │</span><br><span class="line">                       ├─ 构建数据分片 (32字节对齐)           │</span><br><span class="line">                       └─ rtp_sendmsg(ep, v, ...)           │</span><br><span class="line">                            ├─ UDP: sendto() + 重试×30      │</span><br><span class="line">                            └─ TCP: send() 交织通道          │</span><br><span class="line">      └─────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="5-Stream-发布-订阅模型"><a href="#5-Stream-发布-订阅模型" class="headerlink" title="5. Stream 发布-订阅模型"></a>5. Stream 发布-订阅模型</h2><p>Stream 管道是 Spook 实现<strong>编码器与消费者解耦</strong>的核心设计。</p>
+<h3 id="5-1-模型"><a href="#5-1-模型" class="headerlink" title="5.1 模型"></a>5.1 模型</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">生产者 (编码器)                         消费者 (RTSP/HTTP)</span><br><span class="line">    │                                       │</span><br><span class="line">    │  new_stream(&quot;jpg_encoder&quot;, ...)        │</span><br><span class="line">    │  └─ 创建命名的 stream 节点             │</span><br><span class="line">    │                                       │</span><br><span class="line">    │                                       │  connect_to_stream(&quot;jpg_encoder&quot;, cb, d)</span><br><span class="line">    │                                       │  └─ 创建 stream_destination</span><br><span class="line">    │                                       │     ├─ process_frame = 回调函数</span><br><span class="line">    │                                       │     └─ d = 回调参数</span><br><span class="line">    │                                       │</span><br><span class="line">    │  deliver_frame_to_stream(f, stream)    │</span><br><span class="line">    │  └─ 遍历 stream-&gt;dest_list             │</span><br><span class="line">    │      └─ dest-&gt;process_frame(f, d) ──► │  收到帧</span><br><span class="line">    │                                       │</span><br><span class="line">    │                                       │  connect_to_stream(&quot;jpg_encoder&quot;, cb2, d2)</span><br><span class="line">    │                                       │  └─ 第二个消费者加入</span><br><span class="line">    │                                       │</span><br><span class="line">    │  deliver_frame_to_stream(f, stream)    │</span><br><span class="line">    │  └─ 遍历 dest_list                    │</span><br><span class="line">    │      ├─ dest-&gt;process_frame(f, d) ──► │  消费者1收到</span><br><span class="line">    │      └─ dest-&gt;process_frame(f, d) ──► │  消费者2也收到</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-2-关键-API"><a href="#5-2-关键-API" class="headerlink" title="5.2 关键 API"></a>5.2 关键 API</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生产者接口</span></span><br><span class="line"><span class="keyword">struct</span> stream *<span class="title function_">new_stream</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name, <span class="type">int</span> format, <span class="type">void</span> *d)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">deliver_frame_to_stream</span><span class="params">(<span class="keyword">struct</span> frame *f, <span class="type">void</span> *d)</span>;  <span class="comment">// d = stream指针</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 消费者接口</span></span><br><span class="line"><span class="keyword">struct</span> stream_destination *<span class="title function_">connect_to_stream</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *name,</span></span><br><span class="line"><span class="params">    frame_deliver_func process_frame, <span class="type">void</span> *d)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">set_waiting</span><span class="params">(<span class="keyword">struct</span> stream_destination *dest, <span class="type">int</span> waiting)</span>;</span><br><span class="line"><span class="type">void</span> <span class="title function_">disconnect_stream</span><span class="params">(<span class="keyword">struct</span> stream_destination *dest, ...)</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-在-MJPEG-流中的应用"><a href="#5-3-在-MJPEG-流中的应用" class="headerlink" title="5.3 在 MJPEG 流中的应用"></a>5.3 在 MJPEG 流中的应用</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">jpeg_encode_init(&quot;jpg_encoder&quot;)    ← 生产者</span><br><span class="line">  └─ new_stream(&quot;jpg_encoder&quot;)     ← 创建管道</span><br><span class="line"></span><br><span class="line">set_video_track(&quot;jpg_encoder&quot;,...) ← 消费者 (RTSP)</span><br><span class="line">  └─ connect_to_stream(&quot;jpg_encoder&quot;, rtsp_common_send, &amp;track)</span><br><span class="line">                                   ← 注册回调</span><br><span class="line"></span><br><span class="line">get_back_frame(f, en)              ← 帧到达</span><br><span class="line">  └─ deliver_frame_to_stream(f, en-&gt;output)</span><br><span class="line">       └─ rtsp_common_send(f, &amp;track)</span><br><span class="line">            └─ jpeg_process_frame + jpeg_send_more</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="6-关键配置参数"><a href="#6-关键配置参数" class="headerlink" title="6. 关键配置参数"></a>6. 关键配置参数</h2><h3 id="6-1-spook-config-h"><a href="#6-1-spook-config-h" class="headerlink" title="6.1 spook_config.h"></a>6.1 <code>spook_config.h</code></h3><table>
+<thead>
+<tr>
+<th>宏</th>
+<th>默认值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SPOOK_PORT</code></td>
+<td>554</td>
+<td>RTSP 服务端口号</td>
+</tr>
+<tr>
+<td><code>MAX_DATA_PACKET_SIZE</code></td>
+<td>1440</td>
+<td>RTP 最大数据包大小 (MTU 限制)</td>
+</tr>
+<tr>
+<td><code>EXCHANGER_SLOT_SIZE</code></td>
+<td>16</td>
+<td>FrameExchanger 的 slot 数量</td>
+</tr>
+<tr>
+<td><code>JPEG_FRAMEINC</code></td>
+<td>1</td>
+<td>JPEG 帧率分子</td>
+</tr>
+<tr>
+<td><code>H264_FRAMEINC</code></td>
+<td>1</td>
+<td>H.264 帧率分子</td>
+</tr>
+<tr>
+<td><code>SCAN_DATA_OFFSET</code></td>
+<td>0x253</td>
+<td>JPEG 扫描数据偏移量</td>
+</tr>
+<tr>
+<td><code>SPOOK_CACHE_BUF_LEN</code></td>
+<td>1600</td>
+<td>TCP 发送缓存大小</td>
+</tr>
+</tbody></table>
+<h3 id="6-2-frame-c-内部配置"><a href="#6-2-frame-c-内部配置" class="headerlink" title="6.2 frame.c 内部配置"></a>6.2 <code>frame.c</code> 内部配置</h3><table>
+<thead>
+<tr>
+<th>宏</th>
+<th>默认值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MAX_RTSP_JPG_RECV</code></td>
+<td>28</td>
+<td>JPEG MSI 接收缓冲区深度</td>
+</tr>
+<tr>
+<td><code>MAX_RTSP_AUDIO_RECV</code></td>
+<td>10</td>
+<td>音频 MSI 接收缓冲区深度</td>
+</tr>
+</tbody></table>
+<h3 id="6-3-编码器名称宏"><a href="#6-3-编码器名称宏" class="headerlink" title="6.3 编码器名称宏"></a>6.3 编码器名称宏</h3><table>
+<thead>
+<tr>
+<th>宏</th>
+<th>值</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>JPG_ENCODER_NAME</code></td>
+<td><code>&quot;jpg_encoder&quot;</code></td>
+<td>MJPEG 编码器 stream 名</td>
+</tr>
+<tr>
+<td><code>H264_ENCODER_NAME</code></td>
+<td><code>&quot;h264_encoder&quot;</code></td>
+<td>H.264 编码器 stream 名</td>
+</tr>
+<tr>
+<td><code>AUDIO_AAC_ENCODER_NAME</code></td>
+<td><code>&quot;audio_aac_encoder&quot;</code></td>
+<td>音频 stream 名 (用于 &#x2F;webcam)</td>
+</tr>
+<tr>
+<td><code>AUDIO_AAC_ENCODER_NAME2</code></td>
+<td><code>&quot;audio_aac_encoder2&quot;</code></td>
+<td>音频 stream 名2 (用于 &#x2F;h264)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="7-RTSP-路径一览"><a href="#7-RTSP-路径一览" class="headerlink" title="7. RTSP 路径一览"></a>7. RTSP 路径一览</h2><table>
+<thead>
+<tr>
+<th>路径</th>
+<th>变量名</th>
+<th>视频编码</th>
+<th>音频编码</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/webcam</code></td>
+<td><code>live_dvp</code></td>
+<td>MJPEG</td>
+<td>AAC</td>
+<td>实时预览 (FPV 图传)</td>
+</tr>
+<tr>
+<td><code>/h264</code></td>
+<td><code>live_h264</code></td>
+<td>H.264</td>
+<td>AAC</td>
+<td>H.264 高清实时流</td>
+</tr>
+<tr>
+<td><code>/custom</code></td>
+<td><code>live_custom</code></td>
+<td>MJPEG</td>
+<td>AAC</td>
+<td>自定义视频源</td>
+</tr>
+<tr>
+<td><code>/loop/RECA/</code></td>
+<td><code>live_h264_2</code></td>
+<td>H.264</td>
+<td>AAC</td>
+<td>MP4 录像文件回放</td>
+</tr>
+<tr>
+<td><code>/file</code></td>
+<td><code>webfile</code></td>
+<td>JPEG</td>
+<td>-</td>
+<td>SD 卡文件播放 (已注释)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="8-完整-RTSP-协议交互示例"><a href="#8-完整-RTSP-协议交互示例" class="headerlink" title="8. 完整 RTSP 协议交互示例"></a>8. 完整 RTSP 协议交互示例</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">→ OPTIONS rtsp://192.168.169.1:554/webcam RTSP/1.0</span><br><span class="line">  CSeq: 1</span><br><span class="line">  User-Agent: VLC/3.0.20</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 1</span><br><span class="line">  Public: DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, OPTIONS</span><br><span class="line"></span><br><span class="line">→ DESCRIBE rtsp://192.168.169.1:554/webcam RTSP/1.0</span><br><span class="line">  CSeq: 2</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 2</span><br><span class="line">  Content-Type: application/sdp</span><br><span class="line">  Content-Length: 123</span><br><span class="line"></span><br><span class="line">  v=0</span><br><span class="line">  o=- 1 1 IN IP4 127.0.0.1</span><br><span class="line">  s=Test</span><br><span class="line">  a=type:broadcast</span><br><span class="line">  t=0 0</span><br><span class="line">  c=IN IP4 0.0.0.0</span><br><span class="line">  m=video 0 RTP/AVP 26</span><br><span class="line">  a=control:track0</span><br><span class="line">  m=audio 0 RTP/AVP 97</span><br><span class="line">  a=rtpmap:97 mpeg4-generic/8000</span><br><span class="line">  a=control:track1</span><br><span class="line"></span><br><span class="line">→ SETUP rtsp://192.168.169.1:554/webcam/track0 RTSP/1.0</span><br><span class="line">  CSeq: 3</span><br><span class="line">  Transport: RTP/AVP/TCP;interleaved=0-1</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 3</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line">  Transport: RTP/AVP/TCP;interleaved=0-1</span><br><span class="line"></span><br><span class="line">→ SETUP rtsp://192.168.169.1:554/webcam/track1 RTSP/1.0</span><br><span class="line">  CSeq: 4</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line">  Transport: RTP/AVP/TCP;interleaved=2-3</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 4</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line">  Transport: RTP/AVP/TCP;interleaved=2-3</span><br><span class="line"></span><br><span class="line">→ PLAY rtsp://192.168.169.1:554/webcam RTSP/1.0</span><br><span class="line">  CSeq: 5</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 5</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line">  RTP-Info: url=rtsp://192.168.169.1:554/webcam/track0;</span><br><span class="line">            seq=45678;rtptime=12345</span><br><span class="line"></span><br><span class="line">  (RTP 数据通过 TCP 交织通道 0-1 持续发送)</span><br><span class="line">  $ (interleaved binary data)...</span><br><span class="line"></span><br><span class="line">→ TEARDOWN rtsp://192.168.169.1:554/webcam RTSP/1.0</span><br><span class="line">  CSeq: 6</span><br><span class="line">  Session: A1B2C3D4</span><br><span class="line"></span><br><span class="line">← RTSP/1.0 200 OK</span><br><span class="line">  CSeq: 6</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="9-事件驱动与并发模型"><a href="#9-事件驱动与并发模型" class="headerlink" title="9. 事件驱动与并发模型"></a>9. 事件驱动与并发模型</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">┌──────────────────────────────────────────────────────────┐</span><br><span class="line">│  CPU0 (CK810)                                              │</span><br><span class="line">│                                                            │</span><br><span class="line">│  [eloop 事件循环线程]                [发送线程 per path]     │</span><br><span class="line">│  ┌──────────────────────┐          ┌──────────────────┐   │</span><br><span class="line">│  │  TCP listen          │          │  spook_send_     │   │</span><br><span class="line">│  │  → accept conn       │          │  thread_stream() │   │</span><br><span class="line">│  │  → read RTSP req     │          │                  │   │</span><br><span class="line">│  │  → parse &amp; respond   │          │  while(1) &#123;      │   │</span><br><span class="line">│  │  → setup/play/       │          │    msi_get_fb()  │   │</span><br><span class="line">│  │    teardown          │          │    ex-&gt;f()       │   │</span><br><span class="line">│  │                      │          │    rtp_sendmsg() │   │</span><br><span class="line">│  │  [FD事件]            │          │  &#125;               │   │</span><br><span class="line">│  │  [定时器]→RTCP       │          └──────────────────┘   │</span><br><span class="line">│  └──────────────────────┘                                 │</span><br><span class="line">│                                                            │</span><br><span class="line">│  [硬件编码器线程]                                         │</span><br><span class="line">│  ┌──────────────────────┐                                  │</span><br><span class="line">│  │  JPEG/H264 编码器     │  →  framebuff                   │</span><br><span class="line">│  │  → 写入 MSI 管道      │  →  msi_get_fb() ← 发送线程    │</span><br><span class="line">│  └──────────────────────┘                                  │</span><br><span class="line">└──────────────────────────────────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="10-延迟分析与优化"><a href="#10-延迟分析与优化" class="headerlink" title="10. 延迟分析与优化"></a>10. 延迟分析与优化</h2><h3 id="10-1-延迟分布"><a href="#10-1-延迟分布" class="headerlink" title="10.1 延迟分布"></a>10.1 延迟分布</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">数据路径延迟 (MJPEG 720P, ~25fps, 每帧40ms):</span><br><span class="line"></span><br><span class="line">摄像头采集 ──┬── ISP处理 ──┬── JPEG编码 ──┬── MSI队列 ──┬── 发送线程 ──┬── RTP发送 ──┬── Wi-Fi</span><br><span class="line">            │ (1-2ms)   │ (5-15ms)   │ (0-28帧)  │ (0-1ms)    │ (1-3ms)    │ (1-5ms)</span><br><span class="line">            │           │            │ ≈1.1s!   │            │            │</span><br></pre></td></tr></table></figure>
+
+<h3 id="10-2-延迟来源与优化"><a href="#10-2-延迟来源与优化" class="headerlink" title="10.2 延迟来源与优化"></a>10.2 延迟来源与优化</h3><table>
+<thead>
+<tr>
+<th>延迟源</th>
+<th>代码位置</th>
+<th>典型值</th>
+<th>优化方案</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>MSI 队列缓冲</strong></td>
+<td><code>frame.c:MAX_RTSP_JPG_RECV=28</code></td>
+<td><strong>0~1.1s</strong></td>
+<td>改为 3~5，大幅降低延迟</td>
+</tr>
+<tr>
+<td>RTP 重试</td>
+<td><code>rtp-jpeg.c:505</code> retries&#x3D;30</td>
+<td>0~300ms</td>
+<td>改为 0，丢包不重传</td>
+</tr>
+<tr>
+<td>无主动丢帧</td>
+<td><code>spook_send_thread_stream</code></td>
+<td>持续累积</td>
+<td>发送前丢弃队列中旧帧</td>
+</tr>
+<tr>
+<td>JPEG 头重复解析</td>
+<td><code>rtp-jpeg.c:jpeg_process_frame</code></td>
+<td>每帧1次</td>
+<td>同分辨率只解析一次(已有init_done)</td>
+</tr>
+<tr>
+<td>音视频同线程</td>
+<td><code>frame.c:spook_send_thread_stream</code></td>
+<td>相互阻塞</td>
+<td>音频分离线程</td>
+</tr>
+<tr>
+<td>空闲休眠 1ms</td>
+<td><code>frame.c</code> <code>os_sleep_ms(1)</code></td>
+<td>1ms</td>
+<td>改用事件唤醒</td>
+</tr>
+</tbody></table>
+<h3 id="10-3-推荐优化措施"><a href="#10-3-推荐优化措施" class="headerlink" title="10.3 推荐优化措施"></a>10.3 推荐优化措施</h3><p><strong>最简优化</strong>（改 3 处即可显著降低延迟）：</p>
+<ol>
+<li><p><code>frame.c</code> — 减小 MSI 缓冲深度：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MAX_RTSP_JPG_RECV 3   <span class="comment">// 28 → 3</span></span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><code>frame.c</code> — 发送前丢弃旧帧，只保留最新帧：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 在 msi_get_fb 后添加：</span></span><br><span class="line"><span class="keyword">while</span> (msi_peek_fb(jpg_rtsp-&gt;msi)) &#123;</span><br><span class="line">    msi_get_fb(jpg_rtsp-&gt;msi, <span class="number">0</span>);  <span class="comment">// 丢弃旧帧</span></span><br><span class="line">    msi_delete_fb(<span class="literal">NULL</span>, fb);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><code>rtp-jpeg.c</code> — 关闭 UDP 重试：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rtp_sendmsg(ep, v, vcnt+<span class="number">1</span>, out-&gt;timestamp,</span><br><span class="line">    plen + i == out-&gt;scan_data_len, <span class="number">0</span>);  <span class="comment">// retries: 30 → 0</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<hr>
+<h2 id="11-常见问题与排查"><a href="#11-常见问题与排查" class="headerlink" title="11. 常见问题与排查"></a>11. 常见问题与排查</h2><h3 id="Q-客户端连不上-RTSP-服务器？"><a href="#Q-客户端连不上-RTSP-服务器？" class="headerlink" title="Q: 客户端连不上 RTSP 服务器？"></a>Q: 客户端连不上 RTSP 服务器？</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">检查清单:</span><br><span class="line">□ 设备 Wi-Fi 是否启动 (AT+WIFIMODE? → 应为 AP)</span><br><span class="line">□ 手机/电脑是否连接到设备的 Wi-Fi (SSID: 82X_XXXXXX)</span><br><span class="line">□ IP 是否正确 (默认 192.168.169.1，或 AT+NETIP? 查看)</span><br><span class="line">□ 端口是否正确 (默认 554，Windows 需管理员权限)</span><br><span class="line">□ 防火墙是否阻止了端口</span><br><span class="line">□ 串口日志是否有 accept/connection 打印</span><br></pre></td></tr></table></figure>
+
+<h3 id="Q-视频流卡顿或延迟高？"><a href="#Q-视频流卡顿或延迟高？" class="headerlink" title="Q: 视频流卡顿或延迟高？"></a>Q: 视频流卡顿或延迟高？</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">检查清单:</span><br><span class="line">□ 帧率统计: 串口打印 &quot;cnt_num:xx&quot; 是否 ≈ 25</span><br><span class="line">□ 发送时间: 串口打印 &quot;time:xx&quot; 是否 &lt; 50ms</span><br><span class="line">□ MSI 队列深度: MAX_RTSP_JPG_RECV 是否过大</span><br><span class="line">□ Wi-Fi 信号强度: rssi 值</span><br><span class="line">□ 编码器分辨率是否过高 (建议 720P 或以下)</span><br></pre></td></tr></table></figure>
+
+<h3 id="Q-画面花屏或无法解码？"><a href="#Q-画面花屏或无法解码？" class="headerlink" title="Q: 画面花屏或无法解码？"></a>Q: 画面花屏或无法解码？</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">可能原因:</span><br><span class="line">□ JPEG 数据损坏: 检查 DQT/SOF/DHT 解析是否正常</span><br><span class="line">□ 量化表偏移错误: 检查 rtp-jpeg.c parse_DQT 中 quant 偏移计算</span><br><span class="line">□ 分包边界未对齐: 检查 32 字节对齐逻辑</span><br><span class="line">□ 网络丢包: UDP 模式下丢包导致花屏，建议使用 TCP 模式</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="12-开发指南"><a href="#12-开发指南" class="headerlink" title="12. 开发指南"></a>12. 开发指南</h2><h3 id="12-1-添加新的-RTSP-路径"><a href="#12-1-添加新的-RTSP-路径" class="headerlink" title="12.1 添加新的 RTSP 路径"></a>12.1 添加新的 RTSP 路径</h3><p>参考 <code>/webcam</code> 的实现，新增路径需要：</p>
+<ol>
+<li><p>创建新文件 <code>rtsp_xxx.c</code>，实现：</p>
+<ul>
+<li><code>self_creat()</code> — 客户端首次 SETUP 时调用，创建 MSI 管道和线程</li>
+<li><code>self_destory()</code> — TEARDOWN 时调用，清理资源</li>
+<li><code>self_rtsp_open()</code> — DESCRIBE 时调用，设置 SDP 回调</li>
+</ul>
+</li>
+<li><p>在 <code>spook_thread()</code> 中注册：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">const</span> rtp_name live_xxx = &#123;</span><br><span class="line">    .video_encode_name = ENCODER_NAME,</span><br><span class="line">    .audio_encode_name = AUDIO_NAME,</span><br><span class="line">    .path = <span class="string">&quot;/xxx&quot;</span>,</span><br><span class="line">&#125;;</span><br><span class="line">rtsp_xxx_live_init(&amp;live_xxx);</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>确保对应的编码器 stream 已通过 <code>xxx_encode_init()</code> 创建。</p>
+</li>
+</ol>
+<h3 id="12-2-播放器兼容性"><a href="#12-2-播放器兼容性" class="headerlink" title="12.2 播放器兼容性"></a>12.2 播放器兼容性</h3><table>
+<thead>
+<tr>
+<th>播放器</th>
+<th>RTSP over TCP</th>
+<th>RTSP over UDP</th>
+<th>测试状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VLC</td>
+<td>✅</td>
+<td>✅</td>
+<td>推荐</td>
+</tr>
+<tr>
+<td>PotPlayer</td>
+<td>✅</td>
+<td>✅</td>
+<td>可用</td>
+</tr>
+<tr>
+<td>ffplay</td>
+<td>✅</td>
+<td>✅</td>
+<td>命令行测试</td>
+</tr>
+<tr>
+<td>手机 VLC</td>
+<td>✅</td>
+<td>✅</td>
+<td>iOS&#x2F;Android 均可</td>
+</tr>
+<tr>
+<td>Windows Media Player</td>
+<td>❌</td>
+<td>❌</td>
+<td>不支持 RTSP</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="附录-A-关键函数调用关系"><a href="#附录-A-关键函数调用关系" class="headerlink" title="附录 A: 关键函数调用关系"></a>附录 A: 关键函数调用关系</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">spook_init()</span><br><span class="line">  └─ spook_thread()</span><br><span class="line">       ├─ init_random()</span><br><span class="line">       ├─ global_init() → config_port(554)</span><br><span class="line">       ├─ jpeg_encode_init()  [encoder-jpeg.c]</span><br><span class="line">       │    └─ new_stream() + new_exchanger()</span><br><span class="line">       ├─ h264_encode_init()  [encoder-h264.c]</span><br><span class="line">       ├─ rtsp_audio_encode_init() [encoder-audio.c]</span><br><span class="line">       ├─ rtsp_mjpeg_live_init()   [rtsp_mjpeg_live.c]</span><br><span class="line">       │    ├─ rtsp_start_block()</span><br><span class="line">       │    ├─ rtsp_set_path()</span><br><span class="line">       │    ├─ set_video_track()</span><br><span class="line">       │    │    ├─ connect_to_stream() [stream.c]</span><br><span class="line">       │    │    └─ new_rtp_media_jpeg_stream() [rtp-jpeg.c]</span><br><span class="line">       │    ├─ set_audio_track()</span><br><span class="line">       │    ├─ register_live_fn()</span><br><span class="line">       │    └─ rtsp_end_block()</span><br><span class="line">       ├─ rtsp_h264_live_init()    [rtsp_h264_live.c]</span><br><span class="line">       ├─ custom_rtsp_jpeg_init()  [custom_rtsp_jpg.c]</span><br><span class="line">       └─ rtsp_h264_live_init()    [/loop/RECA/]</span><br><span class="line"></span><br><span class="line">-- 客户端连接后 --</span><br><span class="line"></span><br><span class="line">self_creat()  [rtsp_mjpeg_live.c]</span><br><span class="line">  ├─ msi_find(AUTO_JPG, 1)    ← 找到 JPEG 编码器 MSI</span><br><span class="line">  ├─ rtsp_msi_init()          ← 创建接收 MSI</span><br><span class="line">  ├─ msi_add_output()         ← 连接编码器→接收器</span><br><span class="line">  └─ OS_TASK_INIT(self_thread) ← 创建发送线程</span><br><span class="line"></span><br><span class="line">spook_send_thread_stream()  [frame.c]</span><br><span class="line">  └─ ex-&gt;f()</span><br><span class="line">       └─ get_back_frame()  [encoder-jpeg.c]</span><br><span class="line">            └─ deliver_frame_to_stream()  [stream.c]</span><br><span class="line">                 └─ rtsp_common_send()  [rtsp_common.c]</span><br><span class="line">                      ├─ jpeg_process_frame()  [rtp-jpeg.c]</span><br><span class="line">                      │    └─ parse_DQT/SOF/DHT/DRI</span><br><span class="line">                      └─ jpeg_send_more()  [rtp-jpeg.c]</span><br><span class="line">                           └─ jpeg_send_frame_to_endpoint()</span><br><span class="line">                                └─ rtp_sendmsg()  [rtp.c]</span><br><span class="line">                                     ├─ rtp_send_udp()</span><br><span class="line">                                     └─ rtp_send_tcp()</span><br></pre></td></tr></table></figure>
+
+<h2 id="附录-B-版本信息"><a href="#附录-B-版本信息" class="headerlink" title="附录 B: 版本信息"></a>附录 B: 版本信息</h2><table>
+<thead>
+<tr>
+<th>项</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>项目名称</td>
+<td>Spook (轻量级 RTSP 服务器)</td>
+</tr>
+<tr>
+<td>原作者</td>
+<td>Nathan Lutchansky <a href="mailto:&#x6c;&#117;&#x74;&#99;&#x68;&#x61;&#110;&#110;&#64;&#x6c;&#x69;&#x74;&#x65;&#x63;&#x68;&#46;&#111;&#x72;&#103;">lutchann@litech.org</a></td>
+</tr>
+<tr>
+<td>许可证</td>
+<td>GPL v2</td>
+</tr>
+<tr>
+<td>移植平台</td>
+<td>TXW82x (C-SKY CK810 + lwIP)</td>
+</tr>
+<tr>
+<td>文档版本</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td>文档日期</td>
+<td>2026-06-30</td>
+</tr>
+</tbody></table>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/06/30/spook_rtsp_server_architecture/">https://zhongxu.cyou/2026/06/30/spook_rtsp_server_architecture/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/MSI/">MSI</a><a class="post-meta__tags" href="/tags/H-264/">H.264</a><a class="post-meta__tags" href="/tags/TXW82x/">TXW82x</a><a class="post-meta__tags" href="/tags/JPEG/">JPEG</a><a class="post-meta__tags" href="/tags/RTSP/">RTSP</a><a class="post-meta__tags" href="/tags/RTP/">RTP</a><a class="post-meta__tags" href="/tags/%E6%B5%81%E5%AA%92%E4%BD%93/">流媒体</a><a class="post-meta__tags" href="/tags/Wi-Fi%E5%9B%BE%E4%BC%A0/">Wi-Fi图传</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW82x 平台相册功能开发文档</div></div><div class="info-2"><div class="info-item-1">TXW82x 平台相册功能开发文档 项目： TXW82x 相册功能日期： 2026-06-30基于提交： 72ce4df (更新相册功能) + eab804e (添加照片选中功能)技术栈： LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件   目录 功能概述 文件变更清单 数据结构详解 MSI 流水线架构 核心函数逐分析 UI 界面布局 按键系统与焦点导航 全屏预览机制 CSC 动态格式配置 JPEG 解码器扩展 内存管理策略 数据流完整跟踪 操作说明 内存泄漏修复回顾   一、功能概述相册功能为 TXW82x 平台提供基于 SD 卡的 JPEG 图片浏览能力。整体包含两大功能模块： 第一版（提交 72ce4df）— 相册功能骨架 从 SD 卡 IMG/ 目录扫描 *.jpg 文件 缩略图网格展示（自动根据屏幕分辨率计算网格行列数） 支持多页翻页（按键、触摸按钮、左右滑动手势） 点击缩略图进入全屏预览（使用 VIDEO_P1 硬件层） MSI 流水线：S_...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示 支持播放&#x2F;暂停控制 支持退出播放并回到主菜单   2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道： 12345678910111213141516171819SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出:...</div></div></div></a><a class="pagination-related" href="/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x 平台相册功能开发文档</div></div><div class="info-2"><div class="info-item-1">TXW82x 平台相册功能开发文档 项目： TXW82x 相册功能日期： 2026-06-30基于提交： 72ce4df (更新相册功能) + eab804e (添加照片选中功能)技术栈： LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件   目录 功能概述 文件变更清单 数据结构详解 MSI 流水线架构 核心函数逐分析 UI 界面布局 按键系统与焦点导航 全屏预览机制 CSC 动态格式配置 JPEG 解码器扩展 内存管理策略 数据流完整跟踪 操作说明 内存泄漏修复回顾   一、功能概述相册功能为 TXW82x 平台提供基于 SD 卡的 JPEG 图片浏览能力。整体包含两大功能模块： 第一版（提交 72ce4df）— 相册功能骨架 从 SD 卡 IMG/ 目录扫描 *.jpg 文件 缩略图网格展示（自动根据屏幕分辨率计算网格行列数） 支持多页翻页（按键、触摸按钮、左右滑动手势） 点击缩略图进入全屏预览（使用 VIDEO_P1 硬件层） MSI 流水线：S_...</div></div></div></a><a class="pagination-related" href="/2026/06/22/h264_playback_bugfix_log/" title="H.264 硬解码播放链路 Bug 修复记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">H.264 硬解码播放链路 Bug 修复记录</div></div><div class="info-2"><div class="info-item-1">H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。  涉及文件   文件 路径 角色    h264_file_msi.c sdk/app/h264_demux/ H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出   h264_decode_msi.c sdk/app/decode/ H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码   sample_h264_esplayer.c project/app/ H.264 ES 流播放 Sample，作为参考实现   stream_define.h sdk/app/algorithm/stream_frame/ fb_h264_s 结构定义    Bug 1：start_len 未动态设置现象解码器在 h264_d...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） 🔴 高   Bug home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行 🟡 中   性能 Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU 🟡 中   代码质量 menu_view.c 中残留 3 处 printf 调试语句 🟡 中   可维护性 颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码 🟡 中   可维护性 字体 &amp;lv_font...</div></div></div></a><a class="pagination-related" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。 1.2 UI 包含哪些功能页面   页面 功能 代码路径    Home（主页） 显示时间、日期、天气、WiFi 状态、电量 home/   Plan List（计划列表） 日期选择条 + 待办事项管理 plan_list/   AI Q&amp;A（AI 问答） AI 对话入口页面 ai_qa/   Timing（计时器） 倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">29</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#TXW82x-Spook-RTSP-%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3"><span class="toc-text">TXW82x Spook RTSP 流媒体服务器架构文档</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A6%82%E8%BF%B0"><span class="toc-text">1. 概述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-1-%E6%A0%B8%E5%BF%83%E8%83%BD%E5%8A%9B"><span class="toc-text">1.1 核心能力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#1-2-%E7%A1%AC%E4%BB%B6%E5%B9%B3%E5%8F%B0"><span class="toc-text">1.2 硬件平台</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84"><span class="toc-text">2. 软件架构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A8%A1%E5%9D%97%E5%B1%82%E6%AC%A1%E5%9B%BE"><span class="toc-text">2.1 模块层次图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E6%96%87%E4%BB%B6%E6%B8%85%E5%8D%95"><span class="toc-text">2.2 文件清单</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84"><span class="toc-text">3. 核心数据结构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-rtp-name-%E2%80%94-%E8%B7%AF%E5%BE%84%E6%8F%8F%E8%BF%B0%E7%AC%A6"><span class="toc-text">3.1 rtp_name — 路径描述符</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-rtsp-source-%E2%80%94-RTSP-%E6%BA%90"><span class="toc-text">3.2 rtsp_source — RTSP 源</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-rtsp-track-%E2%80%94-%E8%BD%A8%E9%81%93"><span class="toc-text">3.3 rtsp_track — 轨道</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-4-rtp-media-%E2%80%94-RTP-%E5%AA%92%E4%BD%93%E6%8E%A5%E5%8F%A3"><span class="toc-text">3.4 rtp_media — RTP 媒体接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-5-frame-exchanger-%E2%80%94-%E5%B8%A7%E4%BA%A4%E6%8D%A2%E5%99%A8"><span class="toc-text">3.5 frame_exchanger — 帧交换器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-6-rtp-node-%E2%80%94-%E9%9F%B3%E8%A7%86%E9%A2%91%E5%87%BA%E5%8F%A3%E8%8A%82%E7%82%B9"><span class="toc-text">3.6 rtp_node — 音视频出口节点</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-7-rtsp-priv-%E2%80%94-%E8%B7%AF%E5%BE%84%E7%A7%81%E6%9C%89%E6%95%B0%E6%8D%AE"><span class="toc-text">3.7 rtsp_priv — 路径私有数据</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-8-rtp-endpoint-%E2%80%94-RTP-%E7%AB%AF%E7%82%B9"><span class="toc-text">3.8 rtp_endpoint — RTP 端点</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%AE%8C%E6%95%B4-MJPEG-%E6%B5%81%E8%B0%83%E7%94%A8%E9%93%BE"><span class="toc-text">4. 完整 MJPEG 流调用链</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E5%88%9D%E5%A7%8B%E5%8C%96%E9%98%B6%E6%AE%B5"><span class="toc-text">4.1 初始化阶段</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%98%B6%E6%AE%B5%E6%B5%81%E7%A8%8B%E5%9B%BE"><span class="toc-text">阶段流程图</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96%E5%90%8E%E5%86%85%E5%AD%98%E7%BB%93%E6%9E%84"><span class="toc-text">初始化后内存结构</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9E%E6%8E%A5%E9%98%B6%E6%AE%B5"><span class="toc-text">4.2 客户端连接阶段</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#RTSP-%E5%8D%8F%E8%AE%AE%E4%BA%A4%E4%BA%92"><span class="toc-text">RTSP 协议交互</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%95%B0%E6%8D%AE%E5%8F%91%E9%80%81%E9%98%B6%E6%AE%B5"><span class="toc-text">4.3 数据发送阶段</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E5%8F%91%E9%80%81%E7%BA%BF%E7%A8%8B-spook-send-thread-stream"><span class="toc-text">核心发送线程 spook_send_thread_stream()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%B8%A7%E5%A4%84%E7%90%86%E5%AE%8C%E6%95%B4%E8%B0%83%E7%94%A8%E9%93%BE"><span class="toc-text">帧处理完整调用链</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-Stream-%E5%8F%91%E5%B8%83-%E8%AE%A2%E9%98%85%E6%A8%A1%E5%9E%8B"><span class="toc-text">5. Stream 发布-订阅模型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%A8%A1%E5%9E%8B"><span class="toc-text">5.1 模型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%85%B3%E9%94%AE-API"><span class="toc-text">5.2 关键 API</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-%E5%9C%A8-MJPEG-%E6%B5%81%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8"><span class="toc-text">5.3 在 MJPEG 流中的应用</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%85%B3%E9%94%AE%E9%85%8D%E7%BD%AE%E5%8F%82%E6%95%B0"><span class="toc-text">6. 关键配置参数</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-spook-config-h"><span class="toc-text">6.1 spook_config.h</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-frame-c-%E5%86%85%E9%83%A8%E9%85%8D%E7%BD%AE"><span class="toc-text">6.2 frame.c 内部配置</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E7%BC%96%E7%A0%81%E5%99%A8%E5%90%8D%E7%A7%B0%E5%AE%8F"><span class="toc-text">6.3 编码器名称宏</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-RTSP-%E8%B7%AF%E5%BE%84%E4%B8%80%E8%A7%88"><span class="toc-text">7. RTSP 路径一览</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E5%AE%8C%E6%95%B4-RTSP-%E5%8D%8F%E8%AE%AE%E4%BA%A4%E4%BA%92%E7%A4%BA%E4%BE%8B"><span class="toc-text">8. 完整 RTSP 协议交互示例</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E4%BA%8B%E4%BB%B6%E9%A9%B1%E5%8A%A8%E4%B8%8E%E5%B9%B6%E5%8F%91%E6%A8%A1%E5%9E%8B"><span class="toc-text">9. 事件驱动与并发模型</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E5%BB%B6%E8%BF%9F%E5%88%86%E6%9E%90%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-text">10. 延迟分析与优化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#10-1-%E5%BB%B6%E8%BF%9F%E5%88%86%E5%B8%83"><span class="toc-text">10.1 延迟分布</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-2-%E5%BB%B6%E8%BF%9F%E6%9D%A5%E6%BA%90%E4%B8%8E%E4%BC%98%E5%8C%96"><span class="toc-text">10.2 延迟来源与优化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-3-%E6%8E%A8%E8%8D%90%E4%BC%98%E5%8C%96%E6%8E%AA%E6%96%BD"><span class="toc-text">10.3 推荐优化措施</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E4%B8%8E%E6%8E%92%E6%9F%A5"><span class="toc-text">11. 常见问题与排查</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Q-%E5%AE%A2%E6%88%B7%E7%AB%AF%E8%BF%9E%E4%B8%8D%E4%B8%8A-RTSP-%E6%9C%8D%E5%8A%A1%E5%99%A8%EF%BC%9F"><span class="toc-text">Q: 客户端连不上 RTSP 服务器？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Q-%E8%A7%86%E9%A2%91%E6%B5%81%E5%8D%A1%E9%A1%BF%E6%88%96%E5%BB%B6%E8%BF%9F%E9%AB%98%EF%BC%9F"><span class="toc-text">Q: 视频流卡顿或延迟高？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Q-%E7%94%BB%E9%9D%A2%E8%8A%B1%E5%B1%8F%E6%88%96%E6%97%A0%E6%B3%95%E8%A7%A3%E7%A0%81%EF%BC%9F"><span class="toc-text">Q: 画面花屏或无法解码？</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97"><span class="toc-text">12. 开发指南</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-%E6%B7%BB%E5%8A%A0%E6%96%B0%E7%9A%84-RTSP-%E8%B7%AF%E5%BE%84"><span class="toc-text">12.1 添加新的 RTSP 路径</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-%E6%92%AD%E6%94%BE%E5%99%A8%E5%85%BC%E5%AE%B9%E6%80%A7"><span class="toc-text">12.2 播放器兼容性</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95-A-%E5%85%B3%E9%94%AE%E5%87%BD%E6%95%B0%E8%B0%83%E7%94%A8%E5%85%B3%E7%B3%BB"><span class="toc-text">附录 A: 关键函数调用关系</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95-B-%E7%89%88%E6%9C%AC%E4%BF%A1%E6%81%AF"><span class="toc-text">附录 B: 版本信息</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档">TXW82x 平台相册功能开发文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/spook_rtsp_server_architecture/" title="TXW82x Spook RTSP 流媒体服务器架构文档">TXW82x Spook RTSP 流媒体服务器架构文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_playback_bugfix_log/" title="H.264 硬解码播放链路 Bug 修复记录">H.264 硬解码播放链路 Bug 修复记录</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档">source/css 样式文档</a><time datetime="2026-05-10T04:25:45.000Z" title="发表于 2026-05-10 12:25:45">2026-05-10</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

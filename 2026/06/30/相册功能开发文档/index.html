@@ -1,0 +1,1026 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW82x 平台相册功能开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="TXW82x 平台基于 LVGL 和 MSI 媒体流管道的 JPEG 相册功能完整开发文档。涵盖缩略图网格浏览、全屏预览、MSI 流水线架构、JPEG 硬件解码、CSC 动态格式配置及焦点导航系统。适用于 TXW82x（CK810 CPU + 硬件JPEG解码 + CSC硬件）平台。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW82x 平台相册功能开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="TXW82x 平台基于 LVGL 和 MSI 媒体流管道的 JPEG 相册功能完整开发文档。涵盖缩略图网格浏览、全屏预览、MSI 流水线架构、JPEG 硬件解码、CSC 动态格式配置及焦点导航系统。适用于 TXW82x（CK810 CPU + 硬件JPEG解码 + CSC硬件）平台。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-06-29T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-06-30T02:22:20.345Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="MSI">
+<meta property="article:tag" content="硬件解码">
+<meta property="article:tag" content="UI组件">
+<meta property="article:tag" content="TXW82x">
+<meta property="article:tag" content="JPEG">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW82x 平台相册功能开发文档",
+  "url": "https://zhongxu.cyou/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-06-29T16:00:00.000Z",
+  "dateModified": "2026-06-30T02:22:20.345Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW82x 平台相册功能开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">29</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW82x 平台相册功能开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW82x 平台相册功能开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-06-30T02:22:20.345Z" title="更新于 2026-06-30 10:22:20">2026-06-30</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="TXW82x-平台相册功能开发文档"><a href="#TXW82x-平台相册功能开发文档" class="headerlink" title="TXW82x 平台相册功能开发文档"></a>TXW82x 平台相册功能开发文档</h1><blockquote>
+<p><strong>项目：</strong> TXW82x 相册功能<br><strong>日期：</strong> 2026-06-30<br><strong>基于提交：</strong> <code>72ce4df</code> (更新相册功能) + <code>eab804e</code> (添加照片选中功能)<br><strong>技术栈：</strong> LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件</p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ol>
+<li><a href="#%E4%B8%80%E5%8A%9F%E8%83%BD%E6%A6%82%E8%BF%B0">功能概述</a></li>
+<li><a href="#%E4%BA%8C%E6%96%87%E4%BB%B6%E5%8F%98%E6%9B%B4%E6%B8%85%E5%8D%95">文件变更清单</a></li>
+<li><a href="#%E4%B8%89%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E8%AF%A6%E8%A7%A3">数据结构详解</a></li>
+<li><a href="#%E5%9B%9Bmsi-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%9E%B6%E6%9E%84">MSI 流水线架构</a></li>
+<li><a href="#%E4%BA%94%E6%A0%B8%E5%BF%83%E5%87%BD%E6%95%B0%E9%80%90%E5%88%86%E6%9E%90">核心函数逐分析</a></li>
+<li><a href="#%E5%85%ADui-%E7%95%8C%E9%9D%A2%E5%B8%83%E5%B1%80">UI 界面布局</a></li>
+<li><a href="#%E4%B8%83%E6%8C%89%E9%94%AE%E7%B3%BB%E7%BB%9F%E4%B8%8E%E7%84%A6%E7%82%B9%E5%AF%BC%E8%88%AA">按键系统与焦点导航</a></li>
+<li><a href="#%E5%85%AB%E5%85%A8%E5%B1%8F%E9%A2%84%E8%A7%88%E6%9C%BA%E5%88%B6">全屏预览机制</a></li>
+<li><a href="#%E4%B9%9Dcsc-%E5%8A%A8%E6%80%81%E6%A0%BC%E5%BC%8F%E9%85%8D%E7%BD%AE">CSC 动态格式配置</a></li>
+<li><a href="#%E5%8D%81jpeg-%E8%A7%A3%E7%A0%81%E5%99%A8%E6%89%A9%E5%B1%95">JPEG 解码器扩展</a></li>
+<li><a href="#%E5%8D%81%E4%B8%80%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E7%AD%96%E7%95%A5">内存管理策略</a></li>
+<li><a href="#%E5%8D%81%E4%BA%8C%E6%95%B0%E6%8D%AE%E6%B5%81%E5%AE%8C%E6%95%B4%E8%B7%9F%E8%B8%AA">数据流完整跟踪</a></li>
+<li><a href="#%E5%8D%81%E4%B8%89%E6%93%8D%E4%BD%9C%E8%AF%B4%E6%98%8E">操作说明</a></li>
+<li><a href="#%E5%8D%81%E5%9B%9B%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E4%BF%AE%E5%A4%8D%E5%9B%9E%E9%A1%BE">内存泄漏修复回顾</a></li>
+</ol>
+<hr>
+<h2 id="一、功能概述"><a href="#一、功能概述" class="headerlink" title="一、功能概述"></a>一、功能概述</h2><p>相册功能为 TXW82x 平台提供基于 SD 卡的 JPEG 图片浏览能力。整体包含两大功能模块：</p>
+<h3 id="第一版（提交-72ce4df）—-相册功能骨架"><a href="#第一版（提交-72ce4df）—-相册功能骨架" class="headerlink" title="第一版（提交 72ce4df）— 相册功能骨架"></a>第一版（提交 <code>72ce4df</code>）— 相册功能骨架</h3><ul>
+<li>从 SD 卡 <code>IMG/</code> 目录扫描 <code>*.jpg</code> 文件</li>
+<li>缩略图网格展示（自动根据屏幕分辨率计算网格行列数）</li>
+<li>支持多页翻页（按键、触摸按钮、左右滑动手势）</li>
+<li>点击缩略图进入全屏预览（使用 VIDEO_P1 硬件层）</li>
+<li>MSI 流水线：<code>S_LVGL_PHOTO → SR_OTHER_JPG → S_JPG_DECODE → R_CSC_MSI → R_RGB_MSI</code></li>
+<li>CSC 硬件从固定 RGB565→YUV420P 改造为支持动态格式配置</li>
+<li>JPEG 解码器新增输出尺寸动态配置能力</li>
+</ul>
+<h3 id="第二版（提交-eab804e）—-焦点选中增强"><a href="#第二版（提交-eab804e）—-焦点选中增强" class="headerlink" title="第二版（提交 eab804e）— 焦点选中增强"></a>第二版（提交 <code>eab804e</code>）— 焦点选中增强</h3><ul>
+<li>方向键焦点导航（上&#x2F;下&#x2F;左&#x2F;右移动选中框）</li>
+<li>红色边框高亮当前聚焦缩略图</li>
+<li>焦点移至网格边界时自动翻页</li>
+<li>短按确认键进入预览、长按确认键退出相册</li>
+<li>预览模式独立按键映射（AD_PRESS → ESC）</li>
+<li>触摸点击时同步更新焦点状态，保证触摸与按键操作一致性</li>
+</ul>
+<hr>
+<h2 id="二、文件变更清单"><a href="#二、文件变更清单" class="headerlink" title="二、文件变更清单"></a>二、文件变更清单</h2><h3 id="2-1-新增文件"><a href="#2-1-新增文件" class="headerlink" title="2.1 新增文件"></a>2.1 新增文件</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>文件</th>
+<th>行数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>sdk/app/ui/album_ui.c</code></td>
+<td>~800 行</td>
+<td>相册 UI 全部逻辑（新增）</td>
+</tr>
+</tbody></table>
+<h3 id="2-2-修改文件"><a href="#2-2-修改文件" class="headerlink" title="2.2 修改文件"></a>2.2 修改文件</h3><table>
+<thead>
+<tr>
+<th>#</th>
+<th>文件</th>
+<th>提交1变更</th>
+<th>提交2变更</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>sdk/app/video_app/video_app_csc_msi.c</code></td>
+<td>+168 &#x2F; -20 行</td>
+<td>—</td>
+<td>CSC 动态格式支持</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>sdk/app/decode/jpg_decode_msg_msi.c</code></td>
+<td>+16 行</td>
+<td>—</td>
+<td>新增 OUT_SIZE &#x2F; STEP 命令</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>sdk/app/algorithm/stream_frame/stream_define.h</code></td>
+<td>+3 行</td>
+<td>—</td>
+<td>新增 R_RGB_MSI 和两个 MSI 命令枚举</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>sdk/include/lib/multimedia/framebuff.h</code></td>
+<td>+1 行</td>
+<td>—</td>
+<td>新增 FRAMEBUFF_SOURCE_JPG</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>sdk/app/ui/lvgl_ui.h</code></td>
+<td>+1 行</td>
+<td>—</td>
+<td>声明 album_ui()</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>sdk/app/ui/main_ui.c</code></td>
+<td>+1 行</td>
+<td>—</td>
+<td>注册相册入口按钮</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="三、数据结构详解"><a href="#三、数据结构详解" class="headerlink" title="三、数据结构详解"></a>三、数据结构详解</h2><h3 id="3-1-struct-album-ui-s-—-相册状态结构体"><a href="#3-1-struct-album-ui-s-—-相册状态结构体" class="headerlink" title="3.1 struct album_ui_s — 相册状态结构体"></a>3.1 <code>struct album_ui_s</code> — 相册状态结构体</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">album_ui_s</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    <span class="comment">/* ===== UI 导航相关 ===== */</span></span><br><span class="line">    <span class="type">lv_group_t</span> *last_group;     <span class="comment">// 进入相册前上级界面的按键组（菜单页）</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *base_ui;        <span class="comment">// 上级界面对象（主菜单列表）</span></span><br><span class="line">    <span class="type">lv_group_t</span> *now_group;      <span class="comment">// 当前相册界面的按键组</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *now_ui;         <span class="comment">// 当前相册主界面对象</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== MSI 流水线节点 ===== */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">photo_s</span>;</span>        <span class="comment">// S_LVGL_PHOTO      — JPEG 文件源</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">other_s</span>;</span>        <span class="comment">// SR_OTHER_JPG      — JPEG 解码消息配置</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">decode_s</span>;</span>       <span class="comment">// S_JPG_DECODE      — JPEG 硬件解码</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">csc_s</span>;</span>          <span class="comment">// R_CSC_MSI         — 色彩空间转换硬件</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">msi</span> *<span class="title">rgb_s</span>;</span>          <span class="comment">// R_RGB_MSI         — RGB 输出节点</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 帧缓冲池 ===== */</span></span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">fbpool</span> <span class="title">tx_pool</span>;</span>      <span class="comment">// photo_s 的帧缓冲池，用于数据传递</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 页面布局 ===== */</span></span><br><span class="line">    <span class="type">uint32_t</span> cols;              <span class="comment">// 缩略图网格列数</span></span><br><span class="line">    <span class="type">uint32_t</span> rows;              <span class="comment">// 缩略图网格行数</span></span><br><span class="line">    <span class="type">uint32_t</span> img_per_page;      <span class="comment">// 每页最大缩略图数 (= cols × rows, ≤ 12)</span></span><br><span class="line">    <span class="type">uint32_t</span> img_loaded_cnt;    <span class="comment">// 当前页实际成功加载的缩略图数</span></span><br><span class="line">    <span class="type">uint32_t</span> cur_page;          <span class="comment">// 当前页码 (1-based)</span></span><br><span class="line">    <span class="type">uint32_t</span> total_files;       <span class="comment">// SD 卡中总 JPEG 文件数</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== UI 对象引用 ===== */</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *title;          <span class="comment">// 标题栏 &quot;Album&quot; 标签</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *page_label;     <span class="comment">// 页码标签 &quot;1/5&quot;</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *img_cont;       <span class="comment">// 缩略图容器（Flexbox 布局）</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *imgs[<span class="number">12</span>];       <span class="comment">// 缩略图 lv_img 对象数组 (ALBUM_MAX_IMG=12)</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 图像数据 ===== */</span></span><br><span class="line">    <span class="type">lv_img_dsc_t</span> *img_dsc[<span class="number">12</span>];  <span class="comment">// 每个缩略图的 LVGL 图像描述符指针</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 预览状态 ===== */</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *preview_obj;    <span class="comment">// 全屏预览界面对象（非 NULL 表示正在预览）</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 焦点导航（第二版新增） ===== */</span></span><br><span class="line">    <span class="type">int32_t</span>     focus_idx;      <span class="comment">// 当前聚焦的缩略图索引 (-1 = 无焦点)</span></span><br><span class="line">    <span class="type">lv_obj_t</span>   *focus_img;      <span class="comment">// 当前聚焦的 lv_img 对象指针</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/* ===== 资源生命周期 ===== */</span></span><br><span class="line">    <span class="type">uint8_t</span>     csc_need_destroy; <span class="comment">// 退出时是否需要 msi_destroy 该 CSC</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-常量定义"><a href="#3-2-常量定义" class="headerlink" title="3.2 常量定义"></a>3.2 常量定义</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> CHECK_DIR   <span class="string">&quot;IMG&quot;</span>       <span class="comment">// SD 卡上的图片目录名</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> EXT_NAME    <span class="string">&quot;*jpg&quot;</span>      <span class="comment">// 文件匹配模式</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> IMG_W       160         <span class="comment">// 缩略图宽度 (像素)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> IMG_H       120         <span class="comment">// 缩略图高度 (像素)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> IMG_GAP     20          <span class="comment">// 缩略图间距 (像素)</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> ALBUM_MAX_IMG 12        <span class="comment">// 每页最大缩略图数</span></span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-内存分配宏"><a href="#3-3-内存分配宏" class="headerlink" title="3.3 内存分配宏"></a>3.3 内存分配宏</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 大数据（如图像像素数据）→ PSRAM</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_MALLOC     av_psram_malloc</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_FREE       av_psram_free</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_ZALLOC     av_psram_zalloc</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 小结构体 → SRAM</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_LIBC_MALLOC av_malloc</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_LIBC_FREE   av_free</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> STREAM_LIBC_ZALLOC av_zalloc</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>设计理由</strong>：PSRAM 空间大但速度较慢，适合存放图像帧数据；SRAM 速度快但空间有限，适合存放管理结构体。</p>
+</blockquote>
+<hr>
+<h2 id="四、MSI-流水线架构"><a href="#四、MSI-流水线架构" class="headerlink" title="四、MSI 流水线架构"></a>四、MSI 流水线架构</h2><h3 id="4-1-流水线拓扑"><a href="#4-1-流水线拓扑" class="headerlink" title="4.1 流水线拓扑"></a>4.1 流水线拓扑</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">                        ┌──────────────────────────────────────────┐</span><br><span class="line">                        │             缩略图流水线                   │</span><br><span class="line">                        │  (album_load_page 时激活)                 │</span><br><span class="line">                        │                                          │</span><br><span class="line">SD卡 ──→ S_LVGL_PHOTO ──→ SR_OTHER_JPG ──→ S_JPG_DECODE ──→ R_CSC_MSI ──→ R_RGB_MSI ──→ LVGL</span><br><span class="line">(JPEG)    (photo_s)       (other_s)         (decode_s)       (csc_s)       (rgb_s)      显示</span><br><span class="line">                                                                                  </span><br><span class="line">                        │                                          │</span><br><span class="line">                        │             预览流水线                   │</span><br><span class="line">                        │  (enter_photo_preview_ui 时激活)          │</span><br><span class="line">                        │                                          │</span><br><span class="line">SD卡 ──→ S_LVGL_PHOTO ──→ SR_OTHER_JPG ──→ S_JPG_DECODE ──→ R_VIDEO_P1 ──→ LCD 视频层</span><br><span class="line">(JPEG)    (photo_s)       (other_s)         (decode_s)       (硬件视频层)</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-各-MSI-节点详解"><a href="#4-2-各-MSI-节点详解" class="headerlink" title="4.2 各 MSI 节点详解"></a>4.2 各 MSI 节点详解</h3><h4 id="photo-s-—-图片源-S-LVGL-PHOTO"><a href="#photo-s-—-图片源-S-LVGL-PHOTO" class="headerlink" title="photo_s — 图片源 (S_LVGL_PHOTO)"></a><code>photo_s</code> — 图片源 (<code>S_LVGL_PHOTO</code>)</h4><table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建方式</td>
+<td><code>msi_new(S_LVGL_PHOTO, 0, NULL)</code></td>
+</tr>
+<tr>
+<td>输出目标</td>
+<td><code>SR_OTHER_JPG</code></td>
+</tr>
+<tr>
+<td>回调函数</td>
+<td><code>album_photo_msi_action</code></td>
+</tr>
+<tr>
+<td>私有数据</td>
+<td>指向 <code>struct album_ui_s</code></td>
+</tr>
+<tr>
+<td>帧缓冲池</td>
+<td><code>ui_s-&gt;tx_pool</code></td>
+</tr>
+</tbody></table>
+<p><strong>职责</strong>：从 SD 卡读取 JPEG 文件，包装为 <code>struct framebuff</code> 后喂入流水线。</p>
+<p><strong><code>album_photo_msi_action</code> 回调处理</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MSI_CMD_PRE_DESTROY</code></td>
+<td>空操作（预留）</td>
+</tr>
+<tr>
+<td><code>MSI_CMD_POST_DESTROY</code></td>
+<td>销毁帧缓冲池 <code>fbpool_destroy</code></td>
+</tr>
+<tr>
+<td><code>MSI_CMD_FREE_FB</code></td>
+<td>释放 <code>fb-&gt;data</code> (PSRAM)，归还 <code>fb</code> 到池中</td>
+</tr>
+</tbody></table>
+<h4 id="other-s-—-JPEG-解码消息配置-SR-OTHER-JPG"><a href="#other-s-—-JPEG-解码消息配置-SR-OTHER-JPG" class="headerlink" title="other_s — JPEG 解码消息配置 (SR_OTHER_JPG)"></a><code>other_s</code> — JPEG 解码消息配置 (<code>SR_OTHER_JPG</code>)</h4><table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建方式</td>
+<td><code>jpg_decode_msg_msi(SR_OTHER_JPG, out_w, out_h, step_w, step_h, filter)</code></td>
+</tr>
+<tr>
+<td>输出目标</td>
+<td><code>S_JPG_DECODE</code></td>
+</tr>
+</tbody></table>
+<p><strong>职责</strong>：配置 JPEG 硬件解码参数。通过 MSI 命令动态调整：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 设置解码输出分辨率为 160×120（缩略图模式）</span></span><br><span class="line">msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG, MSI_JPEG_DECODE_OUT_SIZE,</span><br><span class="line">           <span class="number">160</span> &lt;&lt; <span class="number">16</span> | <span class="number">120</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 设置解码输出分辨率为 320×240（全屏预览模式）</span></span><br><span class="line">msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG, MSI_JPEG_DECODE_OUT_SIZE,</span><br><span class="line">           <span class="number">320</span> &lt;&lt; <span class="number">16</span> | <span class="number">240</span>);</span><br></pre></td></tr></table></figure>
+
+<h4 id="decode-s-—-JPEG-硬件解码-S-JPG-DECODE"><a href="#decode-s-—-JPEG-硬件解码-S-JPG-DECODE" class="headerlink" title="decode_s — JPEG 硬件解码 (S_JPG_DECODE)"></a><code>decode_s</code> — JPEG 硬件解码 (<code>S_JPG_DECODE</code>)</h4><table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建方式</td>
+<td><code>jpg_decode_msi(S_JPG_DECODE)</code></td>
+</tr>
+<tr>
+<td>输出目标（缩略图）</td>
+<td><code>R_CSC_MSI</code></td>
+</tr>
+<tr>
+<td>输出目标（预览）</td>
+<td><code>R_VIDEO_P1</code> (临时切换)</td>
+</tr>
+</tbody></table>
+<h4 id="csc-s-—-色彩空间转换-R-CSC-MSI"><a href="#csc-s-—-色彩空间转换-R-CSC-MSI" class="headerlink" title="csc_s — 色彩空间转换 (R_CSC_MSI)"></a><code>csc_s</code> — 色彩空间转换 (<code>R_CSC_MSI</code>)</h4><table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建方式</td>
+<td><code>video_app_csc_msi_init()</code> 或 <code>msi_find()</code> 复用已有</td>
+</tr>
+<tr>
+<td>生命周期管理</td>
+<td><code>ui_s-&gt;csc_need_destroy</code> 标记是否由本模块创建</td>
+</tr>
+</tbody></table>
+<p><strong>复用逻辑</strong>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">ui_s-&gt;csc_s = msi_find(R_CSC_MSI, <span class="number">1</span>);  <span class="comment">// 查找是否已存在</span></span><br><span class="line"><span class="keyword">if</span> (!ui_s-&gt;csc_s)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 不存在 → 新建，标记退出时销毁</span></span><br><span class="line">    video_app_csc_msi_init(R_CSC_MSI, CSC_YUV420P, CSC_RGB565, IMG_W, IMG_H);</span><br><span class="line">    ui_s-&gt;csc_s = msi_find(R_CSC_MSI, <span class="number">1</span>);</span><br><span class="line">    ui_s-&gt;csc_need_destroy = <span class="number">1</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 已存在（比如 VIDEO2 通路已经创建了）→ 复用，不销毁</span></span><br><span class="line">    ui_s-&gt;csc_need_destroy = <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="rgb-s-—-RGB-输出节点-R-RGB-MSI"><a href="#rgb-s-—-RGB-输出节点-R-RGB-MSI" class="headerlink" title="rgb_s — RGB 输出节点 (R_RGB_MSI)"></a><code>rgb_s</code> — RGB 输出节点 (<code>R_RGB_MSI</code>)</h4><table>
+<thead>
+<tr>
+<th>属性</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>创建方式</td>
+<td><code>msi_new(R_RGB_MSI, 1, NULL)</code></td>
+</tr>
+<tr>
+<td>输入源</td>
+<td>CSC 的输出连接到本节点</td>
+</tr>
+</tbody></table>
+<p><strong>职责</strong>：作为 CSC 转换后的 RGB 数据消费者，LVGL 从这里 <code>msi_get_fb</code> 获取 RGB565 帧数据显示缩略图。</p>
+<h3 id="4-3-流水线的创建与销毁"><a href="#4-3-流水线的创建与销毁" class="headerlink" title="4.3 流水线的创建与销毁"></a>4.3 流水线的创建与销毁</h3><p><strong>创建</strong> (<code>album_msi_init</code> → 在 <code>enter_album_ui</code> 中调用)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">album_msi_init(ui_s)</span><br><span class="line">  ├── msi_new(S_LVGL_PHOTO, 0, NULL)        → photo_s</span><br><span class="line">  │     ├── fbpool_init(&amp;tx_pool, img_per_page)</span><br><span class="line">  │     ├── photo_s-&gt;action = album_photo_msi_action</span><br><span class="line">  │     └── msi_add_output(photo_s → SR_OTHER_JPG)</span><br><span class="line">  │</span><br><span class="line">  ├── jpg_decode_msg_msi(SR_OTHER_JPG, ...)  → other_s</span><br><span class="line">  │     └── msi_add_output(other_s → S_JPG_DECODE)</span><br><span class="line">  │</span><br><span class="line">  ├── jpg_decode_msi(S_JPG_DECODE)           → decode_s</span><br><span class="line">  │     └── msi_add_output(decode_s → R_CSC_MSI)</span><br><span class="line">  │</span><br><span class="line">  ├── msi_find(R_CSC_MSI) → 检查是否存在    → csc_s</span><br><span class="line">  │     └── 不存在则 video_app_csc_msi_init()</span><br><span class="line">  │</span><br><span class="line">  └── msi_new(R_RGB_MSI, 1, NULL)            → rgb_s</span><br><span class="line">        └── msi_add_output(NULL → R_CSC_MSI → R_RGB_MSI)</span><br></pre></td></tr></table></figure>
+
+<p><strong>销毁</strong> (<code>album_msi_destroy</code> → 在 <code>album_exit</code> 中调用)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">album_msi_destroy(ui_s)</span><br><span class="line">  ├── msi_del_output(decode_s → R_CSC_MSI)    // 清理通路避免影响菜单</span><br><span class="line">  ├── msi_del_output(NULL → R_CSC_MSI → R_RGB_MSI)</span><br><span class="line">  ├── msi_destroy(photo_s)</span><br><span class="line">  ├── msi_destroy(other_s)</span><br><span class="line">  ├── msi_destroy(decode_s)</span><br><span class="line">  ├── msi_destroy(rgb_s)</span><br><span class="line">  ├── msi_put(csc_s)</span><br><span class="line">  └── if (csc_need_destroy) msi_destroy(csc_s)</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="五、核心函数逐分析"><a href="#五、核心函数逐分析" class="headerlink" title="五、核心函数逐分析"></a>五、核心函数逐分析</h2><h3 id="5-1-album-ui-—-相册入口"><a href="#5-1-album-ui-—-相册入口" class="headerlink" title="5.1 album_ui() — 相册入口"></a>5.1 <code>album_ui()</code> — 相册入口</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">lv_obj_t</span> *<span class="title function_">album_ui</span><span class="params">(<span class="type">lv_group_t</span> *group, <span class="type">lv_obj_t</span> *base_ui)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>调用时机</strong>：主菜单初始化时调用，<code>main_pocket_camera_ui()</code> 中注册：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">btn = album_ui(group, base_ui);</span><br></pre></td></tr></table></figure>
+
+<p><strong>函数流程</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">album_ui(group, base_ui)</span><br><span class="line">  ├── 参数检查 (group == NULL || base_ui == NULL → return NULL)</span><br><span class="line">  ├── STREAM_LIBC_ZALLOC(sizeof(struct album_ui_s)) → ui_s  (SRAM分配)</span><br><span class="line">  ├── ui_s-&gt;last_group = group      // 保存上级按键组</span><br><span class="line">  ├── ui_s-&gt;base_ui = base_ui       // 保存上级界面</span><br><span class="line">  ├── lv_list_add_btn(base_ui, NULL, &quot;album&quot;) → btn</span><br><span class="line">  │     └── 失败 → STREAM_LIBC_FREE(ui_s) → return NULL</span><br><span class="line">  ├── lv_group_add_obj(group, btn)  // 按钮加入按键组</span><br><span class="line">  ├── lv_obj_add_event_cb(btn, enter_album_ui, LV_EVENT_SHORT_CLICKED, ui_s)</span><br><span class="line">  │     // 点击按钮 → enter_album_ui</span><br><span class="line">  └── return btn</span><br></pre></td></tr></table></figure>
+
+<p><strong>设计要点</strong>：</p>
+<ul>
+<li><code>album_ui</code> 只负责创建入口按钮和分配 <code>ui_s</code> 结构体</li>
+<li>实际进入相册的耗时操作（MSI 初始化、UI 创建、文件扫描）都延迟到 <code>enter_album_ui</code> 进行</li>
+<li><code>ui_s</code> 一直存活到相册退出，<code>album_exit</code> 中通过 <code>lv_obj_del(now_ui)</code> 间接触发 LVGL 对象释放</li>
+<li><strong>注意</strong>：<code>ui_s</code> 结构体本身在退出时没有显式释放——这是潜在的内存泄漏，因为 <code>album_exit</code> 没有 <code>STREAM_LIBC_FREE(ui_s)</code></li>
+</ul>
+<h3 id="5-2-enter-album-ui-—-进入相册"><a href="#5-2-enter-album-ui-—-进入相册" class="headerlink" title="5.2 enter_album_ui() — 进入相册"></a>5.2 <code>enter_album_ui()</code> — 进入相册</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">enter_album_ui</span><span class="params">(<span class="type">lv_event_t</span> *e)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>触发条件</strong>：用户点击主菜单中的 “album” 按钮。</p>
+<p><strong>完整流程</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">enter_album_ui(e)</span><br><span class="line">  │</span><br><span class="line">  ├── 1. 按键注册</span><br><span class="line">  │     set_lvgl_get_key_func(album_self_key)   // 接管按键事件</span><br><span class="line">  │     lv_obj_add_flag(base_ui, LV_OBJ_FLAG_HIDDEN)  // 隐藏菜单</span><br><span class="line">  │</span><br><span class="line">  ├── 2. 布局计算</span><br><span class="line">  │     album_calc_layout(ui_s)</span><br><span class="line">  │     │   ├── lv_disp_get_hor_res() → 获取屏幕宽度</span><br><span class="line">  │     │   ├── lv_disp_get_ver_res() → 获取屏幕高度 (-30px 标题栏)</span><br><span class="line">  │     │   ├── cols = (avail_w + 20) / (160 + 20)  // 计算列数</span><br><span class="line">  │     │   ├── rows = (avail_h + 20) / (120 + 20)  // 计算行数</span><br><span class="line">  │     │   ├── img_per_page = cols × rows (≤ 12)</span><br><span class="line">  │     │   └── os_printf 打印布局参数</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 以 800×480 屏幕为例：</span><br><span class="line">  │     │   cols = (800 + 20) / 180 = 4</span><br><span class="line">  │     │   rows = (450 + 20) / 140 = 3</span><br><span class="line">  │     │   img_per_page = 4 × 3 = 12</span><br><span class="line">  │     │</span><br><span class="line">  │</span><br><span class="line">  ├── 3. MSI 流水线初始化</span><br><span class="line">  │     album_msi_init(ui_s)</span><br><span class="line">  │     │   ├── 创建 photo_s (S_LVGL_PHOTO)</span><br><span class="line">  │     │   ├── 创建 other_s (SR_OTHER_JPG, 参数: 160×120)</span><br><span class="line">  │     │   ├── 创建/复用 csc_s (R_CSC_MSI, YUV420P→RGB565)</span><br><span class="line">  │     │   ├── 创建 decode_s (S_JPG_DECODE)</span><br><span class="line">  │     │   └── 创建 rgb_s (R_RGB_MSI)</span><br><span class="line">  │     │</span><br><span class="line">  │</span><br><span class="line">  ├── 4. 创建 UI 界面</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 主界面: lv_obj_create(lv_scr_act())</span><br><span class="line">  │     │     ├── 白色背景, 无边框, 全屏</span><br><span class="line">  │     │     ├── 关闭可滚动, 关闭手势冒泡</span><br><span class="line">  │     │     └── ui_s-&gt;now_ui = ui</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 顶部标题栏: lv_obj_create(ui)</span><br><span class="line">  │     │     ├── 高度 30px, 白色背景</span><br><span class="line">  │     │     ├── 左: &quot;Album&quot; 标签 (lv_label, font_28)</span><br><span class="line">  │     │     ├── 中: 页码标签 ui_s-&gt;page_label</span><br><span class="line">  │     │     ├── 右: &quot;&gt;&quot; 下一页按钮 (lv_btn 40×28)</span><br><span class="line">  │     │     └── 右二: &quot;&lt;&quot; 上一页按钮</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 分割线: lv_obj, 高2px, 黑色</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 图片容器: lv_obj_create(ui)</span><br><span class="line">  │     │     ├── 宽 = cols×160 + (cols-1)×20 + 20</span><br><span class="line">  │     │     ├── 高 = rows×120 + (rows-1)×20 + 20</span><br><span class="line">  │     │     ├── LV_ALIGN_TOP_MID, y偏移38 (标题栏下方)</span><br><span class="line">  │     │     ├── Flexbox: LV_FLEX_FLOW_ROW_WRAP (自动换行)</span><br><span class="line">  │     │     ├── pad_all = 10, pad_gap = 20</span><br><span class="line">  │     │     └── ui_s-&gt;img_cont</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 按键组: lv_group_create()</span><br><span class="line">  │     │     ├── lv_indev_set_group(indev_keypad, group)</span><br><span class="line">  │     │     ├── lv_group_add_obj(group, ui)</span><br><span class="line">  │     │     └── ui_s-&gt;now_group = group</span><br><span class="line">  │     │</span><br><span class="line">  │     └── 事件注册:</span><br><span class="line">  │           ├── ui → LV_EVENT_KEY → album_key_handler</span><br><span class="line">  │           └── now_ui → LV_EVENT_GESTURE → album_gesture_handler</span><br><span class="line">  │</span><br><span class="line">  └── 5. 加载第 1 页</span><br><span class="line">        ui_s-&gt;cur_page = 1</span><br><span class="line">        album_load_page(ui_s)</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-3-album-load-page-—-加载当前页面"><a href="#5-3-album-load-page-—-加载当前页面" class="headerlink" title="5.3 album_load_page() — 加载当前页面"></a>5.3 <code>album_load_page()</code> — 加载当前页面</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">album_load_page</span><span class="params">(<span class="keyword">struct</span> album_ui_s *ui_s)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>完整流程</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line">album_load_page(ui_s)</span><br><span class="line">  │</span><br><span class="line">  ├── 1. 开启 RGB 节点</span><br><span class="line">  │     if (ui_s-&gt;rgb_s) ui_s-&gt;rgb_s-&gt;enable = 1</span><br><span class="line">  │</span><br><span class="line">  ├── 2. 清除焦点状态</span><br><span class="line">  │     ui_s-&gt;focus_idx = -1</span><br><span class="line">  │     ui_s-&gt;focus_img = NULL</span><br><span class="line">  │</span><br><span class="line">  ├── 3. 清理旧页面</span><br><span class="line">  │     ├── lv_obj_clean(ui_s-&gt;img_cont)  // LVGL 删除所有 img 对象</span><br><span class="line">  │     │     └── 通过 LV_EVENT_DELETE 回调自动释放文件名副本</span><br><span class="line">  │     │</span><br><span class="line">  │     └── 手动释放 img_dsc 数据</span><br><span class="line">  │           for i = 0 to img_loaded_cnt:</span><br><span class="line">  │               if img_dsc[i]:</span><br><span class="line">  │                   if img_dsc[i]-&gt;data: STREAM_FREE(data)   // PSRAM</span><br><span class="line">  │                   STREAM_LIBC_FREE(img_dsc[i])              // SRAM</span><br><span class="line">  │                   img_dsc[i] = NULL</span><br><span class="line">  │               imgs[i] = NULL</span><br><span class="line">  │           img_loaded_cnt = 0</span><br><span class="line">  │</span><br><span class="line">  ├── 4. 计算文件范围</span><br><span class="line">  │     start = (cur_page - 1) × img_per_page</span><br><span class="line">  │     end   = start + img_per_page</span><br><span class="line">  │</span><br><span class="line">  ├── 5. 单遍扫描 SD 卡</span><br><span class="line">  │     f_findfirst(&amp;dir, &amp;finfo, &quot;IMG&quot;, &quot;*jpg&quot;)</span><br><span class="line">  │     while (fr == FR_OK &amp;&amp; finfo.fname[0] != 0):</span><br><span class="line">  │     │   if file_idx ≥ start &amp;&amp; file_idx &lt; end &amp;&amp; loaded &lt; per_page:</span><br><span class="line">  │     │   │   if album_show(finfo.fname, ui_s) == 0:</span><br><span class="line">  │     │   │       img_loaded_cnt++</span><br><span class="line">  │     │   file_idx++</span><br><span class="line">  │     │   f_findnext(&amp;dir, &amp;finfo)</span><br><span class="line">  │     f_closedir(&amp;dir)</span><br><span class="line">  │     total_files = file_idx</span><br><span class="line">  │</span><br><span class="line">  │     ★ 设计要点: 单遍扫描，同时计数文件和加载当前页图片</span><br><span class="line">  │       避免了先扫描一遍计数再扫描一遍加载的两遍扫描开销。</span><br><span class="line">  │</span><br><span class="line">  ├── 6. 更新页码显示</span><br><span class="line">  │     total_pages = (file_idx + per_page - 1) / per_page</span><br><span class="line">  │     sprintf(buf, &quot;%d/%d&quot;, cur_page, total_pages)</span><br><span class="line">  │     lv_label_set_text(page_label, buf)</span><br><span class="line">  │</span><br><span class="line">  ├── 7. 关闭 RGB 节点</span><br><span class="line">  │     if (ui_s-&gt;rgb_s) ui_s-&gt;rgb_s-&gt;enable = 0</span><br><span class="line">  │</span><br><span class="line">  ├── 8. 默认聚焦第一个缩略图</span><br><span class="line">  │     if (img_loaded_cnt &gt; 0):</span><br><span class="line">  │         album_apply_focus(ui_s, 0)</span><br><span class="line">  │</span><br><span class="line">  └── 9. 日志输出</span><br><span class="line">        os_printf(&quot;album page %d/%d, total files %d, loaded %d\r\n&quot;, ...)</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-4-album-show-—-显示单个缩略图"><a href="#5-4-album-show-—-显示单个缩略图" class="headerlink" title="5.4 album_show() — 显示单个缩略图"></a>5.4 <code>album_show()</code> — 显示单个缩略图</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">album_show</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *filename, <span class="keyword">struct</span> album_ui_s *ui_s)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>返回值</strong>：<code>0</code> 成功，<code>-1</code> 失败（调用者根据返回值决定是否递增 <code>img_loaded_cnt</code>）。</p>
+<p><strong>流程</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">album_show(filename, ui_s)</span><br><span class="line">  ├── idx = ui_s-&gt;img_loaded_cnt</span><br><span class="line">  │</span><br><span class="line">  ├── lv_img_create(img_cont) → img</span><br><span class="line">  │     ├── lv_obj_set_size(img, 160, 120)</span><br><span class="line">  │     ├── 边框: 灰色 #CCCCCC, 1px</span><br><span class="line">  │     ├── LV_OBJ_FLAG_CLICKABLE     // 可点击</span><br><span class="line">  │     └── 清除 LV_OBJ_FLAG_SCROLLABLE</span><br><span class="line">  │</span><br><span class="line">  ├── 文件名拷贝 → user_data</span><br><span class="line">  │     name_copy = STREAM_LIBC_MALLOC(strlen+1)</span><br><span class="line">  │     strcpy(name_copy, filename)</span><br><span class="line">  │     lv_obj_set_user_data(img, name_copy)</span><br><span class="line">  │     lv_obj_add_event_cb(img, album_img_cleanup, LV_EVENT_DELETE, NULL)</span><br><span class="line">  │     // ★ LV_EVENT_DELETE → img 被删除时自动 free user_data</span><br><span class="line">  │</span><br><span class="line">  ├── 注册点击事件</span><br><span class="line">  │     lv_obj_add_event_cb(img, enter_photo_preview_ui,</span><br><span class="line">  │                         LV_EVENT_SHORT_CLICKED, ui_s)</span><br><span class="line">  │</span><br><span class="line">  ├── 创建缩略图</span><br><span class="line">  │     dsc = album_thumbnail_create(filename, ui_s, img)</span><br><span class="line">  │</span><br><span class="line">  ├── 成功分支</span><br><span class="line">  │     if dsc != NULL:</span><br><span class="line">  │     │   ui_s-&gt;img_dsc[idx] = dsc</span><br><span class="line">  │     │   ui_s-&gt;imgs[idx] = img</span><br><span class="line">  │     │   return 0</span><br><span class="line">  │</span><br><span class="line">  └── 失败分支</span><br><span class="line">        if dsc == NULL:</span><br><span class="line">            lv_obj_del(img)    // 删除 LVGL 对象</span><br><span class="line">            return -1</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-5-album-thumbnail-create-—-创建缩略图"><a href="#5-5-album-thumbnail-create-—-创建缩略图" class="headerlink" title="5.5 album_thumbnail_create() — 创建缩略图"></a>5.5 <code>album_thumbnail_create()</code> — 创建缩略图</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">lv_img_dsc_t</span> *<span class="title function_">album_thumbnail_create</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *filename,</span></span><br><span class="line"><span class="params">                                            <span class="keyword">struct</span> album_ui_s *ui_s,</span></span><br><span class="line"><span class="params">                                            <span class="type">lv_obj_t</span> *img)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>核心流程 — JPEG 解码 + CSC 转换 → LVGL 图像描述符</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">album_thumbnail_create(filename, ui_s, img)</span><br><span class="line">  │</span><br><span class="line">  ├── 1. 加载 JPEG 文件</span><br><span class="line">  │     album_jpeg_file_load(filename, ui_s, FRAMEBUFF_SOURCE_JPG)</span><br><span class="line">  │     │   ├── osal_fopen(&quot;0:IMG/xxx.jpg&quot;, &quot;rb&quot;)</span><br><span class="line">  │     │   ├── STREAM_MALLOC(filesize) → photo_buf</span><br><span class="line">  │     │   ├── osal_fread(photo_buf, filesize)</span><br><span class="line">  │     │   ├── fbpool_get → data_s (从 tx_pool 取一个 fb)</span><br><span class="line">  │     │   ├── data_s-&gt;data = photo_buf</span><br><span class="line">  │     │   ├── data_s-&gt;mtype = F_JPG</span><br><span class="line">  │     │   ├── data_s-&gt;srcID = FRAMEBUFF_SOURCE_JPG  ★ 关键标记</span><br><span class="line">  │     │   ├── msi_output_fb(photo_s, data_s)</span><br><span class="line">  │     │   │     └── JPEG 数据进入流水线:</span><br><span class="line">  │     │   │         photo_s → other_s → decode_s → csc_s → rgb_s</span><br><span class="line">  │     │   └── osal_fclose(fp)</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── 2. 获取 RGB 输出</span><br><span class="line">  │     │     msi_get_fb(rgb_s, 100) → rgb_fb  (超时 100 ticks)</span><br><span class="line">  │     │     │</span><br><span class="line">  │     │     └── if rgb_fb != NULL &amp;&amp; rgb_fb-&gt;data != NULL:</span><br><span class="line">  │     │           │</span><br><span class="line">  │     │           ├── 3. 创建 LVGL 图像描述符</span><br><span class="line">  │     │           │     STREAM_LIBC_MALLOC(sizeof(lv_img_dsc_t)) → dsc</span><br><span class="line">  │     │           │     dsc-&gt;header = &#123; w:160, h:120, cf:TRUE_COLOR &#125;</span><br><span class="line">  │     │           │     dsc-&gt;data_size = 160 × 120 × 2 = 38400</span><br><span class="line">  │     │           │     │</span><br><span class="line">  │     │           │     ├── STREAM_MALLOC(38400) → dsc-&gt;data  (PSRAM)</span><br><span class="line">  │     │           │     │</span><br><span class="line">  │     │           │     ├── sys_dcache_invalid_range(rgb_fb-&gt;data, 38400)</span><br><span class="line">  │     │           │     │     // DMA 写入的 buffer 需要刷新 cache</span><br><span class="line">  │     │           │     │</span><br><span class="line">  │     │           │     ├── memcpy(dsc-&gt;data, rgb_fb-&gt;data, 38400)</span><br><span class="line">  │     │           │     │     // ★ 深拷贝！避免后续帧冲掉数据</span><br><span class="line">  │     │           │     │</span><br><span class="line">  │     │           │     └── lv_img_set_src(img, dsc)</span><br><span class="line">  │     │           │</span><br><span class="line">  │     │           └── msi_delete_fb(rgb_s, rgb_fb)  // 归还 fb</span><br><span class="line">  │     │</span><br><span class="line">  │     └── return dsc (or NULL on failure)</span><br></pre></td></tr></table></figure>
+
+<h3 id="5-6-album-jpeg-file-load-—-JPEG-文件加载"><a href="#5-6-album-jpeg-file-load-—-JPEG-文件加载" class="headerlink" title="5.6 album_jpeg_file_load() — JPEG 文件加载"></a>5.6 <code>album_jpeg_file_load()</code> — JPEG 文件加载</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">int</span> <span class="title function_">album_jpeg_file_load</span><span class="params">(<span class="type">const</span> <span class="type">char</span> *filename, <span class="keyword">struct</span> album_ui_s *ui_s,</span></span><br><span class="line"><span class="params">                                 <span class="type">uint8_t</span> srcID)</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>参数</strong>：</p>
+<ul>
+<li><code>filename</code>: 文件名（不含路径）</li>
+<li><code>ui_s</code>: 相册状态</li>
+<li><code>srcID</code>: 帧来源标记 (<code>FRAMEBUFF_SOURCE_JPG</code>)</li>
+</ul>
+<p><strong>返回值</strong>：<code>0</code> 成功，<code>-1</code> 失败。</p>
+<p><strong>详细流程</strong>（含错误处理）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">album_jpeg_file_load(filename, ui_s, srcID)</span><br><span class="line">  │</span><br><span class="line">  ├── 构建路径 &quot;0:IMG/xxx.jpg&quot;</span><br><span class="line">  │</span><br><span class="line">  ├── photo_s == NULL → return -1</span><br><span class="line">  │</span><br><span class="line">  ├── fbpool_get(&amp;tx_pool, 0, photo_s) → data_s</span><br><span class="line">  │     └── 失败 → return -1</span><br><span class="line">  │</span><br><span class="line">  ├── data_s-&gt;data = NULL</span><br><span class="line">  │</span><br><span class="line">  ├── osal_fopen(path, &quot;rb&quot;) → fp</span><br><span class="line">  │     └── 失败 → msi_delete_fb + return -1</span><br><span class="line">  │</span><br><span class="line">  ├── osal_fsize(fp) → filesize</span><br><span class="line">  │</span><br><span class="line">  ├── STREAM_MALLOC(filesize) → photo_buf</span><br><span class="line">  │     └── 失败 → msi_delete_fb + fclose + return -1</span><br><span class="line">  │</span><br><span class="line">  ├── osal_fread(photo_buf, 1, filesize, fp)</span><br><span class="line">  │     └── 长度不符 → STREAM_FREE + msi_delete_fb + fclose + return -1</span><br><span class="line">  │</span><br><span class="line">  ├── 填充 framebuff</span><br><span class="line">  │     data_s-&gt;data  = photo_buf     // JPEG 文件数据</span><br><span class="line">  │     data_s-&gt;mtype = F_JPG         // 标记为 JPEG 类型</span><br><span class="line">  │     data_s-&gt;stype = FSTYPE_YUV_P1 // YUV 平面1格式</span><br><span class="line">  │     data_s-&gt;len   = filesize      // 数据长度</span><br><span class="line">  │     data_s-&gt;srcID = srcID         // ★ srcID 传递给 CSC 判断逻辑</span><br><span class="line">  │</span><br><span class="line">  ├── msi_output_fb(photo_s, data_s)  // 喂入流水线！</span><br><span class="line">  │</span><br><span class="line">  ├── osal_fclose(fp)</span><br><span class="line">  └── return 0</span><br></pre></td></tr></table></figure>
+
+<p><strong>错误处理覆盖</strong>：本函数有 4 个失败路径，每种都正确释放已分配资源。</p>
+<hr>
+<h2 id="六、UI-界面布局"><a href="#六、UI-界面布局" class="headerlink" title="六、UI 界面布局"></a>六、UI 界面布局</h2><h3 id="6-1-界面结构树"><a href="#6-1-界面结构树" class="headerlink" title="6.1 界面结构树"></a>6.1 界面结构树</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">lv_scr_act()  (活动屏幕)</span><br><span class="line">  │</span><br><span class="line">  └── now_ui (lv_obj, 白色全屏背景)</span><br><span class="line">        │</span><br><span class="line">        ├── top_bar (lv_obj, 高度30px, 标题栏)</span><br><span class="line">        │     ├── title (lv_label, &quot;Album&quot;, font_28, 黑色)</span><br><span class="line">        │     ├── page_label (lv_label, &quot;1/3&quot;, font_28, 黑色)</span><br><span class="line">        │     ├── prev_btn (lv_btn, 40×28, &quot;&lt;&quot; 符号, 上一页)</span><br><span class="line">        │     └── next_btn (lv_btn, 40×28, &quot;&gt;&quot; 符号, 下一页)</span><br><span class="line">        │</span><br><span class="line">        ├── line (lv_obj, 高2px, 黑色分割线, y=32)</span><br><span class="line">        │</span><br><span class="line">        └── img_cont (lv_obj, 图片容器, Flexbox 布局)</span><br><span class="line">              ├── img[0] (lv_img, 160×120)</span><br><span class="line">              ├── img[1] (lv_img, 160×120)</span><br><span class="line">              ├── ...</span><br><span class="line">              └── img[N-1] (lv_img, 160×120)</span><br></pre></td></tr></table></figure>
+
+<h3 id="6-2-网格布局计算"><a href="#6-2-网格布局计算" class="headerlink" title="6.2 网格布局计算"></a>6.2 网格布局计算</h3><p><strong>公式</strong>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 可用宽度 = 屏幕宽度</span></span><br><span class="line"><span class="comment">// 可用高度 = 屏幕高度 - 30 (标题栏高度)</span></span><br><span class="line">cols = (avail_w + IMG_GAP) / (IMG_W + IMG_GAP);</span><br><span class="line">rows = (avail_h + IMG_GAP) / (IMG_H + IMG_GAP);</span><br><span class="line">img_per_page = min(cols × rows, ALBUM_MAX_IMG);</span><br></pre></td></tr></table></figure>
+
+<p><strong>示例计算结果</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>屏幕分辨率</th>
+<th>cols</th>
+<th>rows</th>
+<th>img_per_page</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>800×480</td>
+<td>4</td>
+<td>3</td>
+<td>12</td>
+</tr>
+<tr>
+<td>480×272</td>
+<td>2</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td>640×480</td>
+<td>3</td>
+<td>3</td>
+<td>9</td>
+</tr>
+</tbody></table>
+<p><strong>容器尺寸</strong>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cont_w = cols × <span class="number">160</span> + (cols - <span class="number">1</span>) × <span class="number">20</span> + <span class="number">20</span>;</span><br><span class="line">cont_h = rows × <span class="number">120</span> + (rows - <span class="number">1</span>) × <span class="number">20</span> + <span class="number">20</span>;</span><br></pre></td></tr></table></figure>
+
+<p>例如 4×3 网格：<code>cont_w = 4×160 + 3×20 + 20 = 720</code>, <code>cont_h = 3×120 + 2×20 + 20 = 420</code></p>
+<h3 id="6-3-缩略图外观"><a href="#6-3-缩略图外观" class="headerlink" title="6.3 缩略图外观"></a>6.3 缩略图外观</h3><table>
+<thead>
+<tr>
+<th>状态</th>
+<th>边框颜色</th>
+<th>边框宽度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>默认（无焦点）</td>
+<td><code>#CCCCCC</code> (浅灰)</td>
+<td>1px</td>
+</tr>
+<tr>
+<td>聚焦选中</td>
+<td><code>#FF0000</code> (红色)</td>
+<td>3px</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="七、按键系统与焦点导航"><a href="#七、按键系统与焦点导航" class="headerlink" title="七、按键系统与焦点导航"></a>七、按键系统与焦点导航</h2><h3 id="7-1-按键映射"><a href="#7-1-按键映射" class="headerlink" title="7.1 按键映射"></a>7.1 按键映射</h3><h4 id="相册模式-album-self-key"><a href="#相册模式-album-self-key" class="headerlink" title="相册模式 (album_self_key)"></a>相册模式 (<code>album_self_key</code>)</h4><table>
+<thead>
+<tr>
+<th>硬件按键</th>
+<th>事件类型</th>
+<th>映射值</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AD_UP</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>&#39;u&#39;</code></td>
+<td>焦点上移</td>
+</tr>
+<tr>
+<td>AD_DOWN</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>&#39;d&#39;</code></td>
+<td>焦点下移</td>
+</tr>
+<tr>
+<td>AD_LEFT</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>&#39;l&#39;</code></td>
+<td>焦点左移</td>
+</tr>
+<tr>
+<td>AD_RIGHT</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>&#39;r&#39;</code></td>
+<td>焦点右移</td>
+</tr>
+<tr>
+<td>AD_PRESS</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>&#39;e&#39;</code></td>
+<td>确认 &#x2F; 进入预览</td>
+</tr>
+<tr>
+<td>AD_PRESS</td>
+<td>KEY_EVENT_LDOWN (长按)</td>
+<td><code>&#39;q&#39;</code></td>
+<td>退出相册</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>按键映射设计说明</strong>：</p>
+<ul>
+<li>第一版中 AD_LEFT&#x3D;’q’(退出), AD_UP&#x3D;’n’(下一页), AD_DOWN&#x3D;’p’(上一页)</li>
+<li>第二版重映射为方向键导航，长按 AD_PRESS 替代退出</li>
+<li>按键码通过 <code>(val &amp; 0xff)</code> 获取事件类型，<code>(val &gt;&gt; 8)</code> 获取按键值</li>
+</ul>
+</blockquote>
+<h4 id="预览模式-preview-self-key"><a href="#预览模式-preview-self-key" class="headerlink" title="预览模式 (preview_self_key)"></a>预览模式 (<code>preview_self_key</code>)</h4><table>
+<thead>
+<tr>
+<th>硬件按键</th>
+<th>事件类型</th>
+<th>映射值</th>
+<th>操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>AD_PRESS</td>
+<td>KEY_EVENT_SUP (短按)</td>
+<td><code>0x1B</code> (ESC)</td>
+<td>退出预览</td>
+</tr>
+</tbody></table>
+<h3 id="7-2-焦点导航算法"><a href="#7-2-焦点导航算法" class="headerlink" title="7.2 焦点导航算法"></a>7.2 焦点导航算法</h3><h4 id="焦点高亮-album-apply-focus"><a href="#焦点高亮-album-apply-focus" class="headerlink" title="焦点高亮 (album_apply_focus)"></a>焦点高亮 (<code>album_apply_focus</code>)</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">album_apply_focus(ui_s, idx)</span><br><span class="line">  ├── 有效性检查 (idx &lt; <span class="number">0</span> || idx &gt;= loaded_cnt → <span class="keyword">return</span>)</span><br><span class="line">  │</span><br><span class="line">  ├── 清除旧焦点高亮</span><br><span class="line">  │     <span class="keyword">if</span> focus_img != <span class="literal">NULL</span>:</span><br><span class="line">  │         border_color = #CCCCCC  (灰色)</span><br><span class="line">  │         border_width = <span class="number">1</span></span><br><span class="line">  │</span><br><span class="line">  └── 设置新焦点高亮</span><br><span class="line">        img = imgs[idx]</span><br><span class="line">        <span class="keyword">if</span> img != <span class="literal">NULL</span>:</span><br><span class="line">            border_color = #FF0000  (红色)</span><br><span class="line">            border_width = <span class="number">3</span></span><br><span class="line">            focus_img = img</span><br><span class="line">            focus_idx = idx</span><br></pre></td></tr></table></figure>
+
+<h4 id="四方向移动-自动翻页"><a href="#四方向移动-自动翻页" class="headerlink" title="四方向移动 + 自动翻页"></a>四方向移动 + 自动翻页</h4><p><strong>上移</strong> (<code>album_focus_up</code>)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">new_idx = focus_idx - cols</span><br><span class="line"></span><br><span class="line">if new_idx &gt;= 0:</span><br><span class="line">    album_apply_focus(ui_s, new_idx)    // 正常上移</span><br><span class="line">else:</span><br><span class="line">    if cur_page &gt; 1:</span><br><span class="line">        cur_page--</span><br><span class="line">        album_load_page(ui_s)           // 已到第一行 → 上翻一页</span><br></pre></td></tr></table></figure>
+
+<p><strong>下移</strong> (<code>album_focus_down</code>)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">new_idx = focus_idx + cols</span><br><span class="line"></span><br><span class="line">if new_idx &lt; loaded_cnt:</span><br><span class="line">    album_apply_focus(ui_s, new_idx)    // 正常下移</span><br><span class="line">else:</span><br><span class="line">    total_pages = ceil(total_files / per_page)</span><br><span class="line">    if cur_page &lt; total_pages:</span><br><span class="line">        cur_page++</span><br><span class="line">        album_load_page(ui_s)           // 已到最后一行 → 下翻一页</span><br></pre></td></tr></table></figure>
+
+<p><strong>左移</strong> (<code>album_focus_left</code>)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">new_idx = focus_idx - 1</span><br><span class="line"></span><br><span class="line">if new_idx &gt;= 0:</span><br><span class="line">    album_apply_focus(ui_s, new_idx)    // 正常左移</span><br><span class="line">else:</span><br><span class="line">    if cur_page &gt; 1:</span><br><span class="line">        cur_page--</span><br><span class="line">        album_load_page(ui_s)           // 已在第一个 → 上翻一页</span><br></pre></td></tr></table></figure>
+
+<p><strong>右移</strong> (<code>album_focus_right</code>)：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">new_idx = focus_idx + 1</span><br><span class="line"></span><br><span class="line">if new_idx &lt; loaded_cnt:</span><br><span class="line">    album_apply_focus(ui_s, new_idx)    // 正常右移</span><br><span class="line">else:</span><br><span class="line">    total_pages = ceil(total_files / per_page)</span><br><span class="line">    if cur_page &lt; total_pages:</span><br><span class="line">        cur_page++</span><br><span class="line">        album_load_page(ui_s)           // 已在最后一个 → 下翻一页</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-3-按键事件处理-album-key-handler"><a href="#7-3-按键事件处理-album-key-handler" class="headerlink" title="7.3 按键事件处理 (album_key_handler)"></a>7.3 按键事件处理 (<code>album_key_handler</code>)</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">album_key_handler(e)</span><br><span class="line">  ├── c = *(<span class="type">int32_t</span> *)lv_event_get_param(e)  <span class="comment">// 获取按键码</span></span><br><span class="line">  │</span><br><span class="line">  ├── <span class="keyword">switch</span>(c):</span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;q&#x27;</span>: album_exit(ui_s)           <span class="comment">// 退出相册</span></span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;u&#x27;</span>: album_focus_up(ui_s)       <span class="comment">// 焦点上移</span></span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;d&#x27;</span>: album_focus_down(ui_s)     <span class="comment">// 焦点下移</span></span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;l&#x27;</span>: album_focus_left(ui_s)     <span class="comment">// 焦点左移</span></span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;r&#x27;</span>: album_focus_right(ui_s)    <span class="comment">// 焦点右移</span></span><br><span class="line">  │     <span class="keyword">case</span> <span class="string">&#x27;e&#x27;</span>:                             <span class="comment">// 确认</span></span><br><span class="line">  │         <span class="keyword">if</span> (ui_s-&gt;focus_img):</span><br><span class="line">  │             lv_event_send(focus_img, LV_EVENT_SHORT_CLICKED, <span class="literal">NULL</span>)</span><br><span class="line">  │             <span class="comment">// ★ 通过发送 LV_EVENT_SHORT_CLICKED 复用触摸进入预览的逻辑</span></span><br><span class="line">  │</span><br><span class="line">  └── <span class="keyword">default</span>: <span class="keyword">break</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="7-4-手势翻页"><a href="#7-4-手势翻页" class="headerlink" title="7.4 手势翻页"></a>7.4 手势翻页</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">album_gesture_handler(e)</span><br><span class="line">  ├── lv_indev_get_act() → indev</span><br><span class="line">  ├── lv_indev_get_gesture_dir(indev) → dir</span><br><span class="line">  │</span><br><span class="line">  ├── <span class="keyword">switch</span>(dir):</span><br><span class="line">  │     <span class="keyword">case</span> LV_DIR_LEFT:   cur_page++; album_load_page()  <span class="comment">// 左滑→下一页</span></span><br><span class="line">  │     <span class="keyword">case</span> LV_DIR_RIGHT:  cur_page--; album_load_page()  <span class="comment">// 右滑→上一页</span></span><br><span class="line">  │     <span class="keyword">default</span>: <span class="keyword">break</span></span><br><span class="line">  │</span><br><span class="line">  └── lv_indev_wait_release(indev)  <span class="comment">// 等待手势释放</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>设计要点</strong>：<code>now_ui</code> 设置了 <code>LV_OBJ_FLAG_GESTURE_BUBBLE</code> 清除，阻止手势冒泡。<code>img_cont</code> 设置了 <code>LV_OBJ_FLAG_GESTURE_BUBBLE</code> 让手势可以冒泡到 <code>now_ui</code> 处理。<code>top_bar</code> 也设置了 <code>LV_OBJ_FLAG_GESTURE_BUBBLE</code>。</p>
+</blockquote>
+<hr>
+<h2 id="八、全屏预览机制"><a href="#八、全屏预览机制" class="headerlink" title="八、全屏预览机制"></a>八、全屏预览机制</h2><h3 id="8-1-进入预览-enter-photo-preview-ui"><a href="#8-1-进入预览-enter-photo-preview-ui" class="headerlink" title="8.1 进入预览 (enter_photo_preview_ui)"></a>8.1 进入预览 (<code>enter_photo_preview_ui</code>)</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line">触发方式:</span><br><span class="line">  1. 触摸点击缩略图 → LV_EVENT_SHORT_CLICKED</span><br><span class="line">  2. 按键确认(&#x27;e&#x27;) → lv_event_send(focus_img, LV_EVENT_SHORT_CLICKED)</span><br><span class="line"></span><br><span class="line">enter_photo_preview_ui(e)</span><br><span class="line">  │</span><br><span class="line">  ├── 0. 同步焦点（触摸时同步更新焦点高亮）</span><br><span class="line">  │     for i = 0 to loaded_cnt:</span><br><span class="line">  │         if imgs[i] == img:</span><br><span class="line">  │             album_apply_focus(ui_s, i)</span><br><span class="line">  │             break</span><br><span class="line">  │</span><br><span class="line">  ├── 1. 获取文件名</span><br><span class="line">  │     filename = (char *)lv_obj_get_user_data(img)</span><br><span class="line">  │     name_copy = STREAM_LIBC_MALLOC(strlen+1)  // 拷贝文件名</span><br><span class="line">  │     strcpy(name_copy, filename)</span><br><span class="line">  │</span><br><span class="line">  ├── 2. 按键接管</span><br><span class="line">  │     set_lvgl_get_key_func(preview_self_key)  // 预览按键映射</span><br><span class="line">  │</span><br><span class="line">  ├── 3. 创建预览界面</span><br><span class="line">  │     preview = lv_obj_create(lv_scr_act())</span><br><span class="line">  │     ├── 全屏 (100% × 100%)</span><br><span class="line">  │     ├── 无边框, 无滚动条</span><br><span class="line">  │     ├── LV_EVENT_CLICKED → exit_photo_preview_ui  (触摸退出)</span><br><span class="line">  │     ├── LV_EVENT_KEY → exit_photo_preview_ui       (按键退出)</span><br><span class="line">  │     ├── lv_group_add_obj(now_group, preview)       // 加入按键组</span><br><span class="line">  │     ├── lv_group_focus_obj(preview)                 // 聚焦预览对象</span><br><span class="line">  │     └── ui_s-&gt;preview_obj = preview</span><br><span class="line">  │</span><br><span class="line">  ├── 4. MSI 通路切换</span><br><span class="line">  │     │</span><br><span class="line">  │     ├── msi_add_output(decode_s → R_VIDEO_P1)    // 解码输出→视频层</span><br><span class="line">  │     ├── msi_del_output(decode_s → R_CSC_MSI)      // 断开→CSC通路</span><br><span class="line">  │     │     // ★ 避免预览帧通过 CSC 干扰 P2（菜单）显示</span><br><span class="line">  │     │</span><br><span class="line">  │     └── msi_cmd(R_VIDEO_P1, MSI_CMD_LCD_VIDEO, MSI_VIDEO_ENABLE, 1)</span><br><span class="line">  │           // 开启 VIDEO_P1 硬件视频层显示</span><br><span class="line">  │</span><br><span class="line">  ├── 5. 设置预览分辨率 (320×240)</span><br><span class="line">  │     msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG,</span><br><span class="line">  │                MSI_JPEG_DECODE_OUT_SIZE, 320 &lt;&lt; 16 | 240)</span><br><span class="line">  │</span><br><span class="line">  ├── 6. 执行预览</span><br><span class="line">  │     album_preview_show(name_copy, ui_s)</span><br><span class="line">  │     │   └── album_jpeg_file_load(filename, ui_s, FRAMEBUFF_SOURCE_JPG)</span><br><span class="line">  │     │         └── JPEG → decode_s → R_VIDEO_P1 → LCD 显示</span><br><span class="line">  │</span><br><span class="line">  └── 7. 释放文件名副本</span><br><span class="line">        STREAM_LIBC_FREE(name_copy)</span><br></pre></td></tr></table></figure>
+
+<h3 id="8-2-退出预览-exit-photo-preview-ui"><a href="#8-2-退出预览-exit-photo-preview-ui" class="headerlink" title="8.2 退出预览 (exit_photo_preview_ui)"></a>8.2 退出预览 (<code>exit_photo_preview_ui</code>)</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">触发方式:</span><br><span class="line">  1. 触摸任意位置 → LV_EVENT_CLICKED</span><br><span class="line">  2. 按键 AD_PRESS(短按) → 0x1B(ESC) → LV_EVENT_KEY</span><br><span class="line"></span><br><span class="line">exit_photo_preview_ui(e)</span><br><span class="line">  │</span><br><span class="line">  ├── 1. 恢复相册按键</span><br><span class="line">  │     set_lvgl_get_key_func(album_self_key)</span><br><span class="line">  │</span><br><span class="line">  ├── 2. 删除预览界面</span><br><span class="line">  │     lv_obj_del(preview_obj)</span><br><span class="line">  │     preview_obj = NULL</span><br><span class="line">  │</span><br><span class="line">  ├── 3. 刷新 LVGL 显示</span><br><span class="line">  │     lv_refr_now(NULL)</span><br><span class="line">  │</span><br><span class="line">  ├── 4. 关闭 VIDEO_P1</span><br><span class="line">  │     msi_cmd(R_VIDEO_P1, MSI_CMD_LCD_VIDEO, MSI_VIDEO_ENABLE, 0)</span><br><span class="line">  │</span><br><span class="line">  ├── 5. 恢复 decode→CSC 通路（恢复菜单显示）</span><br><span class="line">  │     msi_add_output(decode_s, NULL, R_CSC_MSI)</span><br><span class="line">  │</span><br><span class="line">  ├── 6. 将输出分辨率调回缩略图参数</span><br><span class="line">  │     msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG,</span><br><span class="line">  │                MSI_JPEG_DECODE_OUT_SIZE, 160 &lt;&lt; 16 | 120)</span><br><span class="line">  │</span><br><span class="line">  └── 7. 删除 decode→VIDEO_P1 通路</span><br><span class="line">        msi_del_output(decode_s, NULL, R_VIDEO_P1)</span><br></pre></td></tr></table></figure>
+
+<h3 id="8-3-预览模式-MSI-通路切换图示"><a href="#8-3-预览模式-MSI-通路切换图示" class="headerlink" title="8.3 预览模式 MSI 通路切换图示"></a>8.3 预览模式 MSI 通路切换图示</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">┌───────── 缩略图模式 ─────────┐</span><br><span class="line">│                              │</span><br><span class="line">│  decode_s ──→ R_CSC_MSI ──→ rgb_s ──→ LVGL显示  │</span><br><span class="line">│       (连接)                 │</span><br><span class="line">│                              │</span><br><span class="line">│  decode_s     R_VIDEO_P1     │</span><br><span class="line">│       (断开)                 │</span><br><span class="line">└──────────────────────────────┘</span><br><span class="line"></span><br><span class="line">┌───────── 预览模式 ───────────┐</span><br><span class="line">│                              │</span><br><span class="line">│  decode_s     R_CSC_MSI     │</span><br><span class="line">│       (断开)                 │</span><br><span class="line">│                              │</span><br><span class="line">│  decode_s ──→ R_VIDEO_P1 ──→ LCD显示  │</span><br><span class="line">│       (连接)                 │</span><br><span class="line">└──────────────────────────────┘</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>关键设计</strong>：解码后的 JPEG 帧在缩略图模式下经过 CSC 转换为 RGB565 供 LVGL 显示，在预览模式下直接输出到 VIDEO_P1 硬件视频层（不经 CSC），实现全屏显示。</p>
+</blockquote>
+<hr>
+<h2 id="九、CSC-动态格式配置"><a href="#九、CSC-动态格式配置" class="headerlink" title="九、CSC 动态格式配置"></a>九、CSC 动态格式配置</h2><h3 id="9-1-改造背景"><a href="#9-1-改造背景" class="headerlink" title="9.1 改造背景"></a>9.1 改造背景</h3><p>原 <code>video_app_csc_msi.c</code> 固定将输入 <code>RGB565</code> 转换为输出 <code>YUV420P</code>，用于 VIDEO2 通路（LVGL 菜单→CSC→YUV→LCD P2 层）。相册功能需要反向转换（JPEG 解码的 <code>YUV420P</code> → <code>RGB565</code>），因此需要对 CSC 驱动进行泛化改造。</p>
+<h3 id="9-2-新增辅助函数"><a href="#9-2-新增辅助函数" class="headerlink" title="9.2 新增辅助函数"></a>9.2 新增辅助函数</h3><h4 id="csc-is-rgb-format-—-判断是否为-RGB-格式"><a href="#csc-is-rgb-format-—-判断是否为-RGB-格式" class="headerlink" title="csc_is_rgb_format() — 判断是否为 RGB 格式"></a><code>csc_is_rgb_format()</code> — 判断是否为 RGB 格式</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">uint8_t</span> <span class="title function_">csc_is_rgb_format</span><span class="params">(<span class="type">uint32_t</span> fmt)</span></span><br></pre></td></tr></table></figure>
+
+<p>支持的 RGB 格式：<code>CSC_BGR565</code>, <code>CSC_RGB565</code>, <code>CSC_BGR888</code>, <code>CSC_RGB888</code>, <code>CSC_RGB888P</code>。</p>
+<h4 id="csc-get-convert-type-—-自动推导转换类型"><a href="#csc-get-convert-type-—-自动推导转换类型" class="headerlink" title="csc_get_convert_type() — 自动推导转换类型"></a><code>csc_get_convert_type()</code> — 自动推导转换类型</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">uint8_t</span> <span class="title function_">csc_get_convert_type</span><span class="params">(<span class="type">uint32_t</span> input_fmt, <span class="type">uint32_t</span> output_fmt)</span></span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>输入</th>
+<th>输出</th>
+<th>返回值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>YUV</td>
+<td>RGB</td>
+<td>0</td>
+<td>YUV→RGB</td>
+</tr>
+<tr>
+<td>RGB</td>
+<td>RGB 或 YUV→YUV</td>
+<td>1</td>
+<td>同色域</td>
+</tr>
+<tr>
+<td>RGB</td>
+<td>YUV</td>
+<td>2</td>
+<td>RGB→YUV</td>
+</tr>
+</tbody></table>
+<h4 id="csc-get-plane-offsets-—-计算平面偏移"><a href="#csc-get-plane-offsets-—-计算平面偏移" class="headerlink" title="csc_get_plane_offsets() — 计算平面偏移"></a><code>csc_get_plane_offsets()</code> — 计算平面偏移</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">csc_get_plane_offsets</span><span class="params">(<span class="type">uint32_t</span> fmt, <span class="type">uint32_t</span> w, <span class="type">uint32_t</span> h,</span></span><br><span class="line"><span class="params">                                   <span class="type">uint32_t</span> *off1, <span class="type">uint32_t</span> *off2)</span></span><br></pre></td></tr></table></figure>
+
+<p>不同的颜色格式有不同的内存布局：</p>
+<table>
+<thead>
+<tr>
+<th>格式</th>
+<th>平面1 (Y&#x2F;luma)</th>
+<th>平面2 (U&#x2F;Cb)</th>
+<th>平面3 (V&#x2F;Cr)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RGB565 &#x2F; YUYV422 &#x2F; YUV444 (packed)</td>
+<td>基址 + 0</td>
+<td>0</td>
+<td>0</td>
+</tr>
+<tr>
+<td>YUV420P</td>
+<td>基址 + 0</td>
+<td>+ w×h</td>
+<td>+ w×h + w×h&#x2F;4</td>
+</tr>
+<tr>
+<td>YUV422P</td>
+<td>基址 + 0</td>
+<td>+ w×h</td>
+<td>+ w×h + w×h&#x2F;2</td>
+</tr>
+<tr>
+<td>YUV422SP</td>
+<td>基址 + 0</td>
+<td>+ w×h</td>
+<td>0 (interleaved UV)</td>
+</tr>
+<tr>
+<td>RGB888P &#x2F; YUV444P</td>
+<td>基址 + 0</td>
+<td>+ w×h</td>
+<td>+ w×h×2</td>
+</tr>
+</tbody></table>
+<h4 id="csc-set-input-addr-by-fmt-csc-set-output-addr-by-fmt"><a href="#csc-set-input-addr-by-fmt-csc-set-output-addr-by-fmt" class="headerlink" title="csc_set_input_addr_by_fmt() &#x2F; csc_set_output_addr_by_fmt()"></a><code>csc_set_input_addr_by_fmt()</code> &#x2F; <code>csc_set_output_addr_by_fmt()</code></h4><p>根据格式自动计算三个平面地址并调用 <code>csc_set_input_addr(dev, y_addr, u_addr, v_addr)</code>。</p>
+<h4 id="csc-output-buf-size-—-计算缓冲区大小"><a href="#csc-output-buf-size-—-计算缓冲区大小" class="headerlink" title="csc_output_buf_size() — 计算缓冲区大小"></a><code>csc_output_buf_size()</code> — 计算缓冲区大小</h4><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">uint32_t</span> <span class="title function_">csc_output_buf_size</span><span class="params">(<span class="type">uint32_t</span> w, <span class="type">uint32_t</span> h, <span class="type">uint32_t</span> fmt)</span></span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>格式类</th>
+<th>计算公式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>16-bit packed (RGB565, YUYV422 等)</td>
+<td>w × h × 2</td>
+</tr>
+<tr>
+<td>YUV422 planar&#x2F;semi-planar</td>
+<td>w × h × 2</td>
+</tr>
+<tr>
+<td>YUV420P</td>
+<td>w × h × 3 &#x2F; 2</td>
+</tr>
+<tr>
+<td>24-bit packed (RGB888, YUV444 等)</td>
+<td>w × h × 3</td>
+</tr>
+<tr>
+<td>24-bit planar (RGB888P, YUV444P 等)</td>
+<td>w × h × 3</td>
+</tr>
+</tbody></table>
+<h3 id="9-3-CSC-工作线程动态分支"><a href="#9-3-CSC-工作线程动态分支" class="headerlink" title="9.3 CSC 工作线程动态分支"></a>9.3 CSC 工作线程动态分支</h3><p><code>video_app_csc_msi_work()</code> 中根据 <code>fb-&gt;srcID</code> 分支：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">switch</span> (csc_priv-&gt;current_rx_fb-&gt;srcID)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">case</span> FRAMEBUFF_SOURCE_JPG:</span><br><span class="line">        <span class="comment">// 相册缩略图路径</span></span><br><span class="line">        in_fmt  = CSC_YUV420P;     <span class="comment">// JPEG 解码输出 YUV420P</span></span><br><span class="line">        out_fmt = CSC_RGB565;      <span class="comment">// LVGL 需要 RGB565</span></span><br><span class="line">        csc_w   = <span class="number">160</span>;             <span class="comment">// 缩略图宽</span></span><br><span class="line">        csc_h   = <span class="number">120</span>;             <span class="comment">// 缩略图高</span></span><br><span class="line">        <span class="comment">// 输出 fb 类型: F_RGB / LVGL_RGB</span></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        <span class="comment">// VIDEO2 默认路径（菜单显示）</span></span><br><span class="line">        in_fmt  = CSC_RGB565;      <span class="comment">// LVGL 输出 RGB565</span></span><br><span class="line">        out_fmt = CSC_YUV420P;     <span class="comment">// LCD YUV 层需要 YUV420P</span></span><br><span class="line">        csc_w   = csc_priv-&gt;width;  <span class="comment">// 全屏宽</span></span><br><span class="line">        csc_h   = csc_priv-&gt;height; <span class="comment">// 全屏高</span></span><br><span class="line">        <span class="comment">// 输出 fb 类型: F_YUV / FSTYPE_YUV_P0</span></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="9-4-CSC-初始化改进"><a href="#9-4-CSC-初始化改进" class="headerlink" title="9.4 CSC 初始化改进"></a>9.4 CSC 初始化改进</h3><p>改造前（固定 YUV420P 输出缓冲区大小）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint8_t</span> *csc_output_addr = STREAM_MALLOC(width * height * <span class="number">3</span> / <span class="number">2</span>);</span><br><span class="line">FBPOOL_SET_INFO(&amp;tx_pool, i, csc_output_addr, width * height * <span class="number">3</span> / <span class="number">2</span>, yuv_msg);</span><br></pre></td></tr></table></figure>
+
+<p>改造后（根据输出格式计算）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> out_buf_size = csc_output_buf_size(width, height, output_format);</span><br><span class="line"><span class="type">uint8_t</span> *csc_output_addr = STREAM_MALLOC(out_buf_size);</span><br><span class="line">FBPOOL_SET_INFO(&amp;tx_pool, i, csc_output_addr, out_buf_size, yuv_msg);</span><br></pre></td></tr></table></figure>
+
+<h3 id="9-5-MSI-CMD-TRANS-FB-增加对-JPG-源的支持"><a href="#9-5-MSI-CMD-TRANS-FB-增加对-JPG-源的支持" class="headerlink" title="9.5 MSI_CMD_TRANS_FB 增加对 JPG 源的支持"></a>9.5 <code>MSI_CMD_TRANS_FB</code> 增加对 JPG 源的支持</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">case</span> MSI_CMD_TRANS_FB:</span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">framebuff</span> *<span class="title">fb</span> =</span> (<span class="keyword">struct</span> framebuff *)param1;</span><br><span class="line">    <span class="keyword">switch</span> (fb-&gt;srcID)</span><br><span class="line">    &#123;</span><br><span class="line">    <span class="keyword">case</span> FRAMEBUFF_SOURCE_CSC:</span><br><span class="line">    <span class="keyword">case</span> FRAMEBUFF_SOURCE_JPG:  <span class="comment">// ★ 新增：允许 JPG 源通过 CSC</span></span><br><span class="line">        ret = RET_OK;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        ret = RET_OK + <span class="number">1</span>;       <span class="comment">// 拒绝其他来源</span></span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="十、JPEG-解码器扩展"><a href="#十、JPEG-解码器扩展" class="headerlink" title="十、JPEG 解码器扩展"></a>十、JPEG 解码器扩展</h2><h3 id="10-1-新增-MSI-命令"><a href="#10-1-新增-MSI-命令" class="headerlink" title="10.1 新增 MSI 命令"></a>10.1 新增 MSI 命令</h3><p>在 <code>jpg_decode_msg_msi.c</code> 中新增两个 MSI 命令处理：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 配置输出分辨率</span></span><br><span class="line"><span class="keyword">case</span> MSI_JPEG_DECODE_OUT_SIZE:</span><br><span class="line">    decode_msg-&gt;out_w = arg &gt;&gt; <span class="number">16</span>;     <span class="comment">// 高16位 = 宽度</span></span><br><span class="line">    decode_msg-&gt;out_h = arg &amp; <span class="number">0xffff</span>;   <span class="comment">// 低16位 = 高度</span></span><br><span class="line">    <span class="keyword">break</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 配置步进（解码时的步进尺寸）</span></span><br><span class="line"><span class="keyword">case</span> MSI_JPEG_DECODE_STEP:</span><br><span class="line">    decode_msg-&gt;step_w = arg &gt;&gt; <span class="number">16</span>;    <span class="comment">// 高16位 = 步进宽度</span></span><br><span class="line">    decode_msg-&gt;step_h = arg &amp; <span class="number">0xffff</span>;  <span class="comment">// 低16位 = 步进高度</span></span><br><span class="line">    <span class="keyword">break</span>;</span><br></pre></td></tr></table></figure>
+
+<h3 id="10-2-stream-define-h-新增定义"><a href="#10-2-stream-define-h-新增定义" class="headerlink" title="10.2 stream_define.h 新增定义"></a>10.2 <code>stream_define.h</code> 新增定义</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 新增 MSI 资源名称</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> R_RGB_MSI  <span class="string">&quot;rgb_msi&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 新增 JPEG 解码 MSI 命令枚举</span></span><br><span class="line"><span class="class"><span class="keyword">enum</span> <span class="title">MSI_JPEG_DECODE_MSG</span></span></span><br><span class="line"><span class="class">&#123;</span></span><br><span class="line">    MSI_JPEG_DECODE_X_Y,</span><br><span class="line">    MSI_JPEG_DECODE_FORCE_TYPE,</span><br><span class="line">    MSI_JPEG_DECODE_MAGIC,</span><br><span class="line">    MSI_JPEG_DECODE_OUT_SIZE,   <span class="comment">// ★ 新增</span></span><br><span class="line">    MSI_JPEG_DECODE_STEP,       <span class="comment">// ★ 新增</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="10-3-使用方式"><a href="#10-3-使用方式" class="headerlink" title="10.3 使用方式"></a>10.3 使用方式</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 设置缩略图解码尺寸 (160×120)</span></span><br><span class="line">msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG,</span><br><span class="line">           MSI_JPEG_DECODE_OUT_SIZE, <span class="number">160</span> &lt;&lt; <span class="number">16</span> | <span class="number">120</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 设置预览解码尺寸 (320×240)</span></span><br><span class="line">msi_do_cmd(other_s, MSI_CMD_DECODE_JPEG_MSG,</span><br><span class="line">           MSI_JPEG_DECODE_OUT_SIZE, <span class="number">320</span> &lt;&lt; <span class="number">16</span> | <span class="number">240</span>);</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>参数编码</strong>：宽高编码在单个 uint32_t 中，高16位&#x3D;宽度，低16位&#x3D;高度。</p>
+</blockquote>
+<hr>
+<h2 id="十一、内存管理策略"><a href="#十一、内存管理策略" class="headerlink" title="十一、内存管理策略"></a>十一、内存管理策略</h2><h3 id="11-1-内存分区"><a href="#11-1-内存分区" class="headerlink" title="11.1 内存分区"></a>11.1 内存分区</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">PSRAM (大容量, 稍慢)          SRAM (小容量, 快速)</span><br><span class="line">────────────────────────      ────────────────────────</span><br><span class="line">JPEG 文件数据 (photo_buf)     lv_img_dsc_t 结构体</span><br><span class="line">RGB565 像素数据 (dsc-&gt;data)   文件名副本 (name_copy)</span><br><span class="line">CSC 输出缓冲池                 ui_s 结构体</span><br><span class="line">                              yuv_arg_s 结构体</span><br></pre></td></tr></table></figure>
+
+<h3 id="11-2-各资源生命周期"><a href="#11-2-各资源生命周期" class="headerlink" title="11.2 各资源生命周期"></a>11.2 各资源生命周期</h3><table>
+<thead>
+<tr>
+<th>资源</th>
+<th>分配函数</th>
+<th>分配位置</th>
+<th>释放时机</th>
+<th>释放函数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ui_s</code> 结构体</td>
+<td><code>STREAM_LIBC_ZALLOC</code></td>
+<td><code>album_ui()</code></td>
+<td>退出相册 (<code>album_exit</code>)</td>
+<td><strong>（遗漏）</strong></td>
+</tr>
+<tr>
+<td>JPEG 文件 buffer</td>
+<td><code>STREAM_MALLOC</code></td>
+<td><code>album_jpeg_file_load()</code></td>
+<td>MSI FreeFB 回调</td>
+<td><code>STREAM_FREE</code></td>
+</tr>
+<tr>
+<td>LVGL 图像描述符</td>
+<td><code>STREAM_LIBC_MALLOC</code></td>
+<td><code>album_thumbnail_create()</code></td>
+<td>翻页&#x2F;退出</td>
+<td><code>STREAM_LIBC_FREE</code></td>
+</tr>
+<tr>
+<td>描述符内 RGB 数据</td>
+<td><code>STREAM_MALLOC</code></td>
+<td><code>album_thumbnail_create()</code></td>
+<td>翻页&#x2F;退出</td>
+<td><code>STREAM_FREE</code></td>
+</tr>
+<tr>
+<td>文件名副本 (user_data)</td>
+<td><code>STREAM_LIBC_MALLOC</code></td>
+<td><code>album_show()</code></td>
+<td><code>LV_EVENT_DELETE</code> → <code>album_img_cleanup</code></td>
+<td><code>STREAM_LIBC_FREE</code></td>
+</tr>
+<tr>
+<td>预览文件名副本</td>
+<td><code>STREAM_LIBC_MALLOC</code></td>
+<td><code>enter_photo_preview_ui()</code></td>
+<td>函数末尾立即释放</td>
+<td><code>STREAM_LIBC_FREE</code></td>
+</tr>
+<tr>
+<td>CSC tx_pool buffer</td>
+<td><code>STREAM_MALLOC</code></td>
+<td><code>video_app_csc_msi_init()</code></td>
+<td>MSI POST_DESTROY</td>
+<td><code>STREAM_FREE</code></td>
+</tr>
+<tr>
+<td>CSC yuv_arg_s</td>
+<td><code>STREAM_LIBC_ZALLOC</code></td>
+<td><code>video_app_csc_msi_init()</code></td>
+<td>MSI POST_DESTROY</td>
+<td><code>STREAM_LIBC_FREE</code></td>
+</tr>
+<tr>
+<td>CSC priv 结构体</td>
+<td><code>STREAM_LIBC_ZALLOC</code></td>
+<td><code>video_app_csc_msi_init()</code></td>
+<td>MSI POST_DESTROY</td>
+<td><code>STREAM_LIBC_FREE</code></td>
+</tr>
+</tbody></table>
+<h3 id="11-3-关键内存管理设计"><a href="#11-3-关键内存管理设计" class="headerlink" title="11.3 关键内存管理设计"></a>11.3 关键内存管理设计</h3><p><strong>1. 深拷贝 RGB 数据</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// album_thumbnail_create 中</span></span><br><span class="line">dsc-&gt;data = STREAM_MALLOC(IMG_W * IMG_H * <span class="number">2</span>);</span><br><span class="line"><span class="built_in">memcpy</span>((<span class="type">void</span> *)dsc-&gt;data, rgb_fb-&gt;data, IMG_W * IMG_H * <span class="number">2</span>);</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>不从 CSC 输出 buffer 直接引用数据，而是拷贝一份</li>
+<li>原因：CSC 输出 buffer 会被后续帧覆盖，深拷贝保证缩略图数据持久有效</li>
+</ul>
+<p><strong>2. LV_EVENT_DELETE 自动释放</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// album_show 中注册</span></span><br><span class="line">lv_obj_add_event_cb(img, album_img_cleanup, LV_EVENT_DELETE, <span class="literal">NULL</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// album_img_cleanup 回调</span></span><br><span class="line"><span class="type">static</span> <span class="type">void</span> <span class="title function_">album_img_cleanup</span><span class="params">(<span class="type">lv_event_t</span> *e)</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="type">lv_obj_t</span> *img = lv_event_get_target(e);</span><br><span class="line">    <span class="type">void</span> *user_data = lv_obj_get_user_data(img);</span><br><span class="line">    <span class="keyword">if</span> (user_data)</span><br><span class="line">    &#123;</span><br><span class="line">        lv_obj_set_user_data(img, <span class="literal">NULL</span>);</span><br><span class="line">        STREAM_LIBC_FREE(user_data);  <span class="comment">// 释放文件名副本</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>翻页时 <code>lv_obj_clean(img_cont)</code> 批量删除 img 对象</li>
+<li>LVGL 在删除对象时会发送 <code>LV_EVENT_DELETE</code>，触发自动释放</li>
+<li>防止翻页时文件名泄漏</li>
+</ul>
+<p><strong>3. photo_s MSI_CMD_FREE_FB 回调</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">case</span> MSI_CMD_FREE_FB:</span><br><span class="line">&#123;</span><br><span class="line">    <span class="class"><span class="keyword">struct</span> <span class="title">framebuff</span> *<span class="title">fb</span> =</span> (<span class="keyword">struct</span> framebuff *)param1;</span><br><span class="line">    <span class="keyword">if</span> (fb-&gt;data)</span><br><span class="line">    &#123;</span><br><span class="line">        STREAM_FREE(fb-&gt;data);   <span class="comment">// 释放 JPEG 文件数据 (PSRAM)</span></span><br><span class="line">        fb-&gt;data = <span class="literal">NULL</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    fbpool_put(&amp;ui_s-&gt;tx_pool, fb);  <span class="comment">// 归还 fb 到池中复用</span></span><br><span class="line">    ret = RET_OK + <span class="number">1</span>;  <span class="comment">// 阻止框架层再次释放</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>RET_OK + 1</code> 阻止 MSI 框架层重复释放 fb-&gt;data</li>
+<li>fb 归还到 tx_pool 供下次使用</li>
+</ul>
+<p><strong>4. 翻页时内存清理顺序</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">lv_obj_clean(img_cont)       // 第1步：删除 LVGL 对象（触发 DELETE 回调释放文件名）</span><br><span class="line">    ↓</span><br><span class="line">手动释放 img_dsc[]           // 第2步：释放图像描述符和数据</span><br><span class="line">    ↓</span><br><span class="line">重置计数器                   // 第3步：img_loaded_cnt = 0</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>重要</strong>：必须先删除 LVGL 对象再释放 dsc，因为 LVGL 对象还在引用 dsc。如果先释放 dsc 再删除对象，会导致 LVGL 访问已释放的内存。</p>
+</blockquote>
+<p><strong>5. 退出相册时的完整清理</strong></p>
+<p><code>album_exit()</code> 中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1. 还原 UI 状态</span></span><br><span class="line">lv_indev_set_group(indev_keypad, last_group);</span><br><span class="line">lv_group_del(now_group);</span><br><span class="line">lv_obj_del(now_ui);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2. 销毁 MSI 流水线 (包括 CSC 输出 buffer)</span></span><br><span class="line">album_msi_destroy(ui_s);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. 释放缩略图数据</span></span><br><span class="line"><span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; img_loaded_cnt; i++)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">if</span> (img_dsc[i])</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span> (img_dsc[i]-&gt;data) STREAM_FREE(data);</span><br><span class="line">        STREAM_LIBC_FREE(img_dsc[i]);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="11-4-已知问题"><a href="#11-4-已知问题" class="headerlink" title="11.4 已知问题"></a>11.4 已知问题</h3><blockquote>
+<p><strong><code>ui_s</code> 结构体泄漏</strong>：<code>album_ui()</code> 中分配的 <code>struct album_ui_s</code> 在 <code>album_exit()</code> 中没有释放。虽然整个结构体很小（SRAM 中几十字节），但理论上存在内存泄漏。修复方法：在 <code>album_exit()</code> 末尾增加 <code>STREAM_LIBC_FREE(ui_s)</code>。</p>
+</blockquote>
+<hr>
+<h2 id="十二、数据流完整跟踪"><a href="#十二、数据流完整跟踪" class="headerlink" title="十二、数据流完整跟踪"></a>十二、数据流完整跟踪</h2><h3 id="12-1-缩略图加载数据流"><a href="#12-1-缩略图加载数据流" class="headerlink" title="12.1 缩略图加载数据流"></a>12.1 缩略图加载数据流</h3><p>以加载 <code>IMG/photo001.jpg</code> 为例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line">Step 1: album_load_page()</span><br><span class="line">  └── album_show(&quot;photo001.jpg&quot;, ui_s)</span><br><span class="line">        └── album_thumbnail_create(&quot;photo001.jpg&quot;, ui_s, img)</span><br><span class="line"></span><br><span class="line">Step 2: album_jpeg_file_load(&quot;photo001.jpg&quot;, ui_s, FRAMEBUFF_SOURCE_JPG)</span><br><span class="line">  ├── 打开文件: osal_fopen(&quot;0:IMG/photo001.jpg&quot;, &quot;rb&quot;)</span><br><span class="line">  ├── 获取大小: osal_fsize() → 例如 25600 bytes</span><br><span class="line">  ├── 分配内存: STREAM_MALLOC(25600) → photo_buf (PSRAM地址 0x6xxxxxxx)</span><br><span class="line">  ├── 读取文件: osal_fread(photo_buf, 25600)</span><br><span class="line">  ├── 获取 fb:  fbpool_get(&amp;tx_pool, 0, photo_s) → data_s</span><br><span class="line">  ├── 填充属性:</span><br><span class="line">  │     data_s-&gt;data  = photo_buf       (0x6xxxxxxx)</span><br><span class="line">  │     data_s-&gt;mtype = F_JPG</span><br><span class="line">  │     data_s-&gt;stype = FSTYPE_YUV_P1</span><br><span class="line">  │     data_s-&gt;len   = 25600</span><br><span class="line">  │     data_s-&gt;srcID = FRAMEBUFF_SOURCE_JPG</span><br><span class="line">  │</span><br><span class="line">  └── 喂入流水线: msi_output_fb(photo_s, data_s)</span><br><span class="line"></span><br><span class="line">Step 3: MSI 流水线处理 (异步)</span><br><span class="line">  photo_s → SR_OTHER_JPG → S_JPG_DECODE → R_CSC_MSI → R_RGB_MSI</span><br><span class="line">  │         │              │              │              │</span><br><span class="line">  │         │              │              │              └─ rgb_s 收到 RGB565 帧</span><br><span class="line">  │         │              │              │                  (160×120×2 = 38400 bytes)</span><br><span class="line">  │         │              │              │</span><br><span class="line">  │         │              │              └─ CSC 硬件: YUV420P → RGB565</span><br><span class="line">  │         │              │                  输入: JPEG 解码的 YUV420P (160×120×1.5)</span><br><span class="line">  │         │              │                  输出: RGB565 (160×120×2)</span><br><span class="line">  │         │              │</span><br><span class="line">  │         │              └─ jpg_decode_msi: 硬件解码 JPEG → YUV420P</span><br><span class="line">  │         │                  输入: JPEG 文件数据 (25600 bytes)</span><br><span class="line">  │         │                  输出: YUV420P 图像 (160×120×1.5 = 28800 bytes)</span><br><span class="line">  │         │</span><br><span class="line">  │         └─ jpg_decode_msg_msi: 配置解码参数</span><br><span class="line">  │              输出宽高: 160×120</span><br><span class="line">  │              步进宽高: 160×120</span><br><span class="line">  │              过滤器: FSTYPE_YUV_P1</span><br><span class="line">  │</span><br><span class="line">  └─ photo_s: 数据已送出, 等待 FreeFB 回调释放 photo_buf</span><br><span class="line"></span><br><span class="line">Step 4: msi_get_fb(rgb_s, 100) → rgb_fb (等待 RGB 输出)</span><br><span class="line">  ├── rgb_fb != NULL &amp;&amp; rgb_fb-&gt;data != NULL</span><br><span class="line">  │</span><br><span class="line">  ├── STREAM_LIBC_MALLOC(sizeof(lv_img_dsc_t)) → dsc (SRAM 0x1xxxxxxx)</span><br><span class="line">  ├── dsc-&gt;header = &#123; w:160, h:120, cf:LV_IMG_CF_TRUE_COLOR &#125;</span><br><span class="line">  ├── dsc-&gt;data_size = 38400</span><br><span class="line">  ├── STREAM_MALLOC(38400) → dsc-&gt;data (PSRAM 0x6xxxxxxx)</span><br><span class="line">  │</span><br><span class="line">  ├── sys_dcache_invalid_range(rgb_fb-&gt;data, 38400)  // cache 刷新</span><br><span class="line">  ├── memcpy(dsc-&gt;data, rgb_fb-&gt;data, 38400)          // 深拷贝</span><br><span class="line">  │</span><br><span class="line">  ├── lv_img_set_src(img, dsc)   // 设置 LVGL 图像源</span><br><span class="line">  │</span><br><span class="line">  └── msi_delete_fb(rgb_s, rgb_fb)  // 归还 rgb fb</span><br><span class="line"></span><br><span class="line">Step 5: 返回 album_show</span><br><span class="line">  ├── ui_s-&gt;img_dsc[idx] = dsc</span><br><span class="line">  ├── ui_s-&gt;imgs[idx] = img</span><br><span class="line">  └── return 0</span><br><span class="line"></span><br><span class="line">Step 6: 异步释放 JPEG buffer</span><br><span class="line">  MSI 框架调用 album_photo_msi_action(MSI_CMD_FREE_FB)</span><br><span class="line">  └── STREAM_FREE(photo_buf)    // 释放 PSRAM</span><br><span class="line">  └── fbpool_put(&amp;tx_pool, fb)  // 归还 fb</span><br></pre></td></tr></table></figure>
+
+<h3 id="12-2-全屏预览数据流"><a href="#12-2-全屏预览数据流" class="headerlink" title="12.2 全屏预览数据流"></a>12.2 全屏预览数据流</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">enter_photo_preview_ui(e)</span><br><span class="line">  │</span><br><span class="line">  ├── 通路切换</span><br><span class="line">  │     decode_s → R_VIDEO_P1  (连接)</span><br><span class="line">  │     decode_s → R_CSC_MSI   (断开)</span><br><span class="line">  │     VIDEO_P1 ENABLE = 1</span><br><span class="line">  │</span><br><span class="line">  ├── 分辨率配置: OUT_SIZE = 320×240</span><br><span class="line">  │</span><br><span class="line">  └── album_preview_show(&quot;photo001.jpg&quot;, ui_s)</span><br><span class="line">        │</span><br><span class="line">        └── album_jpeg_file_load(&quot;photo001.jpg&quot;, ui_s, FRAMEBUFF_SOURCE_JPG)</span><br><span class="line">              │</span><br><span class="line">              └── msi_output_fb(photo_s, data_s)  // srcID = FRAMEBUFF_SOURCE_JPG</span><br><span class="line">                    │</span><br><span class="line">                    └── photo_s → other_s → decode_s → R_VIDEO_P1 → LCD</span><br><span class="line">                          (配置320×240)   (硬件解码)    (视频层显示)</span><br></pre></td></tr></table></figure>
+
+<h3 id="12-3-CSC-格式选择流程图"><a href="#12-3-CSC-格式选择流程图" class="headerlink" title="12.3 CSC 格式选择流程图"></a>12.3 CSC 格式选择流程图</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">msi_get_fb(csc_s) 触发 CSC 工作线程</span><br><span class="line">  │</span><br><span class="line">  └── csc_priv-&gt;current_rx_fb-&gt;srcID</span><br><span class="line">        │</span><br><span class="line">        ├── FRAMEBUFF_SOURCE_JPG ──→ in_fmt = YUV420P</span><br><span class="line">        │                            out_fmt = RGB565</span><br><span class="line">        │                            size = 160×120</span><br><span class="line">        │                            tx_fb-&gt;mtype = F_RGB</span><br><span class="line">        │                            tx_fb-&gt;stype = LVGL_RGB</span><br><span class="line">        │</span><br><span class="line">        └── default ──→ in_fmt = RGB565</span><br><span class="line">                         out_fmt = YUV420P</span><br><span class="line">                         size = csc_priv-&gt;width × csc_priv-&gt;height</span><br><span class="line">                         tx_fb-&gt;mtype = F_YUV</span><br><span class="line">                         tx_fb-&gt;stype = FSTYPE_YUV_P0</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="十三、操作说明"><a href="#十三、操作说明" class="headerlink" title="十三、操作说明"></a>十三、操作说明</h2><h3 id="13-1-缩略图浏览模式"><a href="#13-1-缩略图浏览模式" class="headerlink" title="13.1 缩略图浏览模式"></a>13.1 缩略图浏览模式</h3><table>
+<thead>
+<tr>
+<th>操作方式</th>
+<th>操作</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>按键</td>
+<td>↑ (AD_UP)</td>
+<td>焦点上移；已在第一行则上翻一页</td>
+</tr>
+<tr>
+<td>按键</td>
+<td>↓ (AD_DOWN)</td>
+<td>焦点下移；已在最后一行则下翻一页</td>
+</tr>
+<tr>
+<td>按键</td>
+<td>← (AD_LEFT)</td>
+<td>焦点左移；已在第一个则上翻一页</td>
+</tr>
+<tr>
+<td>按键</td>
+<td>→ (AD_RIGHT)</td>
+<td>焦点右移；已在最后一个则下翻一页</td>
+</tr>
+<tr>
+<td>按键</td>
+<td>短按确认 (AD_PRESS)</td>
+<td>进入当前聚焦缩略图的预览</td>
+</tr>
+<tr>
+<td>按键</td>
+<td>长按确认 (AD_PRESS)</td>
+<td>退出相册返回主菜单</td>
+</tr>
+<tr>
+<td>触摸</td>
+<td>点击缩略图</td>
+<td>进入该图片预览</td>
+</tr>
+<tr>
+<td>触摸</td>
+<td>点按 “&lt;” 按钮</td>
+<td>上一页</td>
+</tr>
+<tr>
+<td>触摸</td>
+<td>点按 “&gt;” 按钮</td>
+<td>下一页</td>
+</tr>
+<tr>
+<td>触摸</td>
+<td>左右滑动</td>
+<td>左滑→下一页，右滑→上一页</td>
+</tr>
+</tbody></table>
+<h3 id="13-2-全屏预览模式"><a href="#13-2-全屏预览模式" class="headerlink" title="13.2 全屏预览模式"></a>13.2 全屏预览模式</h3><table>
+<thead>
+<tr>
+<th>操作方式</th>
+<th>操作</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>按键</td>
+<td>短按确认 (AD_PRESS)</td>
+<td>退出预览返回缩略图</td>
+</tr>
+<tr>
+<td>触摸</td>
+<td>点击任意位置</td>
+<td>退出预览返回缩略图</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="十四、内存泄漏修复回顾"><a href="#十四、内存泄漏修复回顾" class="headerlink" title="十四、内存泄漏修复回顾"></a>十四、内存泄漏修复回顾</h2><blockquote>
+<p>以下记录来自 <code>/memories/repo/album_ui_leaks.md</code>，是相册功能开发过程中的历史修复记录。</p>
+</blockquote>
+<h3 id="14-1-view-photo-ctx-双重释放-Use-After-Free"><a href="#14-1-view-photo-ctx-双重释放-Use-After-Free" class="headerlink" title="14.1 view_photo_ctx 双重释放 &#x2F; Use-After-Free"></a>14.1 view_photo_ctx 双重释放 &#x2F; Use-After-Free</h3><ul>
+<li><strong>症状</strong>: 多次点击同一缩略图后系统卡死</li>
+<li><strong>根因</strong>: <code>view_photo()</code> 中释放了 <code>view_photo_ctx</code>，但 img 对象的点击回调仍持有悬空指针。再次点击触发 use-after-free + double-free，堆损坏后 <code>av_free</code>&#x2F;<code>av_malloc</code> 死锁</li>
+<li><strong>修复</strong>: 移除 <code>view_photo_ctx</code> 结构体。文件名直接挂在 img user_data 上，事件 user_data 传 <code>ui_s</code></li>
+</ul>
+<h3 id="14-2-翻页时文件名泄漏"><a href="#14-2-翻页时文件名泄漏" class="headerlink" title="14.2 翻页时文件名泄漏"></a>14.2 翻页时文件名泄漏</h3><ul>
+<li><strong>根因</strong>: <code>album_load_page</code> → <code>lv_obj_clean(img_cont)</code> 删除 img 对象时，LVGL 不会自动释放 user_data</li>
+<li><strong>修复</strong>: 注册 <code>LV_EVENT_DELETE</code> 回调 (<code>album_img_cleanup</code>)，img 被删除时自动释放文件名副本</li>
+</ul>
+<h3 id="14-3-rgb-fb-泄漏"><a href="#14-3-rgb-fb-泄漏" class="headerlink" title="14.3 rgb_fb 泄漏"></a>14.3 rgb_fb 泄漏</h3><ul>
+<li><strong>根因</strong>: <code>msi_get_fb</code> 返回的 <code>rgb_fb</code> 非 NULL 但 <code>rgb_fb-&gt;data</code> 为 NULL 时，跳过了 <code>msi_delete_fb</code> 调用</li>
+<li><strong>修复</strong>: 确保 <code>msi_delete_fb</code> 在任何分支都能被执行到</li>
+</ul>
+<h3 id="14-4-缺少防重入保护"><a href="#14-4-缺少防重入保护" class="headerlink" title="14.4 缺少防重入保护"></a>14.4 缺少防重入保护</h3><ul>
+<li><strong>根因</strong>: 快速重复点击 “album” 按钮可能重复创建 MSI pipeline</li>
+<li><strong>修复</strong>: 在 <code>enter_album_ui</code> 开头增加防重入检查 (<code>if (now_ui) return;</code>)</li>
+</ul>
+<h3 id="14-5-退出清理不彻底"><a href="#14-5-退出清理不彻底" class="headerlink" title="14.5 退出清理不彻底"></a>14.5 退出清理不彻底</h3><ul>
+<li><strong>修复</strong>: <code>lv_obj_del(now_ui)</code> 后增加 <code>now_ui = NULL</code></li>
+</ul>
+<hr>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><h3 id="A-commit-信息"><a href="#A-commit-信息" class="headerlink" title="A. commit 信息"></a>A. commit 信息</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">commit 72ce4df71923913fe6b60683ce1f61fdbbdb3529</span><br><span class="line">Author: zhongxu &lt;z18568601031@gmail.com&gt;</span><br><span class="line">Date:   Mon Jun 29 15:54:16 2026 +0800</span><br><span class="line">    更新相册功能</span><br><span class="line">Files: 7 files changed, 1000 insertions(+), 20 deletions(-)</span><br><span class="line"></span><br><span class="line">commit eab804e36ea504b5cb5760e6b46fb8978108aae6</span><br><span class="line">Author: zhongxu &lt;z18568601031@gmail.com&gt;</span><br><span class="line">Date:   Mon Jun 29 20:23:14 2026 +0800</span><br><span class="line">    添加照片选中功能</span><br><span class="line">Files: 1 file changed, 260 insertions(+), 66 deletions(-)</span><br></pre></td></tr></table></figure>
+
+<h3 id="B-关键文件路径"><a href="#B-关键文件路径" class="headerlink" title="B. 关键文件路径"></a>B. 关键文件路径</h3><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>路径</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>相册 UI</td>
+<td><code>sdk/app/ui/album_ui.c</code></td>
+</tr>
+<tr>
+<td>CSC 驱动</td>
+<td><code>sdk/app/video_app/video_app_csc_msi.c</code></td>
+</tr>
+<tr>
+<td>JPEG 解码消息</td>
+<td><code>sdk/app/decode/jpg_decode_msg_msi.c</code></td>
+</tr>
+<tr>
+<td>流定义</td>
+<td><code>sdk/app/algorithm/stream_frame/stream_define.h</code></td>
+</tr>
+<tr>
+<td>Framebuff 定义</td>
+<td><code>sdk/include/lib/multimedia/framebuff.h</code></td>
+</tr>
+<tr>
+<td>LVGL UI 头文件</td>
+<td><code>sdk/app/ui/lvgl_ui.h</code></td>
+</tr>
+<tr>
+<td>主菜单 UI</td>
+<td><code>sdk/app/ui/main_ui.c</code></td>
+</tr>
+</tbody></table>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/MSI/">MSI</a><a class="post-meta__tags" href="/tags/%E7%A1%AC%E4%BB%B6%E8%A7%A3%E7%A0%81/">硬件解码</a><a class="post-meta__tags" href="/tags/UI%E7%BB%84%E4%BB%B6/">UI组件</a><a class="post-meta__tags" href="/tags/TXW82x/">TXW82x</a><a class="post-meta__tags" href="/tags/JPEG/">JPEG</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/06/30/spook_rtsp_server_architecture/" title="TXW82x Spook RTSP 流媒体服务器架构文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TXW82x Spook RTSP 流媒体服务器架构文档</div></div><div class="info-2"><div class="info-item-1">TXW82x Spook RTSP 流媒体服务器架构文档1. 概述Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 RTSP 流媒体服务器，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。 1.1 核心能力   能力 说明    视频编码 MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.264 编码器)   音频编码 AAC (硬件音频编码器)   传输协议 RTP&#x2F;AVP over UDP、RTP&#x2F;AVP over TCP (RTSP 交织)   默认端口 554   多路流 同时注册多个 RTSP 路径，独立推流   录像回放 支持通过 RTSP 回放 SD 卡中的 MP4&#x2F;AVI 文件   并发客户端 多客户端同时连接同一路流   1.2 硬件平台   组件 说明    CPU CK810 (C-SKY 架构)   视频编码 ...</div></div></div></a><a class="pagination-related" href="/2026/06/22/h264_playback_bugfix_log/" title="H.264 硬解码播放链路 Bug 修复记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">H.264 硬解码播放链路 Bug 修复记录</div></div><div class="info-2"><div class="info-item-1">H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。  涉及文件   文件 路径 角色    h264_file_msi.c sdk/app/h264_demux/ H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出   h264_decode_msi.c sdk/app/decode/ H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码   sample_h264_esplayer.c project/app/ H.264 ES 流播放 Sample，作为参考实现   stream_define.h sdk/app/algorithm/stream_frame/ fb_h264_s 结构定义    Bug 1：start_len 未动态设置现象解码器在 h264_d...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示 支持播放&#x2F;暂停控制 支持退出播放并回到主菜单   2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道： 12345678910111213141516171819SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出:...</div></div></div></a><a class="pagination-related" href="/2026/06/30/spook_rtsp_server_architecture/" title="TXW82x Spook RTSP 流媒体服务器架构文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x Spook RTSP 流媒体服务器架构文档</div></div><div class="info-2"><div class="info-item-1">TXW82x Spook RTSP 流媒体服务器架构文档1. 概述Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 RTSP 流媒体服务器，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。 1.1 核心能力   能力 说明    视频编码 MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.264 编码器)   音频编码 AAC (硬件音频编码器)   传输协议 RTP&#x2F;AVP over UDP、RTP&#x2F;AVP over TCP (RTSP 交织)   默认端口 554   多路流 同时注册多个 RTSP 路径，独立推流   录像回放 支持通过 RTSP 回放 SD 卡中的 MP4&#x2F;AVI 文件   并发客户端 多客户端同时连接同一路流   1.2 硬件平台   组件 说明    CPU CK810 (C-SKY 架构)   视频编码 ...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8F-LVGL-UI-%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98%EF%BC%9A%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E3%80%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） 🔴 高   Bug home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行 🟡 中   性能 Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU 🟡 中   代码质量 menu_view.c 中残留 3 处 printf 调试语句 🟡 中   可维护性 颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码 🟡 中   可维护性 字体 &amp;lv_font...</div></div></div></a><a class="pagination-related" href="/2026/06/22/h264_playback_bugfix_log/" title="H.264 硬解码播放链路 Bug 修复记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">H.264 硬解码播放链路 Bug 修复记录</div></div><div class="info-2"><div class="info-item-1">H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。  涉及文件   文件 路径 角色    h264_file_msi.c sdk/app/h264_demux/ H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出   h264_decode_msi.c sdk/app/decode/ H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码   sample_h264_esplayer.c project/app/ H.264 ES 流播放 Sample，作为参考实现   stream_define.h sdk/app/algorithm/stream_frame/ fb_h264_s 结构定义    Bug 1：start_len 未动态设置现象解码器在 h264_d...</div></div></div></a><a class="pagination-related" href="/2026/05/09/TXW828-AI-%E9%97%B9%E9%92%9F-%E2%80%94-UI-%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。 1.2 UI 包含哪些功能页面   页面 功能 代码路径    Home（主页） 显示时间、日期、天气、WiFi 状态、电量 home/   Plan List（计划列表） 日期选择条 + 待办事项管理 plan_list/   AI Q&amp;A（AI 问答） AI 对话入口页面 ai_qa/   Timing（计时器） 倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">29</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#TXW82x-%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3"><span class="toc-text">TXW82x 平台相册功能开发文档</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81%E5%8A%9F%E8%83%BD%E6%A6%82%E8%BF%B0"><span class="toc-text">一、功能概述</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%B8%80%E7%89%88%EF%BC%88%E6%8F%90%E4%BA%A4-72ce4df%EF%BC%89%E2%80%94-%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E9%AA%A8%E6%9E%B6"><span class="toc-text">第一版（提交 72ce4df）— 相册功能骨架</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%AC%AC%E4%BA%8C%E7%89%88%EF%BC%88%E6%8F%90%E4%BA%A4-eab804e%EF%BC%89%E2%80%94-%E7%84%A6%E7%82%B9%E9%80%89%E4%B8%AD%E5%A2%9E%E5%BC%BA"><span class="toc-text">第二版（提交 eab804e）— 焦点选中增强</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81%E6%96%87%E4%BB%B6%E5%8F%98%E6%9B%B4%E6%B8%85%E5%8D%95"><span class="toc-text">二、文件变更清单</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%96%B0%E5%A2%9E%E6%96%87%E4%BB%B6"><span class="toc-text">2.1 新增文件</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E4%BF%AE%E6%94%B9%E6%96%87%E4%BB%B6"><span class="toc-text">2.2 修改文件</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84%E8%AF%A6%E8%A7%A3"><span class="toc-text">三、数据结构详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-struct-album-ui-s-%E2%80%94-%E7%9B%B8%E5%86%8C%E7%8A%B6%E6%80%81%E7%BB%93%E6%9E%84%E4%BD%93"><span class="toc-text">3.1 struct album_ui_s — 相册状态结构体</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E5%B8%B8%E9%87%8F%E5%AE%9A%E4%B9%89"><span class="toc-text">3.2 常量定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-3-%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D%E5%AE%8F"><span class="toc-text">3.3 内存分配宏</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9B%9B%E3%80%81MSI-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%9E%B6%E6%9E%84"><span class="toc-text">四、MSI 流水线架构</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%B5%81%E6%B0%B4%E7%BA%BF%E6%8B%93%E6%89%91"><span class="toc-text">4.1 流水线拓扑</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%90%84-MSI-%E8%8A%82%E7%82%B9%E8%AF%A6%E8%A7%A3"><span class="toc-text">4.2 各 MSI 节点详解</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#photo-s-%E2%80%94-%E5%9B%BE%E7%89%87%E6%BA%90-S-LVGL-PHOTO"><span class="toc-text">photo_s — 图片源 (S_LVGL_PHOTO)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#other-s-%E2%80%94-JPEG-%E8%A7%A3%E7%A0%81%E6%B6%88%E6%81%AF%E9%85%8D%E7%BD%AE-SR-OTHER-JPG"><span class="toc-text">other_s — JPEG 解码消息配置 (SR_OTHER_JPG)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#decode-s-%E2%80%94-JPEG-%E7%A1%AC%E4%BB%B6%E8%A7%A3%E7%A0%81-S-JPG-DECODE"><span class="toc-text">decode_s — JPEG 硬件解码 (S_JPG_DECODE)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-s-%E2%80%94-%E8%89%B2%E5%BD%A9%E7%A9%BA%E9%97%B4%E8%BD%AC%E6%8D%A2-R-CSC-MSI"><span class="toc-text">csc_s — 色彩空间转换 (R_CSC_MSI)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#rgb-s-%E2%80%94-RGB-%E8%BE%93%E5%87%BA%E8%8A%82%E7%82%B9-R-RGB-MSI"><span class="toc-text">rgb_s — RGB 输出节点 (R_RGB_MSI)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E6%B5%81%E6%B0%B4%E7%BA%BF%E7%9A%84%E5%88%9B%E5%BB%BA%E4%B8%8E%E9%94%80%E6%AF%81"><span class="toc-text">4.3 流水线的创建与销毁</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%94%E3%80%81%E6%A0%B8%E5%BF%83%E5%87%BD%E6%95%B0%E9%80%90%E5%88%86%E6%9E%90"><span class="toc-text">五、核心函数逐分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-album-ui-%E2%80%94-%E7%9B%B8%E5%86%8C%E5%85%A5%E5%8F%A3"><span class="toc-text">5.1 album_ui() — 相册入口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-enter-album-ui-%E2%80%94-%E8%BF%9B%E5%85%A5%E7%9B%B8%E5%86%8C"><span class="toc-text">5.2 enter_album_ui() — 进入相册</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-3-album-load-page-%E2%80%94-%E5%8A%A0%E8%BD%BD%E5%BD%93%E5%89%8D%E9%A1%B5%E9%9D%A2"><span class="toc-text">5.3 album_load_page() — 加载当前页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-4-album-show-%E2%80%94-%E6%98%BE%E7%A4%BA%E5%8D%95%E4%B8%AA%E7%BC%A9%E7%95%A5%E5%9B%BE"><span class="toc-text">5.4 album_show() — 显示单个缩略图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-5-album-thumbnail-create-%E2%80%94-%E5%88%9B%E5%BB%BA%E7%BC%A9%E7%95%A5%E5%9B%BE"><span class="toc-text">5.5 album_thumbnail_create() — 创建缩略图</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-6-album-jpeg-file-load-%E2%80%94-JPEG-%E6%96%87%E4%BB%B6%E5%8A%A0%E8%BD%BD"><span class="toc-text">5.6 album_jpeg_file_load() — JPEG 文件加载</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AD%E3%80%81UI-%E7%95%8C%E9%9D%A2%E5%B8%83%E5%B1%80"><span class="toc-text">六、UI 界面布局</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E7%95%8C%E9%9D%A2%E7%BB%93%E6%9E%84%E6%A0%91"><span class="toc-text">6.1 界面结构树</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E7%BD%91%E6%A0%BC%E5%B8%83%E5%B1%80%E8%AE%A1%E7%AE%97"><span class="toc-text">6.2 网格布局计算</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-%E7%BC%A9%E7%95%A5%E5%9B%BE%E5%A4%96%E8%A7%82"><span class="toc-text">6.3 缩略图外观</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%83%E3%80%81%E6%8C%89%E9%94%AE%E7%B3%BB%E7%BB%9F%E4%B8%8E%E7%84%A6%E7%82%B9%E5%AF%BC%E8%88%AA"><span class="toc-text">七、按键系统与焦点导航</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E6%8C%89%E9%94%AE%E6%98%A0%E5%B0%84"><span class="toc-text">7.1 按键映射</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%9B%B8%E5%86%8C%E6%A8%A1%E5%BC%8F-album-self-key"><span class="toc-text">相册模式 (album_self_key)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%A2%84%E8%A7%88%E6%A8%A1%E5%BC%8F-preview-self-key"><span class="toc-text">预览模式 (preview_self_key)</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E7%84%A6%E7%82%B9%E5%AF%BC%E8%88%AA%E7%AE%97%E6%B3%95"><span class="toc-text">7.2 焦点导航算法</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%84%A6%E7%82%B9%E9%AB%98%E4%BA%AE-album-apply-focus"><span class="toc-text">焦点高亮 (album_apply_focus)</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%9B%9B%E6%96%B9%E5%90%91%E7%A7%BB%E5%8A%A8-%E8%87%AA%E5%8A%A8%E7%BF%BB%E9%A1%B5"><span class="toc-text">四方向移动 + 自动翻页</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-%E6%8C%89%E9%94%AE%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86-album-key-handler"><span class="toc-text">7.3 按键事件处理 (album_key_handler)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-4-%E6%89%8B%E5%8A%BF%E7%BF%BB%E9%A1%B5"><span class="toc-text">7.4 手势翻页</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%AB%E3%80%81%E5%85%A8%E5%B1%8F%E9%A2%84%E8%A7%88%E6%9C%BA%E5%88%B6"><span class="toc-text">八、全屏预览机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E8%BF%9B%E5%85%A5%E9%A2%84%E8%A7%88-enter-photo-preview-ui"><span class="toc-text">8.1 进入预览 (enter_photo_preview_ui)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E9%80%80%E5%87%BA%E9%A2%84%E8%A7%88-exit-photo-preview-ui"><span class="toc-text">8.2 退出预览 (exit_photo_preview_ui)</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-%E9%A2%84%E8%A7%88%E6%A8%A1%E5%BC%8F-MSI-%E9%80%9A%E8%B7%AF%E5%88%87%E6%8D%A2%E5%9B%BE%E7%A4%BA"><span class="toc-text">8.3 预览模式 MSI 通路切换图示</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B9%9D%E3%80%81CSC-%E5%8A%A8%E6%80%81%E6%A0%BC%E5%BC%8F%E9%85%8D%E7%BD%AE"><span class="toc-text">九、CSC 动态格式配置</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#9-1-%E6%94%B9%E9%80%A0%E8%83%8C%E6%99%AF"><span class="toc-text">9.1 改造背景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-2-%E6%96%B0%E5%A2%9E%E8%BE%85%E5%8A%A9%E5%87%BD%E6%95%B0"><span class="toc-text">9.2 新增辅助函数</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-is-rgb-format-%E2%80%94-%E5%88%A4%E6%96%AD%E6%98%AF%E5%90%A6%E4%B8%BA-RGB-%E6%A0%BC%E5%BC%8F"><span class="toc-text">csc_is_rgb_format() — 判断是否为 RGB 格式</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-get-convert-type-%E2%80%94-%E8%87%AA%E5%8A%A8%E6%8E%A8%E5%AF%BC%E8%BD%AC%E6%8D%A2%E7%B1%BB%E5%9E%8B"><span class="toc-text">csc_get_convert_type() — 自动推导转换类型</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-get-plane-offsets-%E2%80%94-%E8%AE%A1%E7%AE%97%E5%B9%B3%E9%9D%A2%E5%81%8F%E7%A7%BB"><span class="toc-text">csc_get_plane_offsets() — 计算平面偏移</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-set-input-addr-by-fmt-csc-set-output-addr-by-fmt"><span class="toc-text">csc_set_input_addr_by_fmt() &#x2F; csc_set_output_addr_by_fmt()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#csc-output-buf-size-%E2%80%94-%E8%AE%A1%E7%AE%97%E7%BC%93%E5%86%B2%E5%8C%BA%E5%A4%A7%E5%B0%8F"><span class="toc-text">csc_output_buf_size() — 计算缓冲区大小</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-3-CSC-%E5%B7%A5%E4%BD%9C%E7%BA%BF%E7%A8%8B%E5%8A%A8%E6%80%81%E5%88%86%E6%94%AF"><span class="toc-text">9.3 CSC 工作线程动态分支</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-4-CSC-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%94%B9%E8%BF%9B"><span class="toc-text">9.4 CSC 初始化改进</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-5-MSI-CMD-TRANS-FB-%E5%A2%9E%E5%8A%A0%E5%AF%B9-JPG-%E6%BA%90%E7%9A%84%E6%94%AF%E6%8C%81"><span class="toc-text">9.5 MSI_CMD_TRANS_FB 增加对 JPG 源的支持</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E3%80%81JPEG-%E8%A7%A3%E7%A0%81%E5%99%A8%E6%89%A9%E5%B1%95"><span class="toc-text">十、JPEG 解码器扩展</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#10-1-%E6%96%B0%E5%A2%9E-MSI-%E5%91%BD%E4%BB%A4"><span class="toc-text">10.1 新增 MSI 命令</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-2-stream-define-h-%E6%96%B0%E5%A2%9E%E5%AE%9A%E4%B9%89"><span class="toc-text">10.2 stream_define.h 新增定义</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-3-%E4%BD%BF%E7%94%A8%E6%96%B9%E5%BC%8F"><span class="toc-text">10.3 使用方式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%80%E3%80%81%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E7%AD%96%E7%95%A5"><span class="toc-text">十一、内存管理策略</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#11-1-%E5%86%85%E5%AD%98%E5%88%86%E5%8C%BA"><span class="toc-text">11.1 内存分区</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-2-%E5%90%84%E8%B5%84%E6%BA%90%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">11.2 各资源生命周期</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-3-%E5%85%B3%E9%94%AE%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E8%AE%BE%E8%AE%A1"><span class="toc-text">11.3 关键内存管理设计</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-4-%E5%B7%B2%E7%9F%A5%E9%97%AE%E9%A2%98"><span class="toc-text">11.4 已知问题</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%BA%8C%E3%80%81%E6%95%B0%E6%8D%AE%E6%B5%81%E5%AE%8C%E6%95%B4%E8%B7%9F%E8%B8%AA"><span class="toc-text">十二、数据流完整跟踪</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-%E7%BC%A9%E7%95%A5%E5%9B%BE%E5%8A%A0%E8%BD%BD%E6%95%B0%E6%8D%AE%E6%B5%81"><span class="toc-text">12.1 缩略图加载数据流</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-%E5%85%A8%E5%B1%8F%E9%A2%84%E8%A7%88%E6%95%B0%E6%8D%AE%E6%B5%81"><span class="toc-text">12.2 全屏预览数据流</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-3-CSC-%E6%A0%BC%E5%BC%8F%E9%80%89%E6%8B%A9%E6%B5%81%E7%A8%8B%E5%9B%BE"><span class="toc-text">12.3 CSC 格式选择流程图</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E4%B8%89%E3%80%81%E6%93%8D%E4%BD%9C%E8%AF%B4%E6%98%8E"><span class="toc-text">十三、操作说明</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#13-1-%E7%BC%A9%E7%95%A5%E5%9B%BE%E6%B5%8F%E8%A7%88%E6%A8%A1%E5%BC%8F"><span class="toc-text">13.1 缩略图浏览模式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-2-%E5%85%A8%E5%B1%8F%E9%A2%84%E8%A7%88%E6%A8%A1%E5%BC%8F"><span class="toc-text">13.2 全屏预览模式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8D%81%E5%9B%9B%E3%80%81%E5%86%85%E5%AD%98%E6%B3%84%E6%BC%8F%E4%BF%AE%E5%A4%8D%E5%9B%9E%E9%A1%BE"><span class="toc-text">十四、内存泄漏修复回顾</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#14-1-view-photo-ctx-%E5%8F%8C%E9%87%8D%E9%87%8A%E6%94%BE-Use-After-Free"><span class="toc-text">14.1 view_photo_ctx 双重释放 &#x2F; Use-After-Free</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-2-%E7%BF%BB%E9%A1%B5%E6%97%B6%E6%96%87%E4%BB%B6%E5%90%8D%E6%B3%84%E6%BC%8F"><span class="toc-text">14.2 翻页时文件名泄漏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-3-rgb-fb-%E6%B3%84%E6%BC%8F"><span class="toc-text">14.3 rgb_fb 泄漏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-4-%E7%BC%BA%E5%B0%91%E9%98%B2%E9%87%8D%E5%85%A5%E4%BF%9D%E6%8A%A4"><span class="toc-text">14.4 缺少防重入保护</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-5-%E9%80%80%E5%87%BA%E6%B8%85%E7%90%86%E4%B8%8D%E5%BD%BB%E5%BA%95"><span class="toc-text">14.5 退出清理不彻底</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%99%84%E5%BD%95"><span class="toc-text">附录</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#A-commit-%E4%BF%A1%E6%81%AF"><span class="toc-text">A. commit 信息</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#B-%E5%85%B3%E9%94%AE%E6%96%87%E4%BB%B6%E8%B7%AF%E5%BE%84"><span class="toc-text">B. 关键文件路径</span></a></li></ol></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档">TXW82x 平台相册功能开发文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/spook_rtsp_server_architecture/" title="TXW82x Spook RTSP 流媒体服务器架构文档">TXW82x Spook RTSP 流媒体服务器架构文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_player_ui_dev_doc/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/h264_playback_bugfix_log/" title="H.264 硬解码播放链路 Bug 修复记录">H.264 硬解码播放链路 Bug 修复记录</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/05/10/source-css-%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source/css 样式文档">source/css 样式文档</a><time datetime="2026-05-10T04:25:45.000Z" title="发表于 2026-05-10 12:25:45">2026-05-10</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
