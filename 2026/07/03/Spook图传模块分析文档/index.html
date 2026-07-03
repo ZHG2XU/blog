@@ -1,0 +1,808 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Spook 图传模块分析文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="TXW82x 平台 Spook 图传模块分析文档。围绕 sdk&#x2F;app&#x2F;spook 目录，梳理实时 RTSP 图传主流程、stream 分发机制、RTSP 会话控制、RTP&#x2F;JPEG 发包流程、音频辅助链路以及函数指针绑定关系。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spook 图传模块分析文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="TXW82x 平台 Spook 图传模块分析文档。围绕 sdk&#x2F;app&#x2F;spook 目录，梳理实时 RTSP 图传主流程、stream 分发机制、RTSP 会话控制、RTP&#x2F;JPEG 发包流程、音频辅助链路以及函数指针绑定关系。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-07-02T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-07-03T03:00:17.988Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="音频">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="MSI">
+<meta property="article:tag" content="TXW82x">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="Spook">
+<meta property="article:tag" content="RTSP">
+<meta property="article:tag" content="RTP">
+<meta property="article:tag" content="JPEG">
+<meta property="article:tag" content="Wi-Fi图传">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Spook 图传模块分析文档",
+  "url": "https://zhongxu.cyou/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-07-02T16:00:00.000Z",
+  "dateModified": "2026-07-03T03:00:17.988Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Spook 图传模块分析文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">10</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">34</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">Spook 图传模块分析文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Spook 图传模块分析文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-02T16:00:00.000Z" title="发表于 2026-07-03 00:00:00">2026-07-03</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-03T03:00:17.988Z" title="更新于 2026-07-03 11:00:17">2026-07-03</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="Spook-图传模块分析文档"><a href="#Spook-图传模块分析文档" class="headerlink" title="Spook 图传模块分析文档"></a>Spook 图传模块分析文档</h1><h2 id="1-文档范围"><a href="#1-文档范围" class="headerlink" title="1. 文档范围"></a>1. 文档范围</h2><p>本文档分析 <code>sdk/app/spook/</code> 目录中与图传直接相关的实现，重点覆盖以下内容：</p>
+<ul>
+<li><code>spook</code> 模块初始化</li>
+<li>实时 RTSP 图传主流程</li>
+<li><code>stream</code> 分发机制</li>
+<li>RTSP 会话建立与播放控制</li>
+<li>RTP&#x2F;JPEG 实际发包流程</li>
+<li>音频辅助链路</li>
+<li>函数指针绑定关系</li>
+</ul>
+<p>本文档主要针对实时预览链路 <code>/webcam</code>，同时补充 <code>/file</code> 文件回放链路与其复用关系。</p>
+<hr>
+<h2 id="2-目录中与图传最相关的文件"><a href="#2-目录中与图传最相关的文件" class="headerlink" title="2. 目录中与图传最相关的文件"></a>2. 目录中与图传最相关的文件</h2><h3 id="2-1-核心入口"><a href="#2-1-核心入口" class="headerlink" title="2.1 核心入口"></a>2.1 核心入口</h3><ul>
+<li><code>sdk/app/spook/spook.c</code></li>
+<li><code>sdk/app/spook/spook_config.h</code></li>
+</ul>
+<h3 id="2-2-实时-RTSP-控制"><a href="#2-2-实时-RTSP-控制" class="headerlink" title="2.2 实时 RTSP 控制"></a>2.2 实时 RTSP 控制</h3><ul>
+<li><code>sdk/app/spook/live.c</code></li>
+<li><code>sdk/app/spook/rtsp.c</code></li>
+<li><code>sdk/app/spook/rtsp_common.c</code></li>
+<li><code>sdk/app/spook/session.c</code></li>
+</ul>
+<h3 id="2-3-帧和流分发"><a href="#2-3-帧和流分发" class="headerlink" title="2.3 帧和流分发"></a>2.3 帧和流分发</h3><ul>
+<li><code>sdk/app/spook/frame.c</code></li>
+<li><code>sdk/app/spook/frame.h</code></li>
+<li><code>sdk/app/spook/stream.c</code></li>
+<li><code>sdk/app/spook/stream.h</code></li>
+</ul>
+<h3 id="2-4-编码器输出层"><a href="#2-4-编码器输出层" class="headerlink" title="2.4 编码器输出层"></a>2.4 编码器输出层</h3><ul>
+<li><code>sdk/app/spook/encoder-jpeg.c</code></li>
+<li><code>sdk/app/spook/encoder-audio.c</code></li>
+</ul>
+<h3 id="2-5-RTP-媒体发送层"><a href="#2-5-RTP-媒体发送层" class="headerlink" title="2.5 RTP 媒体发送层"></a>2.5 RTP 媒体发送层</h3><ul>
+<li><code>sdk/app/spook/rtp-jpeg.c</code></li>
+<li><code>sdk/app/spook/rtp-audio.c</code></li>
+<li><code>sdk/app/spook/rtp.c</code></li>
+<li><code>sdk/app/spook/rtp.h</code></li>
+<li><code>sdk/app/spook/rtp_media.h</code></li>
+</ul>
+<h3 id="2-6-文件回放复用链路"><a href="#2-6-文件回放复用链路" class="headerlink" title="2.6 文件回放复用链路"></a>2.6 文件回放复用链路</h3><ul>
+<li><code>sdk/app/spook/webfile.c</code></li>
+</ul>
+<hr>
+<h2 id="3-模块总体架构"><a href="#3-模块总体架构" class="headerlink" title="3. 模块总体架构"></a>3. 模块总体架构</h2><p><code>spook</code> 图传模块可以分成 5 层：</p>
+<ol>
+<li><p>初始化层<br>创建 JPEG&#x2F;Audio 输出流，注册 RTSP 路径。</p>
+</li>
+<li><p>取流层<br>从底层视频流和音频流中取出原始帧。</p>
+</li>
+<li><p>Stream 分发层<br>将取出的帧分发给所有订阅该 stream 的 destination。</p>
+</li>
+<li><p>RTSP 控制层<br>处理 <code>DESCRIBE</code>、<code>SETUP</code>、<code>PLAY</code>、<code>TEARDOWN</code>。</p>
+</li>
+<li><p>RTP 媒体层<br>将 JPEG&#x2F;Audio 帧封装为 RTP 包，通过 UDP 发给客户端。</p>
+</li>
+</ol>
+<p>对实时图传来说，核心协议是：</p>
+<ul>
+<li>控制协议：RTSP</li>
+<li>传输协议：RTP&#x2F;UDP</li>
+<li>视频编码格式：MJPEG</li>
+<li>视频 Payload Type：26</li>
+<li>音频编码格式：L16</li>
+</ul>
+<hr>
+<h2 id="4-初始化流程"><a href="#4-初始化流程" class="headerlink" title="4. 初始化流程"></a>4. 初始化流程</h2><p>入口在 <code>sdk/app/spook/spook.c</code> 的 <code>spook_init()</code>。</p>
+<h3 id="4-1-调用顺序"><a href="#4-1-调用顺序" class="headerlink" title="4.1 调用顺序"></a>4.1 调用顺序</h3><p><code>spook_init()</code><br>-&gt; <code>spook_thread()</code><br>-&gt; <code>init_random()</code><br>-&gt; <code>global_init()</code><br>-&gt; <code>jpeg_init(&amp;live_dvp)</code><br>-&gt; <code>rtp_audio_init_ret()</code><br>-&gt; <code>live_rtsp_init(&amp;live_dvp)</code><br>-&gt; <code>webfile_rtsp_init(&amp;webfile)</code></p>
+<h3 id="4-2-关键配置"><a href="#4-2-关键配置" class="headerlink" title="4.2 关键配置"></a>4.2 关键配置</h3><p>在 <code>spook.c</code> 中定义了两个重要 <code>rtp_name</code>：</p>
+<h4 id="实时预览-live-dvp"><a href="#实时预览-live-dvp" class="headerlink" title="实时预览 live_dvp"></a>实时预览 <code>live_dvp</code></h4><ul>
+<li><code>jpg_name = &quot;jpeg_dvp&quot;</code></li>
+<li><code>audio_name = &quot;audio&quot;</code></li>
+<li><code>path = &quot;/webcam&quot;</code></li>
+</ul>
+<h4 id="文件回放-webfile"><a href="#文件回放-webfile" class="headerlink" title="文件回放 webfile"></a>文件回放 <code>webfile</code></h4><ul>
+<li><code>jpg_name = &quot;jpeg_dvp&quot;</code></li>
+<li><code>audio_name = &quot;audio&quot;</code></li>
+<li><code>path = &quot;/file&quot;</code></li>
+</ul>
+<h3 id="4-3-初始化后的结果"><a href="#4-3-初始化后的结果" class="headerlink" title="4.3 初始化后的结果"></a>4.3 初始化后的结果</h3><p>初始化完成后，系统中会存在：</p>
+<ul>
+<li>一个 JPEG 输出 stream：<code>jpeg_dvp</code></li>
+<li>一个音频输出 stream：<code>audio</code></li>
+<li>一个 RTSP 路径：<code>/webcam</code></li>
+<li>一个 RTSP 路径：<code>/file</code></li>
+</ul>
+<hr>
+<h2 id="5-实时图传主流程"><a href="#5-实时图传主流程" class="headerlink" title="5. 实时图传主流程"></a>5. 实时图传主流程</h2><p>实时图传的完整链路如下：</p>
+<ol>
+<li>客户端访问 <code>/webcam</code></li>
+<li>RTSP 完成 <code>DESCRIBE</code></li>
+<li>RTSP 完成 <code>SETUP</code></li>
+<li><code>SETUP</code> 阶段创建实时取流线程</li>
+<li>RTSP 完成 <code>PLAY</code></li>
+<li>track 进入 ready 状态</li>
+<li>实时线程不断从底层流中取出 JPEG 帧</li>
+<li>JPEG 帧进入 <code>stream</code> 分发</li>
+<li>RTSP track 收到帧后解析 JPEG</li>
+<li>JPEG 被切分为多个 RTP&#x2F;JPEG 包</li>
+<li>通过 UDP 向所有正在播放的 session 发送</li>
+</ol>
+<hr>
+<h2 id="6-底层取流与帧注入流程"><a href="#6-底层取流与帧注入流程" class="headerlink" title="6. 底层取流与帧注入流程"></a>6. 底层取流与帧注入流程</h2><h3 id="6-1-live-rtsp-creat"><a href="#6-1-live-rtsp-creat" class="headerlink" title="6.1 live_rtsp_creat()"></a>6.1 <code>live_rtsp_creat()</code></h3><p>实时线程是在 <code>sdk/app/spook/live.c</code> 的 <code>live_rtsp_creat()</code> 中创建的。</p>
+<p>这个函数主要做三件事：</p>
+<ol>
+<li>分配 <code>struct rtsp_priv</code></li>
+<li>调用 <code>creat_stream()</code> 打开底层视频流和音频流</li>
+<li>创建线程 <code>rtsp_live_thread</code></li>
+</ol>
+<p>线程入口为：</p>
+<p><code>rtsp_live_thread()</code><br>-&gt; <code>spook_send_thread_stream(r)</code></p>
+<h3 id="6-2-creat-stream"><a href="#6-2-creat-stream" class="headerlink" title="6.2 creat_stream()"></a>6.2 <code>creat_stream()</code></h3><p><code>sdk/app/spook/frame.c</code> 中的 <code>creat_stream()</code> 打开底层数据流：</p>
+<ul>
+<li>视频：<code>open_stream(video_name, 0, 2, opcode_func, NULL)</code></li>
+<li>音频：<code>open_stream(audio_name, 0, 2, opcode_func, NULL)</code></li>
+</ul>
+<p>实时模式下传入的是：</p>
+<ul>
+<li>视频流名：<code>R_RTP_JPEG</code></li>
+<li>音频流名：<code>R_RTP_AUDIO</code></li>
+</ul>
+<h3 id="6-3-spook-send-thread-stream"><a href="#6-3-spook-send-thread-stream" class="headerlink" title="6.3 spook_send_thread_stream()"></a>6.3 <code>spook_send_thread_stream()</code></h3><p><code>sdk/app/spook/frame.c</code> 中的 <code>spook_send_thread_stream()</code> 是实时图传的“数据泵”。</p>
+<p>它的职责是：</p>
+<ol>
+<li>从底层视频流 <code>GET_FRAME(s)</code> 取到 JPEG 帧</li>
+<li>把底层 frame 信息填入 <code>struct frame</code></li>
+<li>将首段 JPEG 头部拷贝到 <code>scan_buf</code></li>
+<li>调用 <code>ex-&gt;f(jpeg, ex-&gt;d)</code> 将帧交给 JPEG encoder 输出链路</li>
+</ol>
+<p>对于音频也是类似逻辑：</p>
+<ol>
+<li><code>GET_FRAME(audio_s)</code></li>
+<li>填充 <code>audio</code> frame</li>
+<li>调用 <code>audio_ex-&gt;f(audio, audio_ex-&gt;d)</code></li>
+</ol>
+<h3 id="6-4-为什么先拷贝前-1024-字节"><a href="#6-4-为什么先拷贝前-1024-字节" class="headerlink" title="6.4 为什么先拷贝前 1024 字节"></a>6.4 为什么先拷贝前 1024 字节</h3><p><code>spook_send_thread_stream()</code> 中：</p>
+<ul>
+<li><code>jpeg-&gt;d = scan_buf</code></li>
+<li><code>jpeg-&gt;first_length = 1024</code></li>
+</ul>
+<p>这样做的目的，是给 <code>rtp-jpeg.c</code> 里的 JPEG marker 解析器一个可连续访问的头部区域，便于快速扫描：</p>
+<ul>
+<li>SOI</li>
+<li>DQT</li>
+<li>SOF0</li>
+<li>DHT</li>
+<li>DRI</li>
+<li>SOS</li>
+</ul>
+<hr>
+<h2 id="7-JPEG-输出流与-Stream-分发"><a href="#7-JPEG-输出流与-Stream-分发" class="headerlink" title="7. JPEG 输出流与 Stream 分发"></a>7. JPEG 输出流与 Stream 分发</h2><h3 id="7-1-jpeg-init"><a href="#7-1-jpeg-init" class="headerlink" title="7.1 jpeg_init()"></a>7.1 <code>jpeg_init()</code></h3><p><code>sdk/app/spook/encoder-jpeg.c</code> 的 <code>jpeg_init()</code> 会：</p>
+<ol>
+<li><code>start_block()</code></li>
+<li><code>set_output(&quot;jpeg_dvp&quot;, en)</code></li>
+<li><code>end_block(en)</code></li>
+</ol>
+<h3 id="7-2-创建的对象"><a href="#7-2-创建的对象" class="headerlink" title="7.2 创建的对象"></a>7.2 创建的对象</h3><p><code>set_output()</code> 中会调用：</p>
+<p><code>new_stream(name, FORMAT_JPEG, en)</code></p>
+<p>于是产生一个 stream：</p>
+<ul>
+<li>stream 名称：<code>jpeg_dvp</code></li>
+<li>stream 格式：<code>FORMAT_JPEG</code></li>
+<li>stream 私有指针：<code>jpeg_encoder *en</code></li>
+</ul>
+<h3 id="7-3-JPEG-stream-自带两个方法"><a href="#7-3-JPEG-stream-自带两个方法" class="headerlink" title="7.3 JPEG stream 自带两个方法"></a>7.3 JPEG stream 自带两个方法</h3><p><code>encoder-jpeg.c</code> 会给该 stream 绑定：</p>
+<ul>
+<li><code>get_framerate = get_framerate</code></li>
+<li><code>set_running = set_running</code></li>
+</ul>
+<p>其中：</p>
+<ul>
+<li><code>get_framerate()</code> 返回帧率基准</li>
+<li><code>set_running()</code> 用于根据是否有人监听来开启或关闭发送状态</li>
+</ul>
+<h3 id="7-4-frame-exchanger-的作用"><a href="#7-4-frame-exchanger-的作用" class="headerlink" title="7.4 frame_exchanger 的作用"></a>7.4 frame_exchanger 的作用</h3><p><code>end_block()</code> 中创建：</p>
+<p><code>en-&gt;ex = new_exchanger(EXCHANGER_SLOT_SIZE, get_back_frame, en)</code></p>
+<p>这里的 <code>frame_exchanger</code> 保存了：</p>
+<ul>
+<li><code>jf</code>：当前 frame 容器</li>
+<li><code>f</code>：frame 到达时的回调</li>
+<li><code>d</code>：回调私有数据</li>
+</ul>
+<p>对于视频来说，回调函数是 <code>get_back_frame()</code>。</p>
+<h3 id="7-5-get-back-frame"><a href="#7-5-get-back-frame" class="headerlink" title="7.5 get_back_frame()"></a>7.5 <code>get_back_frame()</code></h3><p><code>get_back_frame()</code> 很简单，只做一件事：</p>
+<p><code>deliver_frame_to_stream(f, en-&gt;output)</code></p>
+<p>也就是说：</p>
+<p>实时线程取到 JPEG 帧<br>-&gt; 填充 frame<br>-&gt; 调 <code>get_back_frame()</code><br>-&gt; 交给 <code>stream</code> 分发层</p>
+<hr>
+<h2 id="8-Stream-分发机制"><a href="#8-Stream-分发机制" class="headerlink" title="8. Stream 分发机制"></a>8. Stream 分发机制</h2><h3 id="8-1-connect-to-stream"><a href="#8-1-connect-to-stream" class="headerlink" title="8.1 connect_to_stream()"></a>8.1 <code>connect_to_stream()</code></h3><p>RTSP track 会调用 <code>connect_to_stream(&quot;jpeg_dvp&quot;, rtsp_common_send, &amp;track)</code> 接入 JPEG 输出 stream。</p>
+<p>这样会创建一个 <code>stream_destination</code>：</p>
+<ul>
+<li><code>dest-&gt;stream = jpeg_dvp</code></li>
+<li><code>dest-&gt;process_frame = rtsp_common_send</code></li>
+<li><code>dest-&gt;d = &amp;source-&gt;track[t]</code></li>
+</ul>
+<h3 id="8-2-deliver-frame-to-stream"><a href="#8-2-deliver-frame-to-stream" class="headerlink" title="8.2 deliver_frame_to_stream()"></a>8.2 <code>deliver_frame_to_stream()</code></h3><p><code>sdk/app/spook/stream.c</code> 中：</p>
+<p><code>deliver_frame_to_stream(f, s)</code></p>
+<p>会遍历 <code>s-&gt;dest_list</code> 上的所有目的端：</p>
+<ol>
+<li>如果 <code>dest-&gt;waiting == 0</code>，则跳过</li>
+<li>如果 <code>dest-&gt;waiting == 1</code>，则调用<br><code>dest-&gt;process_frame(f, dest-&gt;d)</code></li>
+</ol>
+<p>对 RTSP 来说，这里的 <code>process_frame</code> 就是：</p>
+<p><code>rtsp_common_send()</code></p>
+<p>所以链路变成：</p>
+<p><code>deliver_frame_to_stream()</code><br>-&gt; <code>rtsp_common_send()</code></p>
+<h3 id="8-3-waiting-的意义"><a href="#8-3-waiting-的意义" class="headerlink" title="8.3 waiting 的意义"></a>8.3 waiting 的意义</h3><p>只有当客户端真正 <code>PLAY</code> 之后，RTSP track 才会 <code>set_waiting(..., 1)</code>，这样 <code>deliver_frame_to_stream()</code> 才会把 frame 分发出去。</p>
+<p>因此：</p>
+<ul>
+<li><code>DESCRIBE</code> 不发视频</li>
+<li><code>SETUP</code> 不发视频</li>
+<li>只有 <code>PLAY</code> 后开始发视频</li>
+</ul>
+<hr>
+<h2 id="9-RTSP-路径注册与会话控制"><a href="#9-RTSP-路径注册与会话控制" class="headerlink" title="9. RTSP 路径注册与会话控制"></a>9. RTSP 路径注册与会话控制</h2><h3 id="9-1-注册-RTSP-路径"><a href="#9-1-注册-RTSP-路径" class="headerlink" title="9.1 注册 RTSP 路径"></a>9.1 注册 RTSP 路径</h3><p><code>sdk/app/spook/live.c</code> 的 <code>live_rtsp_init()</code> 做了以下事情：</p>
+<ol>
+<li><code>source = rtsp_start_block()</code></li>
+<li><code>live_set_path(rtsp-&gt;path, source)</code></li>
+<li><code>set_video_track(rtsp-&gt;jpg_name, source)</code></li>
+<li><code>set_audio_track(rtsp-&gt;audio_name, source)</code></li>
+<li><code>register_live_fn(source, live_rtsp_creat, live_rtsp_destory)</code></li>
+<li><code>rtsp_end_block(source)</code></li>
+</ol>
+<p>也就是说，<code>/webcam</code> 对应一个 <code>rtsp_source</code> 对象。</p>
+<h3 id="9-2-rtsp-source"><a href="#9-2-rtsp-source" class="headerlink" title="9.2 rtsp_source"></a>9.2 <code>rtsp_source</code></h3><p><code>rtsp_source</code> 可以理解为“一组 RTSP 资源描述”，里面有：</p>
+<ul>
+<li>session 链表</li>
+<li>track 数组</li>
+<li>live thread 句柄</li>
+<li><code>live_node</code></li>
+<li>create&#x2F;release 回调</li>
+</ul>
+<h3 id="9-3-rtsp-open"><a href="#9-3-rtsp-open" class="headerlink" title="9.3 rtsp_open()"></a>9.3 <code>rtsp_open()</code></h3><p>当客户端发起 <code>DESCRIBE</code> 或 <code>SETUP</code> 时，会调用 <code>loc-&gt;open(path, private)</code>。</p>
+<p>对实时流来说：</p>
+<p><code>loc-&gt;open</code><br>-&gt; <code>live_rtsp_open()</code><br>-&gt; <code>rtsp_open(path, source)</code></p>
+<p><code>rtsp_open()</code> 会创建 <code>struct session</code> 并绑定 RTSP 控制回调：</p>
+<ul>
+<li><code>get_sdp</code></li>
+<li><code>setup</code></li>
+<li><code>play</code></li>
+<li><code>teardown</code></li>
+<li><code>closed</code></li>
+<li><code>select_close</code></li>
+</ul>
+<h3 id="9-4-live-rtsp-open-的覆盖"><a href="#9-4-live-rtsp-open-的覆盖" class="headerlink" title="9.4 live_rtsp_open() 的覆盖"></a>9.4 <code>live_rtsp_open()</code> 的覆盖</h3><p><code>live_rtsp_open()</code> 会把默认的 <code>sess-&gt;get_sdp</code> 覆盖为 <code>live_get_sdp()</code>。</p>
+<p>所以实时流用的是 <code>live_get_sdp()</code>，不是默认的 <code>rtsp_get_sdp()</code>。</p>
+<hr>
+<h2 id="10-RTSP-命令时序"><a href="#10-RTSP-命令时序" class="headerlink" title="10. RTSP 命令时序"></a>10. RTSP 命令时序</h2><h3 id="10-1-DESCRIBE"><a href="#10-1-DESCRIBE" class="headerlink" title="10.1 DESCRIBE"></a>10.1 DESCRIBE</h3><p>调用链：</p>
+<p><code>rtsp_handle_msg()</code><br>-&gt; <code>handle_DESCRIBE()</code><br>-&gt; <code>find_rtsp_location()</code><br>-&gt; <code>loc-&gt;open()</code><br>-&gt; <code>sess-&gt;get_sdp()</code></p>
+<p>返回 SDP 内容，其中视频轨使用：</p>
+<p><code>m=video &lt;port&gt; RTP/AVP 26</code></p>
+<h3 id="10-2-SETUP"><a href="#10-2-SETUP" class="headerlink" title="10.2 SETUP"></a>10.2 SETUP</h3><p>调用链：</p>
+<p><code>rtsp_handle_msg()</code><br>-&gt; <code>handle_SETUP()</code><br>-&gt; <code>s-&gt;setup(s, track)</code><br>-&gt; <code>rtsp_setup()</code></p>
+<p><code>rtsp_setup()</code> 做两件关键事情：</p>
+<ol>
+<li>如果 live thread 还没有启动，则调用 <code>source-&gt;creat(source, path)</code></li>
+<li>为该 track 创建 <code>rtp_endpoint</code></li>
+</ol>
+<p>在实时模式中：</p>
+<ul>
+<li><code>source-&gt;creat = live_rtsp_creat</code></li>
+</ul>
+<p>所以 RTSP 的后台实时线程，是在 <code>SETUP</code> 时启动的，不是在 <code>DESCRIBE</code> 时启动。</p>
+<h3 id="10-3-PLAY"><a href="#10-3-PLAY" class="headerlink" title="10.3 PLAY"></a>10.3 PLAY</h3><p>调用链：</p>
+<p><code>rtsp_handle_msg()</code><br>-&gt; <code>handle_PLAY()</code><br>-&gt; <code>sess-&gt;play(sess, ...)</code><br>-&gt; <code>rtsp_play()</code></p>
+<p><code>rtsp_play()</code> 会：</p>
+<ol>
+<li><code>track-&gt;ready = 1</code></li>
+<li><code>set_waiting(track-&gt;stream, 1)</code></li>
+</ol>
+<p>这一步之后，<code>deliver_frame_to_stream()</code> 才会开始把帧投递给 RTSP。</p>
+<h3 id="10-4-TEARDOWN"><a href="#10-4-TEARDOWN" class="headerlink" title="10.4 TEARDOWN"></a>10.4 TEARDOWN</h3><p>调用链：</p>
+<p><code>rtsp_handle_msg()</code><br>-&gt; <code>handle_TEARDOWN()</code><br>-&gt; <code>sess-&gt;closed(...)</code></p>
+<p>注意这里当前代码调用的是 <code>closed()</code>，而不是直接 <code>teardown()</code>。<br>后续在 <code>rtsp_frame_end()</code> 或连接关闭流程中，会进一步进入 teardown 和资源释放。</p>
+<hr>
+<h2 id="11-Track-建立过程"><a href="#11-Track-建立过程" class="headerlink" title="11. Track 建立过程"></a>11. Track 建立过程</h2><h3 id="11-1-set-video-track"><a href="#11-1-set-video-track" class="headerlink" title="11.1 set_video_track()"></a>11.1 <code>set_video_track()</code></h3><p><code>sdk/app/spook/rtsp_common.c</code> 中的 <code>set_video_track()</code> 是视频图传最关键的绑定函数之一。</p>
+<p>它主要做了四件事：</p>
+<ol>
+<li><code>connect_to_stream(name, rtsp_common_send, &amp;source-&gt;track[t])</code></li>
+<li><code>source-&gt;live_node.video_ex = get_video_ex(...)</code></li>
+<li><code>disconnect_stream(..., rtsp_frame_end)</code></li>
+<li><code>source-&gt;track[t].rtp = new_rtp_media_jpeg_stream(...)</code></li>
+</ol>
+<h3 id="11-2-结果"><a href="#11-2-结果" class="headerlink" title="11.2 结果"></a>11.2 结果</h3><p>执行完 <code>set_video_track(&quot;jpeg_dvp&quot;, source)</code> 后，建立了以下关系：</p>
+<ul>
+<li>RTSP track 订阅了 JPEG stream</li>
+<li>track 的 frame 回调是 <code>rtsp_common_send</code></li>
+<li>track 的断开回调是 <code>rtsp_frame_end</code></li>
+<li>track 的 RTP 媒体实现是 <code>rtp-jpeg.c</code></li>
+</ul>
+<h3 id="11-3-set-audio-track"><a href="#11-3-set-audio-track" class="headerlink" title="11.3 set_audio_track()"></a>11.3 <code>set_audio_track()</code></h3><p>音频轨做法完全类似，只是 RTP 媒体实现换成 <code>rtp-audio.c</code>。</p>
+<hr>
+<h2 id="12-视频-RTP-媒体对象创建"><a href="#12-视频-RTP-媒体对象创建" class="headerlink" title="12. 视频 RTP 媒体对象创建"></a>12. 视频 RTP 媒体对象创建</h2><h3 id="12-1-new-rtp-media-jpeg-stream"><a href="#12-1-new-rtp-media-jpeg-stream" class="headerlink" title="12.1 new_rtp_media_jpeg_stream()"></a>12.1 <code>new_rtp_media_jpeg_stream()</code></h3><p><code>sdk/app/spook/rtp-jpeg.c</code> 中：</p>
+<ol>
+<li>通过 <code>stream-&gt;get_framerate()</code> 获取帧率</li>
+<li>创建 <code>struct rtp_jpeg</code></li>
+<li>创建 <code>struct rtp_media</code></li>
+<li>绑定 JPEG 相关函数</li>
+</ol>
+<h3 id="12-2-绑定内容"><a href="#12-2-绑定内容" class="headerlink" title="12.2 绑定内容"></a>12.2 绑定内容</h3><p>视频 <code>rtp_media</code> 的函数绑定如下：</p>
+<ul>
+<li><code>get_sdp</code> -&gt; <code>jpeg_get_sdp</code></li>
+<li><code>get_payload</code> -&gt; <code>jpeg_get_payload</code></li>
+<li><code>frame</code> -&gt; <code>jpeg_process_frame</code></li>
+<li><code>send</code> -&gt; <code>jpeg_send</code></li>
+<li><code>rtcp_send</code> -&gt; <code>new_rtcp_send</code></li>
+<li><code>send_more</code> -&gt; <code>jpeg_send_more</code></li>
+</ul>
+<p>并设置：</p>
+<ul>
+<li><code>m-&gt;type = 0</code></li>
+<li><code>m-&gt;per_ms_incr = (25 * out-&gt;ts_incr) / 1000</code></li>
+</ul>
+<h3 id="12-3-重要结论"><a href="#12-3-重要结论" class="headerlink" title="12.3 重要结论"></a>12.3 重要结论</h3><p>当前视频真正使用的是：</p>
+<ul>
+<li><code>frame = jpeg_process_frame</code></li>
+<li><code>send_more = jpeg_send_more</code></li>
+</ul>
+<p>虽然 <code>send = jpeg_send</code> 也被绑定了，但在 <code>rtsp_common_send()</code> 中原本直接调用 <code>send()</code> 的代码已经注释掉，所以视频主链路实际不走 <code>jpeg_send()</code>。</p>
+<hr>
+<h2 id="13-JPEG-解析流程"><a href="#13-JPEG-解析流程" class="headerlink" title="13. JPEG 解析流程"></a>13. JPEG 解析流程</h2><h3 id="13-1-入口-jpeg-process-frame"><a href="#13-1-入口-jpeg-process-frame" class="headerlink" title="13.1 入口 jpeg_process_frame()"></a>13.1 入口 <code>jpeg_process_frame()</code></h3><p>每一帧到达 <code>rtsp_common_send()</code> 后，首先执行：</p>
+<p><code>track-&gt;rtp-&gt;frame(f, track-&gt;rtp)</code></p>
+<p>对于视频 track，这里实际调用的是：</p>
+<p><code>jpeg_process_frame()</code></p>
+<h3 id="13-2-解析逻辑"><a href="#13-2-解析逻辑" class="headerlink" title="13.2 解析逻辑"></a>13.2 解析逻辑</h3><p><code>jpeg_process_frame()</code> 会在 <code>f-&gt;d</code> 指向的 JPEG 头部区域中依次扫描 marker：</p>
+<ul>
+<li><code>0xDB</code> -&gt; <code>DQT</code></li>
+<li><code>0xC0</code> -&gt; <code>SOF0</code></li>
+<li><code>0xC4</code> -&gt; <code>DHT</code></li>
+<li><code>0xDD</code> -&gt; <code>DRI</code></li>
+<li><code>0xDA</code> -&gt; <code>SOS</code></li>
+</ul>
+<h3 id="13-3-各子解析函数作用"><a href="#13-3-各子解析函数作用" class="headerlink" title="13.3 各子解析函数作用"></a>13.3 各子解析函数作用</h3><h4 id="parse-DQT"><a href="#parse-DQT" class="headerlink" title="parse_DQT()"></a><code>parse_DQT()</code></h4><p>解析量化表，并记录量化表相对偏移：</p>
+<ul>
+<li><code>out-&gt;quant[table_id] = offset</code></li>
+</ul>
+<p>注意这里记录的不是裸地址，而是相对于 <code>out-&gt;d</code> 的偏移。<br>这是为了兼容 PSRAM 和不同帧缓存布局。</p>
+<h4 id="parse-SOF"><a href="#parse-SOF" class="headerlink" title="parse_SOF()"></a><code>parse_SOF()</code></h4><p>解析图像基础信息：</p>
+<ul>
+<li>宽度</li>
+<li>高度</li>
+<li>采样因子</li>
+<li>亮度量化表</li>
+<li>色度量化表</li>
+</ul>
+<p>其中：</p>
+<ul>
+<li><code>0x21</code> 表示 YUV422</li>
+<li><code>0x22</code> 表示 YUV420</li>
+</ul>
+<h4 id="parse-DHT"><a href="#parse-DHT" class="headerlink" title="parse_DHT()"></a><code>parse_DHT()</code></h4><p>记录 Huffman 表位置和长度，用于扩展头部发送。</p>
+<h4 id="parse-DRI"><a href="#parse-DRI" class="headerlink" title="parse_DRI()"></a><code>parse_DRI()</code></h4><p>解析 JPEG Restart Interval。</p>
+<h4 id="SOS"><a href="#SOS" class="headerlink" title="SOS"></a><code>SOS</code></h4><p>遇到 <code>0xDA</code> 时说明已经到达 scan data：</p>
+<ul>
+<li><code>out-&gt;scan_data = f-&gt;d + i + 14</code></li>
+<li><code>out-&gt;scan_data_len = ...</code></li>
+<li><code>out-&gt;offset = out-&gt;scan_data - f-&gt;d</code></li>
+</ul>
+<p>此时返回成功。</p>
+<h3 id="13-4-时间戳处理"><a href="#13-4-时间戳处理" class="headerlink" title="13.4 时间戳处理"></a>13.4 时间戳处理</h3><p><code>jpeg_process_frame()</code> 中：</p>
+<p><code>out-&gt;timestamp = per_ms_incr * f-&gt;timestamp</code></p>
+<p>其中 <code>per_ms_incr</code> 与 90kHz RTP 时钟有关，表示把系统时间戳转换成 RTP 视频时间戳。</p>
+<hr>
+<h2 id="14-视频-RTP-JPEG-发包流程"><a href="#14-视频-RTP-JPEG-发包流程" class="headerlink" title="14. 视频 RTP&#x2F;JPEG 发包流程"></a>14. 视频 RTP&#x2F;JPEG 发包流程</h2><h3 id="14-1-发包入口"><a href="#14-1-发包入口" class="headerlink" title="14.1 发包入口"></a>14.1 发包入口</h3><p><code>rtsp_common_send()</code> 在调用完 <code>frame()</code> 后，如果 <code>send_more</code> 存在，则执行：</p>
+<p><code>track-&gt;rtp-&gt;send_more(loop_search_ep, ls, track, track-&gt;rtp-&gt;private)</code></p>
+<p>对视频来说，这里就是：</p>
+<p><code>jpeg_send_more()</code></p>
+<h3 id="14-2-jpeg-send-more-做了什么"><a href="#14-2-jpeg-send-more-做了什么" class="headerlink" title="14.2 jpeg_send_more() 做了什么"></a>14.2 <code>jpeg_send_more()</code> 做了什么</h3><p>这个函数是当前实时图传最核心的发包实现，它做了以下事情：</p>
+<ol>
+<li>取出当前 frame 对应的底层 JPEG buffer</li>
+<li>计算 scan data 长度</li>
+<li>构造 RTP&#x2F;JPEG 专用头</li>
+<li>准备 quant table</li>
+<li>计算每个 RTP 分片的长度</li>
+<li>遍历 JPEG 链表节点</li>
+<li>为每个 session 的 endpoint 分别补 RTP 头</li>
+<li>发送 UDP 数据包</li>
+</ol>
+<h3 id="14-3-RTP-JPEG-头部构成"><a href="#14-3-RTP-JPEG-头部构成" class="headerlink" title="14.3 RTP&#x2F;JPEG 头部构成"></a>14.3 RTP&#x2F;JPEG 头部构成</h3><p>视频 RTP payload 头包括：</p>
+<ol>
+<li>12 字节标准 RTP 头</li>
+<li>8 或 12 字节 JPEG 专用头</li>
+<li>4 字节量化表头</li>
+<li>64 字节亮度量化表</li>
+<li>64 字节色度量化表</li>
+<li>可选扩展头和 Huffman 数据</li>
+</ol>
+<h3 id="14-4-分片策略"><a href="#14-4-分片策略" class="headerlink" title="14.4 分片策略"></a>14.4 分片策略</h3><p>最大发送长度取自：</p>
+<ul>
+<li><code>MAX_DATA_PACKET_SIZE = 1440</code></li>
+</ul>
+<p>再减去各类头部长度，得到本片允许承载的 JPEG 数据长度。</p>
+<p>如果当前 JPEG scan data 超过可发送大小，就切成多片。</p>
+<h3 id="14-5-多-session-广播"><a href="#14-5-多-session-广播" class="headerlink" title="14.5 多 session 广播"></a>14.5 多 session 广播</h3><p><code>jpeg_send_more()</code> 并不是只发给一个客户端。<br>它通过 <code>loop_search_ep()</code> 遍历所有正在播放、且该 track 有 endpoint 的 session：</p>
+<ul>
+<li>如果 session 正在 <code>PLAY</code></li>
+<li>且 <code>track-&gt;ready == 1</code></li>
+<li>且 <code>sess-&gt;ep[track-&gt;index]</code> 非空</li>
+</ul>
+<p>就发送给该客户端。</p>
+<p>因此，同一帧 JPEG 可以广播给多个 RTSP 客户端。</p>
+<h3 id="14-6-真正的-RTP-头生成"><a href="#14-6-真正的-RTP-头生成" class="headerlink" title="14.6 真正的 RTP 头生成"></a>14.6 真正的 RTP 头生成</h3><p>每发给一个 endpoint 时，调用：</p>
+<p><code>set_send_rtp_packet_head(ep, v, count, timestamp, marker, send_buf)</code></p>
+<p>这个函数会：</p>
+<ul>
+<li>写 RTP version</li>
+<li>写 payload type</li>
+<li>写 marker bit</li>
+<li>写 sequence number</li>
+<li>写 timestamp</li>
+<li>写 SSRC</li>
+</ul>
+<h3 id="14-7-真正的发送动作"><a href="#14-7-真正的发送动作" class="headerlink" title="14.7 真正的发送动作"></a>14.7 真正的发送动作</h3><p>再调用：</p>
+<p><code>send_rtp_packet_more(ep, send_buf, send_total_len, 30)</code></p>
+<p>而 <code>send_rtp_packet_more()</code> 内部继续走：</p>
+<p><code>fd_send_data(ep-&gt;trans.udp.rtp_fd, sendbuf, sendLen, times)</code></p>
+<p>最终使用 UDP socket 发出。</p>
+<h3 id="14-8-jpeg-send-现状"><a href="#14-8-jpeg-send-现状" class="headerlink" title="14.8 jpeg_send() 现状"></a>14.8 <code>jpeg_send()</code> 现状</h3><p><code>rtp-jpeg.c</code> 中的 <code>jpeg_send()</code> 当前直接返回 <code>0</code>，没有实际发送逻辑。<br>因为现在主链路已经迁移到 <code>jpeg_send_more()</code>。</p>
+<hr>
+<h2 id="15-音频链路"><a href="#15-音频链路" class="headerlink" title="15. 音频链路"></a>15. 音频链路</h2><p>音频链路与视频结构几乎一致，只是媒体格式不同。</p>
+<h3 id="15-1-音频输出流"><a href="#15-1-音频输出流" class="headerlink" title="15.1 音频输出流"></a>15.1 音频输出流</h3><p><code>rtp_audio_init_ret()</code> 创建输出 stream：</p>
+<ul>
+<li>名称：<code>audio</code></li>
+<li>格式：<code>FORMAT_AUDIO</code></li>
+</ul>
+<h3 id="15-2-音频-RTP-媒体对象"><a href="#15-2-音频-RTP-媒体对象" class="headerlink" title="15.2 音频 RTP 媒体对象"></a>15.2 音频 RTP 媒体对象</h3><p><code>new_rtp_media_audio_stream()</code> 绑定：</p>
+<ul>
+<li><code>get_sdp</code> -&gt; <code>audio_get_sdp</code></li>
+<li><code>get_payload</code> -&gt; <code>audio_get_payload</code></li>
+<li><code>frame</code> -&gt; <code>audio_process_frame</code></li>
+<li><code>send</code> -&gt; <code>audio_send</code></li>
+<li><code>rtcp_send</code> -&gt; <code>new_rtcp_send</code></li>
+<li><code>send_more</code> -&gt; <code>audio_send_more</code></li>
+</ul>
+<p>并设置：</p>
+<ul>
+<li><code>sample_rate = 8000</code></li>
+<li><code>type = 1</code></li>
+</ul>
+<h3 id="15-3-SDP"><a href="#15-3-SDP" class="headerlink" title="15.3 SDP"></a>15.3 SDP</h3><p>音频 SDP 格式为：</p>
+<p><code>m=audio &lt;port&gt; RTP/AVP 97</code><br><code>a=rtpmap:97 L16/&lt;sample_rate&gt;/1</code></p>
+<h3 id="15-4-实际发送"><a href="#15-4-实际发送" class="headerlink" title="15.4 实际发送"></a>15.4 实际发送</h3><p>音频和视频一样，当前主要也是走 <code>send_more</code> 路径，即：</p>
+<p><code>audio_send_more()</code></p>
+<p>不是依赖 <code>audio_send()</code>。</p>
+<hr>
+<h2 id="16-RTP-Endpoint-建立流程"><a href="#16-RTP-Endpoint-建立流程" class="headerlink" title="16. RTP Endpoint 建立流程"></a>16. RTP Endpoint 建立流程</h2><h3 id="16-1-new-rtp-endpoint"><a href="#16-1-new-rtp-endpoint" class="headerlink" title="16.1 new_rtp_endpoint()"></a>16.1 <code>new_rtp_endpoint()</code></h3><p>在 <code>SETUP</code> 时，为每个 track 创建一个 <code>rtp_endpoint</code>。</p>
+<p>该结构中保存：</p>
+<ul>
+<li>payload type</li>
+<li>seqnum</li>
+<li>SSRC</li>
+<li>RTP timestamp</li>
+<li>UDP 或 Interleaved 传输信息</li>
+</ul>
+<h3 id="16-2-UDP-模式"><a href="#16-2-UDP-模式" class="headerlink" title="16.2 UDP 模式"></a>16.2 UDP 模式</h3><p>当前主要使用 UDP 模式：</p>
+<p><code>connect_udp_endpoint()</code></p>
+<p>它会：</p>
+<ol>
+<li>创建 RTP socket</li>
+<li>创建 RTCP socket</li>
+<li>绑定本地端口</li>
+<li>connect 到客户端端口</li>
+<li>在 event loop 中注册 RTP&#x2F;RTCP 读事件</li>
+</ol>
+<h3 id="16-3-RTCP"><a href="#16-3-RTCP" class="headerlink" title="16.3 RTCP"></a>16.3 RTCP</h3><p><code>new_rtcp_send()</code> 周期性向客户端发送 RTCP Sender Report。<br>该函数会填充：</p>
+<ul>
+<li>NTP 时间</li>
+<li>RTP 时间戳</li>
+<li>packet count</li>
+<li>octet count</li>
+</ul>
+<hr>
+<h2 id="17-会话停止与资源释放"><a href="#17-会话停止与资源释放" class="headerlink" title="17. 会话停止与资源释放"></a>17. 会话停止与资源释放</h2><h3 id="17-1-Track-停止发送"><a href="#17-1-Track-停止发送" class="headerlink" title="17.1 Track 停止发送"></a>17.1 Track 停止发送</h3><p>当 session 被 teardown 或 closed 后，<code>track_check_running()</code> 会检查是否还有其他 session 在播放该 track。</p>
+<p>如果没有，则：</p>
+<p><code>set_waiting(source-&gt;track[t].stream, 0)</code></p>
+<p>这样 stream 不再继续向该 track 分发 frame。</p>
+<h3 id="17-2-endpoint-释放"><a href="#17-2-endpoint-释放" class="headerlink" title="17.2 endpoint 释放"></a>17.2 endpoint 释放</h3><p><code>rtsp_teardown()</code> 中：</p>
+<ul>
+<li>删除 <code>rtp_endpoint</code></li>
+<li>清空 <code>sess-&gt;ep[i]</code></li>
+</ul>
+<h3 id="17-3-live-线程释放"><a href="#17-3-live-线程释放" class="headerlink" title="17.3 live 线程释放"></a>17.3 live 线程释放</h3><p>当最后一个 session 离开后，会最终进入：</p>
+<ul>
+<li><code>source-&gt;release(source)</code></li>
+</ul>
+<p>对于实时模式来说，对应：</p>
+<ul>
+<li><code>live_rtsp_destory()</code></li>
+</ul>
+<p>这个函数会：</p>
+<ol>
+<li>关闭附加流</li>
+<li><code>destory_stream(r)</code></li>
+<li>删除 live task</li>
+<li>释放 <code>rtsp_priv</code></li>
+</ol>
+<hr>
+<h2 id="18-file-文件回放链路"><a href="#18-file-文件回放链路" class="headerlink" title="18. /file 文件回放链路"></a>18. <code>/file</code> 文件回放链路</h2><p><code>sdk/app/spook/webfile.c</code> 注册了 <code>/file</code> 路径。</p>
+<p>它与 <code>/webcam</code> 的区别主要只有两点：</p>
+<ol>
+<li>create&#x2F;release 回调不同</li>
+<li>数据源来自 AVI 文件回放，不是实时摄像头流</li>
+</ol>
+<p>但它复用了完全相同的：</p>
+<ul>
+<li>RTSP 框架</li>
+<li>track 机制</li>
+<li><code>rtsp_common_send()</code></li>
+<li><code>rtp-jpeg.c</code></li>
+<li><code>rtp-audio.c</code></li>
+<li><code>rtp.c</code></li>
+</ul>
+<p>因此可以把 <code>/file</code> 看成“更换数据源后的同一套图传框架”。</p>
+<hr>
+<h2 id="19-关键函数指针绑定关系"><a href="#19-关键函数指针绑定关系" class="headerlink" title="19. 关键函数指针绑定关系"></a>19. 关键函数指针绑定关系</h2><p>本节只列图传最关键的函数指针最终指向。</p>
+<h3 id="19-1-stream-层"><a href="#19-1-stream-层" class="headerlink" title="19.1 stream 层"></a>19.1 <code>stream</code> 层</h3><h4 id="JPEG-输出-stream"><a href="#JPEG-输出-stream" class="headerlink" title="JPEG 输出 stream"></a>JPEG 输出 stream</h4><ul>
+<li><code>stream-&gt;get_framerate</code> -&gt; <code>encoder-jpeg.c:get_framerate</code></li>
+<li><code>stream-&gt;set_running</code> -&gt; <code>encoder-jpeg.c:set_running</code></li>
+</ul>
+<h4 id="Audio-输出-stream"><a href="#Audio-输出-stream" class="headerlink" title="Audio 输出 stream"></a>Audio 输出 stream</h4><ul>
+<li><code>stream-&gt;get_framerate</code> -&gt; <code>encoder-audio.c:get_framerate</code></li>
+<li><code>stream-&gt;set_running</code> -&gt; <code>encoder-audio.c:set_running</code></li>
+</ul>
+<h3 id="19-2-frame-exchanger"><a href="#19-2-frame-exchanger" class="headerlink" title="19.2 frame_exchanger"></a>19.2 <code>frame_exchanger</code></h3><h4 id="视频-exchanger"><a href="#视频-exchanger" class="headerlink" title="视频 exchanger"></a>视频 exchanger</h4><ul>
+<li><code>ex-&gt;f</code> -&gt; <code>encoder-jpeg.c:get_back_frame</code></li>
+<li><code>ex-&gt;d</code> -&gt; <code>jpeg_encoder *en</code></li>
+</ul>
+<h4 id="音频-exchanger"><a href="#音频-exchanger" class="headerlink" title="音频 exchanger"></a>音频 exchanger</h4><ul>
+<li><code>audio_ex-&gt;f</code> -&gt; <code>encoder-audio.c:get_back_audio_frame</code></li>
+<li><code>audio_ex-&gt;d</code> -&gt; <code>audio_encoder *en</code></li>
+</ul>
+<h3 id="19-3-stream-destination"><a href="#19-3-stream-destination" class="headerlink" title="19.3 stream_destination"></a>19.3 <code>stream_destination</code></h3><h4 id="RTSP-视频-音频-track-接入-stream-时"><a href="#RTSP-视频-音频-track-接入-stream-时" class="headerlink" title="RTSP 视频&#x2F;音频 track 接入 stream 时"></a>RTSP 视频&#x2F;音频 track 接入 stream 时</h4><ul>
+<li><code>dest-&gt;process_frame</code> -&gt; <code>rtsp_common.c:rtsp_common_send</code></li>
+<li><code>dest-&gt;disconnect_frame</code> -&gt; <code>rtsp_common.c:rtsp_frame_end</code></li>
+<li><code>dest-&gt;d</code> -&gt; <code>struct rtsp_track *</code></li>
+</ul>
+<h3 id="19-4-session"><a href="#19-4-session" class="headerlink" title="19.4 session"></a>19.4 <code>session</code></h3><p><code>rtsp_open()</code> 里绑定：</p>
+<ul>
+<li><code>sess-&gt;get_sdp</code> -&gt; <code>rtsp_get_sdp</code></li>
+<li><code>sess-&gt;setup</code> -&gt; <code>rtsp_setup</code></li>
+<li><code>sess-&gt;play</code> -&gt; <code>rtsp_play</code></li>
+<li><code>sess-&gt;teardown</code> -&gt; <code>rtsp_teardown</code></li>
+<li><code>sess-&gt;closed</code> -&gt; <code>rtsp_closed</code></li>
+<li><code>sess-&gt;select_close</code> -&gt; <code>rtsp_select_close</code></li>
+</ul>
+<p>实时流 <code>live_rtsp_open()</code> 会进一步覆盖：</p>
+<ul>
+<li><code>sess-&gt;get_sdp</code> -&gt; <code>live_get_sdp</code></li>
+</ul>
+<h3 id="19-5-rtsp-source"><a href="#19-5-rtsp-source" class="headerlink" title="19.5 rtsp_source"></a>19.5 <code>rtsp_source</code></h3><p>在 <code>register_live_fn()</code> 中绑定：</p>
+<ul>
+<li><code>source-&gt;creat</code> -&gt; <code>live_rtsp_creat</code></li>
+<li><code>source-&gt;release</code> -&gt; <code>live_rtsp_destory</code></li>
+</ul>
+<p>文件回放模式中绑定为：</p>
+<ul>
+<li><code>source-&gt;creat</code> -&gt; <code>webfile_rtsp_creat</code></li>
+<li><code>source-&gt;release</code> -&gt; <code>webfile_rtsp_destory</code></li>
+</ul>
+<h3 id="19-6-视频-rtp-media"><a href="#19-6-视频-rtp-media" class="headerlink" title="19.6 视频 rtp_media"></a>19.6 视频 <code>rtp_media</code></h3><p><code>new_rtp_media_jpeg_stream()</code> 中绑定：</p>
+<ul>
+<li><code>rtp-&gt;get_sdp</code> -&gt; <code>jpeg_get_sdp</code></li>
+<li><code>rtp-&gt;get_payload</code> -&gt; <code>jpeg_get_payload</code></li>
+<li><code>rtp-&gt;frame</code> -&gt; <code>jpeg_process_frame</code></li>
+<li><code>rtp-&gt;send</code> -&gt; <code>jpeg_send</code></li>
+<li><code>rtp-&gt;send_more</code> -&gt; <code>jpeg_send_more</code></li>
+<li><code>rtp-&gt;rtcp_send</code> -&gt; <code>new_rtcp_send</code></li>
+</ul>
+<h3 id="19-7-音频-rtp-media"><a href="#19-7-音频-rtp-media" class="headerlink" title="19.7 音频 rtp_media"></a>19.7 音频 <code>rtp_media</code></h3><p><code>new_rtp_media_audio_stream()</code> 中绑定：</p>
+<ul>
+<li><code>rtp-&gt;get_sdp</code> -&gt; <code>audio_get_sdp</code></li>
+<li><code>rtp-&gt;get_payload</code> -&gt; <code>audio_get_payload</code></li>
+<li><code>rtp-&gt;frame</code> -&gt; <code>audio_process_frame</code></li>
+<li><code>rtp-&gt;send</code> -&gt; <code>audio_send</code></li>
+<li><code>rtp-&gt;send_more</code> -&gt; <code>audio_send_more</code></li>
+<li><code>rtp-&gt;rtcp_send</code> -&gt; <code>new_rtcp_send</code></li>
+</ul>
+<hr>
+<h2 id="20-最重要的主调用链"><a href="#20-最重要的主调用链" class="headerlink" title="20. 最重要的主调用链"></a>20. 最重要的主调用链</h2><p>下面给出实时视频图传的主调用链。</p>
+<h3 id="20-1-初始化阶段"><a href="#20-1-初始化阶段" class="headerlink" title="20.1 初始化阶段"></a>20.1 初始化阶段</h3><p><code>spook_init()</code><br>-&gt; <code>spook_thread()</code><br>-&gt; <code>jpeg_init(&amp;live_dvp)</code><br>-&gt; <code>live_rtsp_init(&amp;live_dvp)</code></p>
+<h3 id="20-2-RTSP-建链阶段"><a href="#20-2-RTSP-建链阶段" class="headerlink" title="20.2 RTSP 建链阶段"></a>20.2 RTSP 建链阶段</h3><p><code>DESCRIBE</code><br>-&gt; <code>handle_DESCRIBE()</code><br>-&gt; <code>live_rtsp_open()</code><br>-&gt; <code>rtsp_open()</code><br>-&gt; <code>live_get_sdp()</code></p>
+<p><code>SETUP</code><br>-&gt; <code>handle_SETUP()</code><br>-&gt; <code>rtsp_setup()</code><br>-&gt; <code>live_rtsp_creat()</code><br>-&gt; <code>creat_stream()</code><br>-&gt; <code>new_rtp_endpoint()</code><br>-&gt; <code>connect_udp_endpoint()</code></p>
+<p><code>PLAY</code><br>-&gt; <code>handle_PLAY()</code><br>-&gt; <code>rtsp_play()</code><br>-&gt; <code>set_waiting(track-&gt;stream, 1)</code></p>
+<h3 id="20-3-实时帧发送阶段"><a href="#20-3-实时帧发送阶段" class="headerlink" title="20.3 实时帧发送阶段"></a>20.3 实时帧发送阶段</h3><p><code>spook_send_thread_stream()</code><br>-&gt; <code>GET_FRAME(video_stream)</code><br>-&gt; 填充 <code>struct frame</code><br>-&gt; <code>ex-&gt;f(jpeg, ex-&gt;d)</code><br>-&gt; <code>get_back_frame()</code><br>-&gt; <code>deliver_frame_to_stream()</code><br>-&gt; <code>rtsp_common_send()</code><br>-&gt; <code>track-&gt;rtp-&gt;frame(...)</code><br>-&gt; <code>jpeg_process_frame()</code><br>-&gt; <code>track-&gt;rtp-&gt;send_more(...)</code><br>-&gt; <code>jpeg_send_more()</code><br>-&gt; <code>set_send_rtp_packet_head()</code><br>-&gt; <code>send_rtp_packet_more()</code><br>-&gt; <code>fd_send_data()</code></p>
+<h3 id="20-4-结束阶段"><a href="#20-4-结束阶段" class="headerlink" title="20.4 结束阶段"></a>20.4 结束阶段</h3><p><code>TEARDOWN</code> 或连接关闭<br>-&gt; <code>rtsp_closed()</code> &#x2F; <code>rtsp_teardown()</code><br>-&gt; <code>del_rtp_endpoint()</code><br>-&gt; <code>track_check_running()</code><br>-&gt; <code>set_waiting(..., 0)</code><br>-&gt; 最后一个 session 结束时 <code>live_rtsp_destory()</code></p>
+<hr>
+<h2 id="21-关键实现结论"><a href="#21-关键实现结论" class="headerlink" title="21. 关键实现结论"></a>21. 关键实现结论</h2><h3 id="21-1-当前视频图传编码不是-H264，而是-MJPEG"><a href="#21-1-当前视频图传编码不是-H264，而是-MJPEG" class="headerlink" title="21.1 当前视频图传编码不是 H264，而是 MJPEG"></a>21.1 当前视频图传编码不是 H264，而是 MJPEG</h3><p>证据：</p>
+<ul>
+<li><code>jpeg_get_payload()</code> 固定返回 <code>26</code></li>
+<li>SDP 中 <code>m=video ... RTP/AVP 26</code></li>
+</ul>
+<h3 id="21-2-当前视频主发送逻辑走的是-send-more"><a href="#21-2-当前视频主发送逻辑走的是-send-more" class="headerlink" title="21.2 当前视频主发送逻辑走的是 send_more"></a>21.2 当前视频主发送逻辑走的是 <code>send_more</code></h3><p><code>rtsp_common_send()</code> 中直接 <code>send()</code> 的代码已注释。<br>因此当前视频主要依赖：</p>
+<ul>
+<li><code>jpeg_process_frame()</code></li>
+<li><code>jpeg_send_more()</code></li>
+</ul>
+<h3 id="21-3-SETUP-阶段才启动后台实时线程"><a href="#21-3-SETUP-阶段才启动后台实时线程" class="headerlink" title="21.3 SETUP 阶段才启动后台实时线程"></a>21.3 <code>SETUP</code> 阶段才启动后台实时线程</h3><p>不是在 <code>DESCRIBE</code> 阶段启动。</p>
+<h3 id="21-4-PLAY-之后才真正开始图传"><a href="#21-4-PLAY-之后才真正开始图传" class="headerlink" title="21.4 PLAY 之后才真正开始图传"></a>21.4 <code>PLAY</code> 之后才真正开始图传</h3><p>必须等 <code>track-&gt;ready = 1</code> 且 <code>waiting = 1</code>。</p>
+<h3 id="21-5-同一帧支持广播给多个客户端"><a href="#21-5-同一帧支持广播给多个客户端" class="headerlink" title="21.5 同一帧支持广播给多个客户端"></a>21.5 同一帧支持广播给多个客户端</h3><p><code>jpeg_send_more()</code> 会遍历 session 链表，把同一帧发送给多个 <code>rtp_endpoint</code>。</p>
+<h3 id="21-6-file-和-webcam-复用同一套-RTP-RTSP-架构"><a href="#21-6-file-和-webcam-复用同一套-RTP-RTSP-架构" class="headerlink" title="21.6 /file 和 /webcam 复用同一套 RTP&#x2F;RTSP 架构"></a>21.6 <code>/file</code> 和 <code>/webcam</code> 复用同一套 RTP&#x2F;RTSP 架构</h3><p>区别主要只是底层数据源和 source 的 create&#x2F;release 回调不同。</p>
+<hr>
+<h2 id="22-建议后续继续关注的点"><a href="#22-建议后续继续关注的点" class="headerlink" title="22. 建议后续继续关注的点"></a>22. 建议后续继续关注的点</h2><p>如果后续还要继续深入排查图传问题，建议重点看下面几个方向：</p>
+<ul>
+<li><code>spook_send_thread_stream()</code> 中底层 JPEG buffer 的组织方式</li>
+<li><code>stream_frame.h</code> &#x2F; <code>GET_JPG_BUF()</code> &#x2F; <code>GET_DATA_BUF()</code> 相关宏</li>
+<li><code>jpeg_send_more()</code> 中链表节点拆包逻辑</li>
+<li><code>fd_send_data()</code> 的重发与丢包处理</li>
+<li>RTCP 收包对 <code>rtp_speed</code> 的反馈调节逻辑</li>
+</ul>
+<hr>
+<h2 id="23-关键源码索引"><a href="#23-关键源码索引" class="headerlink" title="23. 关键源码索引"></a>23. 关键源码索引</h2><h3 id="初始化与入口"><a href="#初始化与入口" class="headerlink" title="初始化与入口"></a>初始化与入口</h3><ul>
+<li><code>sdk/app/spook/spook.c</code></li>
+<li><code>sdk/app/spook/spook_config.h</code></li>
+</ul>
+<h3 id="实时-RTSP-入口"><a href="#实时-RTSP-入口" class="headerlink" title="实时 RTSP 入口"></a>实时 RTSP 入口</h3><ul>
+<li><code>sdk/app/spook/live.c</code></li>
+</ul>
+<h3 id="Stream-Frame-分发"><a href="#Stream-Frame-分发" class="headerlink" title="Stream&#x2F;Frame 分发"></a>Stream&#x2F;Frame 分发</h3><ul>
+<li><code>sdk/app/spook/frame.c</code></li>
+<li><code>sdk/app/spook/frame.h</code></li>
+<li><code>sdk/app/spook/stream.c</code></li>
+<li><code>sdk/app/spook/stream.h</code></li>
+</ul>
+<h3 id="RTSP-控制"><a href="#RTSP-控制" class="headerlink" title="RTSP 控制"></a>RTSP 控制</h3><ul>
+<li><code>sdk/app/spook/rtsp.c</code></li>
+<li><code>sdk/app/spook/rtsp_common.c</code></li>
+<li><code>sdk/app/spook/session.c</code></li>
+</ul>
+<h3 id="RTP-JPEG-与音频"><a href="#RTP-JPEG-与音频" class="headerlink" title="RTP&#x2F;JPEG 与音频"></a>RTP&#x2F;JPEG 与音频</h3><ul>
+<li><code>sdk/app/spook/rtp-jpeg.c</code></li>
+<li><code>sdk/app/spook/rtp-audio.c</code></li>
+<li><code>sdk/app/spook/rtp.c</code></li>
+<li><code>sdk/app/spook/rtp.h</code></li>
+<li><code>sdk/app/spook/rtp_media.h</code></li>
+</ul>
+<h3 id="文件回放"><a href="#文件回放" class="headerlink" title="文件回放"></a>文件回放</h3><ul>
+<li><code>sdk/app/spook/webfile.c</code></li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/%E9%9F%B3%E9%A2%91/">音频</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/MSI/">MSI</a><a class="post-meta__tags" href="/tags/TXW82x/">TXW82x</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/Spook/">Spook</a><a class="post-meta__tags" href="/tags/RTSP/">RTSP</a><a class="post-meta__tags" href="/tags/RTP/">RTP</a><a class="post-meta__tags" href="/tags/JPEG/">JPEG</a><a class="post-meta__tags" href="/tags/Wi-Fi%E5%9B%BE%E4%BC%A0/">Wi-Fi图传</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">ADPCM 对讲模块详细设计文档</div></div><div class="info-2"><div class="info-item-1">ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：  模块整体职责 依赖的流和内存资源 初始化顺序 线程之间的分工 编码、发送、接收、解码、播放链路 函数之间的调用关系 关键回调函数和函数指针绑定关系  本文档对应的核心文件：  sdk/app/intercom/intercom_adpcm.c sdk/app/intercom/intercom.h sdk/app/audio_app/bbm_audio_ad.c sdk/app/algorithm/stream_frame/stream_define.h project/main.c   2. 模块定位intercom_adpcm.c 实现的是一套基于 UDP + ADPCM 编解码 的对讲模块，不是 RTSP，也不是 RTP。 它完成的事情是：  从本地麦克风流 R_INTERCOM_AUDIO 读取 PCM 音频 使用 ADPCM 编码 通过 UDP 发给对端 接收对端发来的 ADPCM 包 对丢包进行简单...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/06/30/TXW82x-Spook-RTSP%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/" title="TXW82x Spook RTSP 流媒体服务器架构文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x Spook RTSP 流媒体服务器架构文档</div></div><div class="info-2"><div class="info-item-1">TXW82x Spook RTSP 流媒体服务器架构文档1. 概述Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 RTSP 流媒体服务器，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。 1.1 核心能力   能力 说明    视频编码 MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.264 编码器)   音频编码 AAC (硬件音频编码器)   传输协议 RTP&#x2F;AVP over UDP、RTP&#x2F;AVP over TCP (RTSP 交织)   默认端口 554   多路流 同时注册多个 RTSP 路径，独立推流   录像回放 支持通过 RTSP 回放 SD 卡中的 MP4&#x2F;AVI 文件   并发客户端 多客户端同时连接同一路流   1.2 硬件平台   组件 说明    CPU CK810 (C-SKY 架构)   视频编码 ...</div></div></div></a><a class="pagination-related" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">ADPCM 对讲模块详细设计文档</div></div><div class="info-2"><div class="info-item-1">ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：  模块整体职责 依赖的流和内存资源 初始化顺序 线程之间的分工 编码、发送、接收、解码、播放链路 函数之间的调用关系 关键回调函数和函数指针绑定关系  本文档对应的核心文件：  sdk/app/intercom/intercom_adpcm.c sdk/app/intercom/intercom.h sdk/app/audio_app/bbm_audio_ad.c sdk/app/algorithm/stream_frame/stream_define.h project/main.c   2. 模块定位intercom_adpcm.c 实现的是一套基于 UDP + ADPCM 编解码 的对讲模块，不是 RTSP，也不是 RTP。 它完成的事情是：  从本地麦克风流 R_INTERCOM_AUDIO 读取 PCM 音频 使用 ADPCM 编码 通过 UDP 发给对端 接收对端发来的 ADPCM 包 对丢包进行简单...</div></div></div></a><a class="pagination-related" href="/2026/06/30/TXW82x%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x 平台相册功能开发文档</div></div><div class="info-2"><div class="info-item-1">TXW82x 平台相册功能开发文档 项目： TXW82x 相册功能日期： 2026-06-30基于提交： 72ce4df (更新相册功能) + eab804e (添加照片选中功能)技术栈： LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件   目录 功能概述 文件变更清单 数据结构详解 MSI 流水线架构 核心函数逐分析 UI 界面布局 按键系统与焦点导航 全屏预览机制 CSC 动态格式配置 JPEG 解码器扩展 内存管理策略 数据流完整跟踪 操作说明 内存泄漏修复回顾   一、功能概述相册功能为 TXW82x 平台提供基于 SD 卡的 JPEG 图片浏览能力。整体包含两大功能模块： 第一版（提交 72ce4df）— 相册功能骨架 从 SD 卡 IMG/ 目录扫描 *.jpg 文件 缩略图网格展示（自动根据屏幕分辨率计算网格行列数） 支持多页翻页（按键、触摸按钮、左右滑动手势） 点击缩略图进入全屏预览（使用 VIDEO_P1 硬件层） MSI 流水线：S_...</div></div></div></a><a class="pagination-related" href="/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示 支持播放&#x2F;暂停控制 支持退出播放并回到主菜单   2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道： 12345678910111213141516171819SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出:...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） 🔴 高   Bug home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行 🟡 中   性能 Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU 🟡 中   代码质量 menu_view.c 中残留 3 处 printf 调试语句 🟡 中   可维护性 颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码 🟡 中   可维护性 字体 &amp;lv_font...</div></div></div></a><a class="pagination-related" href="/2026/06/22/H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E9%93%BE%E8%B7%AFBug%E4%BF%AE%E5%A4%8D%E8%AE%B0%E5%BD%95/" title="H.264 硬解码播放链路 Bug 修复记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">H.264 硬解码播放链路 Bug 修复记录</div></div><div class="info-2"><div class="info-item-1">H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。  涉及文件   文件 路径 角色    h264_file_msi.c sdk/app/h264_demux/ H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出   h264_decode_msi.c sdk/app/decode/ H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码   sample_h264_esplayer.c project/app/ H.264 ES 流播放 Sample，作为参考实现   stream_define.h sdk/app/algorithm/stream_frame/ fb_h264_s 结构定义    Bug 1：start_len 未动态设置现象解码器在 h264_d...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">10</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">34</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">6</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Spook-%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3"><span class="toc-text">Spook 图传模块分析文档</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%96%87%E6%A1%A3%E8%8C%83%E5%9B%B4"><span class="toc-text">1. 文档范围</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E7%9B%AE%E5%BD%95%E4%B8%AD%E4%B8%8E%E5%9B%BE%E4%BC%A0%E6%9C%80%E7%9B%B8%E5%85%B3%E7%9A%84%E6%96%87%E4%BB%B6"><span class="toc-text">2. 目录中与图传最相关的文件</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#2-1-%E6%A0%B8%E5%BF%83%E5%85%A5%E5%8F%A3"><span class="toc-text">2.1 核心入口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-2-%E5%AE%9E%E6%97%B6-RTSP-%E6%8E%A7%E5%88%B6"><span class="toc-text">2.2 实时 RTSP 控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-3-%E5%B8%A7%E5%92%8C%E6%B5%81%E5%88%86%E5%8F%91"><span class="toc-text">2.3 帧和流分发</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-4-%E7%BC%96%E7%A0%81%E5%99%A8%E8%BE%93%E5%87%BA%E5%B1%82"><span class="toc-text">2.4 编码器输出层</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-5-RTP-%E5%AA%92%E4%BD%93%E5%8F%91%E9%80%81%E5%B1%82"><span class="toc-text">2.5 RTP 媒体发送层</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-6-%E6%96%87%E4%BB%B6%E5%9B%9E%E6%94%BE%E5%A4%8D%E7%94%A8%E9%93%BE%E8%B7%AF"><span class="toc-text">2.6 文件回放复用链路</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">3. 模块总体架构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B"><span class="toc-text">4. 初始化流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E8%B0%83%E7%94%A8%E9%A1%BA%E5%BA%8F"><span class="toc-text">4.1 调用顺序</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%85%B3%E9%94%AE%E9%85%8D%E7%BD%AE"><span class="toc-text">4.2 关键配置</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%9E%E6%97%B6%E9%A2%84%E8%A7%88-live-dvp"><span class="toc-text">实时预览 live_dvp</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%87%E4%BB%B6%E5%9B%9E%E6%94%BE-webfile"><span class="toc-text">文件回放 webfile</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%88%9D%E5%A7%8B%E5%8C%96%E5%90%8E%E7%9A%84%E7%BB%93%E6%9E%9C"><span class="toc-text">4.3 初始化后的结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%AE%9E%E6%97%B6%E5%9B%BE%E4%BC%A0%E4%B8%BB%E6%B5%81%E7%A8%8B"><span class="toc-text">5. 实时图传主流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%BA%95%E5%B1%82%E5%8F%96%E6%B5%81%E4%B8%8E%E5%B8%A7%E6%B3%A8%E5%85%A5%E6%B5%81%E7%A8%8B"><span class="toc-text">6. 底层取流与帧注入流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-live-rtsp-creat"><span class="toc-text">6.1 live_rtsp_creat()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-creat-stream"><span class="toc-text">6.2 creat_stream()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-spook-send-thread-stream"><span class="toc-text">6.3 spook_send_thread_stream()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%85%88%E6%8B%B7%E8%B4%9D%E5%89%8D-1024-%E5%AD%97%E8%8A%82"><span class="toc-text">6.4 为什么先拷贝前 1024 字节</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-JPEG-%E8%BE%93%E5%87%BA%E6%B5%81%E4%B8%8E-Stream-%E5%88%86%E5%8F%91"><span class="toc-text">7. JPEG 输出流与 Stream 分发</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-jpeg-init"><span class="toc-text">7.1 jpeg_init()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-%E5%88%9B%E5%BB%BA%E7%9A%84%E5%AF%B9%E8%B1%A1"><span class="toc-text">7.2 创建的对象</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-3-JPEG-stream-%E8%87%AA%E5%B8%A6%E4%B8%A4%E4%B8%AA%E6%96%B9%E6%B3%95"><span class="toc-text">7.3 JPEG stream 自带两个方法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-4-frame-exchanger-%E7%9A%84%E4%BD%9C%E7%94%A8"><span class="toc-text">7.4 frame_exchanger 的作用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-5-get-back-frame"><span class="toc-text">7.5 get_back_frame()</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-Stream-%E5%88%86%E5%8F%91%E6%9C%BA%E5%88%B6"><span class="toc-text">8. Stream 分发机制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-connect-to-stream"><span class="toc-text">8.1 connect_to_stream()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-deliver-frame-to-stream"><span class="toc-text">8.2 deliver_frame_to_stream()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-3-waiting-%E7%9A%84%E6%84%8F%E4%B9%89"><span class="toc-text">8.3 waiting 的意义</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-RTSP-%E8%B7%AF%E5%BE%84%E6%B3%A8%E5%86%8C%E4%B8%8E%E4%BC%9A%E8%AF%9D%E6%8E%A7%E5%88%B6"><span class="toc-text">9. RTSP 路径注册与会话控制</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#9-1-%E6%B3%A8%E5%86%8C-RTSP-%E8%B7%AF%E5%BE%84"><span class="toc-text">9.1 注册 RTSP 路径</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-2-rtsp-source"><span class="toc-text">9.2 rtsp_source</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-3-rtsp-open"><span class="toc-text">9.3 rtsp_open()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#9-4-live-rtsp-open-%E7%9A%84%E8%A6%86%E7%9B%96"><span class="toc-text">9.4 live_rtsp_open() 的覆盖</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-RTSP-%E5%91%BD%E4%BB%A4%E6%97%B6%E5%BA%8F"><span class="toc-text">10. RTSP 命令时序</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#10-1-DESCRIBE"><span class="toc-text">10.1 DESCRIBE</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-2-SETUP"><span class="toc-text">10.2 SETUP</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-3-PLAY"><span class="toc-text">10.3 PLAY</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-4-TEARDOWN"><span class="toc-text">10.4 TEARDOWN</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-Track-%E5%BB%BA%E7%AB%8B%E8%BF%87%E7%A8%8B"><span class="toc-text">11. Track 建立过程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#11-1-set-video-track"><span class="toc-text">11.1 set_video_track()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-2-%E7%BB%93%E6%9E%9C"><span class="toc-text">11.2 结果</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-3-set-audio-track"><span class="toc-text">11.3 set_audio_track()</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E8%A7%86%E9%A2%91-RTP-%E5%AA%92%E4%BD%93%E5%AF%B9%E8%B1%A1%E5%88%9B%E5%BB%BA"><span class="toc-text">12. 视频 RTP 媒体对象创建</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-new-rtp-media-jpeg-stream"><span class="toc-text">12.1 new_rtp_media_jpeg_stream()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-%E7%BB%91%E5%AE%9A%E5%86%85%E5%AE%B9"><span class="toc-text">12.2 绑定内容</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-3-%E9%87%8D%E8%A6%81%E7%BB%93%E8%AE%BA"><span class="toc-text">12.3 重要结论</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-JPEG-%E8%A7%A3%E6%9E%90%E6%B5%81%E7%A8%8B"><span class="toc-text">13. JPEG 解析流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#13-1-%E5%85%A5%E5%8F%A3-jpeg-process-frame"><span class="toc-text">13.1 入口 jpeg_process_frame()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-2-%E8%A7%A3%E6%9E%90%E9%80%BB%E8%BE%91"><span class="toc-text">13.2 解析逻辑</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-3-%E5%90%84%E5%AD%90%E8%A7%A3%E6%9E%90%E5%87%BD%E6%95%B0%E4%BD%9C%E7%94%A8"><span class="toc-text">13.3 各子解析函数作用</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#parse-DQT"><span class="toc-text">parse_DQT()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#parse-SOF"><span class="toc-text">parse_SOF()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#parse-DHT"><span class="toc-text">parse_DHT()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#parse-DRI"><span class="toc-text">parse_DRI()</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#SOS"><span class="toc-text">SOS</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-4-%E6%97%B6%E9%97%B4%E6%88%B3%E5%A4%84%E7%90%86"><span class="toc-text">13.4 时间戳处理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-%E8%A7%86%E9%A2%91-RTP-JPEG-%E5%8F%91%E5%8C%85%E6%B5%81%E7%A8%8B"><span class="toc-text">14. 视频 RTP&#x2F;JPEG 发包流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#14-1-%E5%8F%91%E5%8C%85%E5%85%A5%E5%8F%A3"><span class="toc-text">14.1 发包入口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-2-jpeg-send-more-%E5%81%9A%E4%BA%86%E4%BB%80%E4%B9%88"><span class="toc-text">14.2 jpeg_send_more() 做了什么</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-3-RTP-JPEG-%E5%A4%B4%E9%83%A8%E6%9E%84%E6%88%90"><span class="toc-text">14.3 RTP&#x2F;JPEG 头部构成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-4-%E5%88%86%E7%89%87%E7%AD%96%E7%95%A5"><span class="toc-text">14.4 分片策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-5-%E5%A4%9A-session-%E5%B9%BF%E6%92%AD"><span class="toc-text">14.5 多 session 广播</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-6-%E7%9C%9F%E6%AD%A3%E7%9A%84-RTP-%E5%A4%B4%E7%94%9F%E6%88%90"><span class="toc-text">14.6 真正的 RTP 头生成</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-7-%E7%9C%9F%E6%AD%A3%E7%9A%84%E5%8F%91%E9%80%81%E5%8A%A8%E4%BD%9C"><span class="toc-text">14.7 真正的发送动作</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#14-8-jpeg-send-%E7%8E%B0%E7%8A%B6"><span class="toc-text">14.8 jpeg_send() 现状</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#15-%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF"><span class="toc-text">15. 音频链路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#15-1-%E9%9F%B3%E9%A2%91%E8%BE%93%E5%87%BA%E6%B5%81"><span class="toc-text">15.1 音频输出流</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#15-2-%E9%9F%B3%E9%A2%91-RTP-%E5%AA%92%E4%BD%93%E5%AF%B9%E8%B1%A1"><span class="toc-text">15.2 音频 RTP 媒体对象</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#15-3-SDP"><span class="toc-text">15.3 SDP</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#15-4-%E5%AE%9E%E9%99%85%E5%8F%91%E9%80%81"><span class="toc-text">15.4 实际发送</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#16-RTP-Endpoint-%E5%BB%BA%E7%AB%8B%E6%B5%81%E7%A8%8B"><span class="toc-text">16. RTP Endpoint 建立流程</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#16-1-new-rtp-endpoint"><span class="toc-text">16.1 new_rtp_endpoint()</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#16-2-UDP-%E6%A8%A1%E5%BC%8F"><span class="toc-text">16.2 UDP 模式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#16-3-RTCP"><span class="toc-text">16.3 RTCP</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#17-%E4%BC%9A%E8%AF%9D%E5%81%9C%E6%AD%A2%E4%B8%8E%E8%B5%84%E6%BA%90%E9%87%8A%E6%94%BE"><span class="toc-text">17. 会话停止与资源释放</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#17-1-Track-%E5%81%9C%E6%AD%A2%E5%8F%91%E9%80%81"><span class="toc-text">17.1 Track 停止发送</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#17-2-endpoint-%E9%87%8A%E6%94%BE"><span class="toc-text">17.2 endpoint 释放</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#17-3-live-%E7%BA%BF%E7%A8%8B%E9%87%8A%E6%94%BE"><span class="toc-text">17.3 live 线程释放</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#18-file-%E6%96%87%E4%BB%B6%E5%9B%9E%E6%94%BE%E9%93%BE%E8%B7%AF"><span class="toc-text">18. &#x2F;file 文件回放链路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#19-%E5%85%B3%E9%94%AE%E5%87%BD%E6%95%B0%E6%8C%87%E9%92%88%E7%BB%91%E5%AE%9A%E5%85%B3%E7%B3%BB"><span class="toc-text">19. 关键函数指针绑定关系</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#19-1-stream-%E5%B1%82"><span class="toc-text">19.1 stream 层</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#JPEG-%E8%BE%93%E5%87%BA-stream"><span class="toc-text">JPEG 输出 stream</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#Audio-%E8%BE%93%E5%87%BA-stream"><span class="toc-text">Audio 输出 stream</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-2-frame-exchanger"><span class="toc-text">19.2 frame_exchanger</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%A7%86%E9%A2%91-exchanger"><span class="toc-text">视频 exchanger</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E9%9F%B3%E9%A2%91-exchanger"><span class="toc-text">音频 exchanger</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-3-stream-destination"><span class="toc-text">19.3 stream_destination</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#RTSP-%E8%A7%86%E9%A2%91-%E9%9F%B3%E9%A2%91-track-%E6%8E%A5%E5%85%A5-stream-%E6%97%B6"><span class="toc-text">RTSP 视频&#x2F;音频 track 接入 stream 时</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-4-session"><span class="toc-text">19.4 session</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-5-rtsp-source"><span class="toc-text">19.5 rtsp_source</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-6-%E8%A7%86%E9%A2%91-rtp-media"><span class="toc-text">19.6 视频 rtp_media</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#19-7-%E9%9F%B3%E9%A2%91-rtp-media"><span class="toc-text">19.7 音频 rtp_media</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#20-%E6%9C%80%E9%87%8D%E8%A6%81%E7%9A%84%E4%B8%BB%E8%B0%83%E7%94%A8%E9%93%BE"><span class="toc-text">20. 最重要的主调用链</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#20-1-%E5%88%9D%E5%A7%8B%E5%8C%96%E9%98%B6%E6%AE%B5"><span class="toc-text">20.1 初始化阶段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#20-2-RTSP-%E5%BB%BA%E9%93%BE%E9%98%B6%E6%AE%B5"><span class="toc-text">20.2 RTSP 建链阶段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#20-3-%E5%AE%9E%E6%97%B6%E5%B8%A7%E5%8F%91%E9%80%81%E9%98%B6%E6%AE%B5"><span class="toc-text">20.3 实时帧发送阶段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#20-4-%E7%BB%93%E6%9D%9F%E9%98%B6%E6%AE%B5"><span class="toc-text">20.4 结束阶段</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#21-%E5%85%B3%E9%94%AE%E5%AE%9E%E7%8E%B0%E7%BB%93%E8%AE%BA"><span class="toc-text">21. 关键实现结论</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#21-1-%E5%BD%93%E5%89%8D%E8%A7%86%E9%A2%91%E5%9B%BE%E4%BC%A0%E7%BC%96%E7%A0%81%E4%B8%8D%E6%98%AF-H264%EF%BC%8C%E8%80%8C%E6%98%AF-MJPEG"><span class="toc-text">21.1 当前视频图传编码不是 H264，而是 MJPEG</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#21-2-%E5%BD%93%E5%89%8D%E8%A7%86%E9%A2%91%E4%B8%BB%E5%8F%91%E9%80%81%E9%80%BB%E8%BE%91%E8%B5%B0%E7%9A%84%E6%98%AF-send-more"><span class="toc-text">21.2 当前视频主发送逻辑走的是 send_more</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#21-3-SETUP-%E9%98%B6%E6%AE%B5%E6%89%8D%E5%90%AF%E5%8A%A8%E5%90%8E%E5%8F%B0%E5%AE%9E%E6%97%B6%E7%BA%BF%E7%A8%8B"><span class="toc-text">21.3 SETUP 阶段才启动后台实时线程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#21-4-PLAY-%E4%B9%8B%E5%90%8E%E6%89%8D%E7%9C%9F%E6%AD%A3%E5%BC%80%E5%A7%8B%E5%9B%BE%E4%BC%A0"><span class="toc-text">21.4 PLAY 之后才真正开始图传</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#21-5-%E5%90%8C%E4%B8%80%E5%B8%A7%E6%94%AF%E6%8C%81%E5%B9%BF%E6%92%AD%E7%BB%99%E5%A4%9A%E4%B8%AA%E5%AE%A2%E6%88%B7%E7%AB%AF"><span class="toc-text">21.5 同一帧支持广播给多个客户端</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#21-6-file-%E5%92%8C-webcam-%E5%A4%8D%E7%94%A8%E5%90%8C%E4%B8%80%E5%A5%97-RTP-RTSP-%E6%9E%B6%E6%9E%84"><span class="toc-text">21.6 &#x2F;file 和 &#x2F;webcam 复用同一套 RTP&#x2F;RTSP 架构</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#22-%E5%BB%BA%E8%AE%AE%E5%90%8E%E7%BB%AD%E7%BB%A7%E7%BB%AD%E5%85%B3%E6%B3%A8%E7%9A%84%E7%82%B9"><span class="toc-text">22. 建议后续继续关注的点</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#23-%E5%85%B3%E9%94%AE%E6%BA%90%E7%A0%81%E7%B4%A2%E5%BC%95"><span class="toc-text">23. 关键源码索引</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%9D%E5%A7%8B%E5%8C%96%E4%B8%8E%E5%85%A5%E5%8F%A3"><span class="toc-text">初始化与入口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AE%9E%E6%97%B6-RTSP-%E5%85%A5%E5%8F%A3"><span class="toc-text">实时 RTSP 入口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Stream-Frame-%E5%88%86%E5%8F%91"><span class="toc-text">Stream&#x2F;Frame 分发</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RTSP-%E6%8E%A7%E5%88%B6"><span class="toc-text">RTSP 控制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RTP-JPEG-%E4%B8%8E%E9%9F%B3%E9%A2%91"><span class="toc-text">RTP&#x2F;JPEG 与音频</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%96%87%E4%BB%B6%E5%9B%9E%E6%94%BE"><span class="toc-text">文件回放</span></a></li></ol></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档">ADPCM 对讲模块详细设计文档</a><time datetime="2026-07-02T16:00:00.000Z" title="发表于 2026-07-03 00:00:00">2026-07-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/" title="Spook 图传模块分析文档">Spook 图传模块分析文档</a><time datetime="2026-07-02T16:00:00.000Z" title="发表于 2026-07-03 00:00:00">2026-07-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/TXW82x-Spook-RTSP%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/" title="TXW82x Spook RTSP 流媒体服务器架构文档">TXW82x Spook RTSP 流媒体服务器架构文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/TXW82x%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档">TXW82x 平台相册功能开发文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/22/H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E9%93%BE%E8%B7%AFBug%E4%BF%AE%E5%A4%8D%E8%AE%B0%E5%BD%95/" title="H.264 硬解码播放链路 Bug 修复记录">H.264 硬解码播放链路 Bug 修复记录</a><time datetime="2026-06-21T16:00:00.000Z" title="发表于 2026-06-22 00:00:00">2026-06-22</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
