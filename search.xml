@@ -1,6 +1,781 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>Hello World</title>
+    <url>/2026/05/03/hello-world/</url>
+    <content><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
+Quick StartCreate a new post$ hexo new &quot;My New Post&quot;
+
+More info: Writing
+Run server$ hexo server
+
+More info: Server
+Generate static files$ hexo generate
+
+More info: Generating
+Deploy to remote sites$ hexo deploy
+
+More info: Deployment
+]]></content>
+  </entry>
+  <entry>
+    <title>H.264 硬解码播放链路 Bug 修复记录</title>
+    <url>/2026/06/22/H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E9%93%BE%E8%B7%AFBug%E4%BF%AE%E5%A4%8D%E8%AE%B0%E5%BD%95/</url>
+    <content><![CDATA[H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。
+
+涉及文件
+
+
+文件
+路径
+角色
+
+
+
+h264_file_msi.c
+sdk/app/h264_demux/
+H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出
+
+
+h264_decode_msi.c
+sdk/app/decode/
+H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码
+
+
+sample_h264_esplayer.c
+project/app/
+H.264 ES 流播放 Sample，作为参考实现
+
+
+stream_define.h
+sdk/app/algorithm/stream_frame/
+fb_h264_s 结构定义
+
+
+
+Bug 1：start_len 未动态设置现象解码器在 h264_decode_msi.c 中通过以下代码计算 NAL 有效载荷的偏移和长度：
+uint32_t dst = (uint32_t) rfb-&gt;data + h264_priv-&gt;start_len;uint32_t dst_len = rfb-&gt;len - h264_priv-&gt;start_len;
+
+当 start_len 被硬编码为固定值（如 4）时，如果实际文件使用 3 字节起始码（00 00 01），则：
+
+dst 多偏移了 1 字节，指向错误位置
+dst_len 少算了 1 字节，长度不正确
+后续 h264_rom_memcpy() 拷贝错误数据送入硬件解码器，导致花屏或解码器异常
+
+根因H.264 Annex-B 格式的起始码（start code）有两种长度：
+
+3 字节：0x00 0x00 0x01
+4 字节：0x00 0x00 0x00 0x01
+
+fb_h264_s.start_len 字段用于记录起始码长度，告诉解码器需要跳过多少字节才能到达 NAL 单元的真实数据。之前代码中未根据实际扫描到的起始码动态赋值，而是使用了固定值。
+修复h264_file_msi.c — 帧发送路径// 旧：start_len 可能为固定值或未正确设置// 新：使用实际扫描到的 start code 长度node-&gt;priv.start_len = frame_info.frame_start_len;
+
+其中 frame_info.frame_start_len 在扫描 NAL 边界时由 h264_find_start_code() 动态确定（返回 3 或 4）。
+sample_h264_esplayer.c — Sample 参考实现// 旧：固定值或缺失// 新：从实际 NAL 扫描中获取 start_lenh264_priv-&gt;start_len = code_len;
+
+其中 code_len 在扫描起始码时根据字节序列动态判定。
+h264_parse_fb_priv() 中的连带修复该函数在解析内存中的 NAL 缓冲时，原先使用 nal_header_offset 赋值 start_len：
+// 旧：nal_header_offset = found_offset + start_len// 当 found_offset != 0 时，start_len 值错误priv-&gt;start_len = (uint8_t)nal_header_offset;// 新：应使用实际的 start code 长度priv-&gt;start_len = (uint8_t)start_len;
+
+
+注： found_offset 是起始码在缓冲中的偏移，start_len（局部变量）是起始码长度（3 或 4）。当缓冲头部无填充字节时（found_offset == 0），两者数值相同，Bug 不易暴露；但存在前导数据时则计算错误。
+
+
+Bug 2：fb-&gt;len 未设置导致 memcpy 失败现象解码器在 h264_decode_msi.c 中执行：
+h264_rom_memcpy(rom_ptr, (uint8_t *) dst, dst_len);
+
+其中 dst_len = rfb-&gt;len - h264_priv-&gt;start_len。当 fb-&gt;len 为 0 或未赋值时，dst_len 计算为负值（类型隐式转换后为极大值），导致：
+
+h264_rom_memcpy 拷贝超出实际数据范围的无效内存
+硬件解码器接收到错误的 NAL 数据
+解码超时或崩溃
+
+根因在创建 framebuff 时，fb-&gt;len 字段未被正确设置为 NAL 单元的实际长度。fb-&gt;len 是 MSI 管道中下游组件判断数据有效长度的唯一依据。
+修复h264_file_msi.c — 帧发送路径// 旧：fb-&gt;len 未赋值或赋值为 0// 新：设置为 frame node 的实际数据长度fb-&gt;len = node-&gt;len;fb-&gt;data = node-&gt;data;   // data 也需同步指向正确缓存
+
+sample_h264_esplayer.c — Sample 参考实现fb-&gt;data = STREAM_MALLOC(nal_size);fb-&gt;len = nal_size;     // ← 关键修复：必须设置长度
+
+
+Bug 3：解码端 dst &#x2F; dst_len 计算现象这是 Bug 1 和 Bug 2 的消费端表现。即使前两项已修复，如果 start_len 和 fb-&gt;len 正确，此计算本身是正确的。但该代码对输入的正确性高度敏感：
+uint32_t dst     = (uint32_t) rfb-&gt;data + h264_priv-&gt;start_len;uint32_t dst_len = rfb-&gt;len - h264_priv-&gt;start_len;
+
+逻辑说明
+
+
+变量
+含义
+
+
+
+rfb-&gt;data
+framebuff 数据指针，指向包含起始码的完整 NAL 数据
+
+
+rfb-&gt;len
+NAL 数据总长度（包含起始码）
+
+
+h264_priv-&gt;start_len
+起始码长度（3 或 4），跳过起始码到达 NAL type 字节
+
+
+dst
+指向 NAL type 字节（即有效载荷起点）
+
+
+dst_len
+剩余有效数据长度（NAL type + payload）
+
+
+数据流校验关系rfb-&gt;data  ──▶ [00 00 00 01][67 XX YY ...]                ├─ start_len=4 ─┤                ├───────── rfb-&gt;len ─────────┤                                  ├── dst_len ──┤                dst ──────────────────▶
+
+修复依赖
+✅ Bug 1 修复后 → start_len 正确（3 或 4）
+✅ Bug 2 修复后 → rfb-&gt;len 正确
+→ 此计算自然正确
+
+
+修复验证测试条件
+
+
+项目
+值
+
+
+
+平台
+TXW82x (C-Sky CK804DF)
+
+
+测试文件
+H.264 基线编码文件，包含 I 帧 + P 帧
+
+
+起始码类型
+混合：部分文件使用 3 字节、部分使用 4 字节
+
+
+输出分辨率
+320×240
+
+
+验证方式
+LCD 屏幕目测 + os_printf 日志
+
+
+验证结果
+
+
+测试项
+修复前
+修复后
+
+
+
+3 字节起始码文件
+花屏&#x2F;无输出
+正常播放
+
+
+4 字节起始码文件
+偶发花屏
+正常播放
+
+
+I 帧 + P 帧解码
+首帧后卡死
+连续播放
+
+
+文件循环播放
+第 2 轮崩溃
+稳定循环
+
+
+快速切换文件
+内存拷贝错误
+切换正常
+
+
+
+经验总结
+fb_h264_s.start_len 是起始码长度，不是 NAL header 偏移。 虽然在某些场景下两者数值相同，但语义必须准确，否则遇到变长起始码或缓冲前导数据时会出错。
+
+fb-&gt;len 是 MSI 管道的核心契约。 上游生产者必须准确设置 framebuff 的数据长度，下游消费者依赖此值进行内存操作。遗漏设置会导致消费者读取越界或长度异常。
+
+H.264 Annex-B 起始码长度是动态的（3 或 4 字节）。 所有涉及 NAL 数据扫描和传递的环节都必须感知这一动态性，硬编码 4 字节是最常见的隐蔽 Bug 来源。
+
+端到端校验： 在 h264_file_msi（生产者）→ jpg_decode_msg_msi（帧解析）→ h264_decode_msi（解码器）→ R_VIDEO_P0（LCD 显示）的完整链路中，每个环节都应校验 fb-&gt;len 和 start_len 的合理性，避免异常数据传递到硬件层。
+
+
+]]></content>
+      <categories>
+        <category>嵌入式开发</category>
+        <category>Bug修复</category>
+      </categories>
+      <tags>
+        <tag>MSI</tag>
+        <tag>H.264</tag>
+        <tag>硬件解码</tag>
+        <tag>TXW82x</tag>
+        <tag>framebuff</tag>
+        <tag>BugFix</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</title>
+    <url>/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。
+功能：
+
+在 LCD 上创建 H.264 文件播放器的菜单入口
+遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表
+选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示
+支持播放&#x2F;暂停控制
+支持退出播放并回到主菜单
+
+
+2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道：
+SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出: F_H264 类型 framebuff     ▼p0_decode_msg_msi (SR_OTHER_JPG, 帧信息解析)     │  强制输出类型: FSTYPE_YUV_P0     │  输出: F_JPG_DECODE_MSG     ▼decode_msi (&quot;h264_decode&quot;, H264 硬件解码)     │  H264 硬件解码 + Scale2 缩放     │  输出: F_YUV, stype=FSTYPE_YUV_P0     ▼R_VIDEO_P0 (LCD 视频层 P0)     │  MSI_CMD_LCD_VIDEO → MSI_VIDEO_ENABLE 控制开关     ▼LCD 屏幕显示
+
+2.2 UI 层次结构lv_scr_act (当前活动屏幕)   ├── base_ui (主菜单列表, 由调用方传入)   │     └── &quot;h264_player&quot; 按钮 → 点击进入播放器   │   └── now_ui (播放器界面, 全屏)         ├── 视频显示层 (通过 MSI → R_VIDEO_P0 渲染)         ├── label_time (&quot;00:00&quot; 时间标签, 顶部居中)         └── 文件列表弹窗 (按 &#x27;e&#x27; 键触发)               ├── &quot;exit&quot; 按钮 → 返回播放器               └── 每个 *.h264 文件按钮 → 点击开始播放
+
+
+3. 关键数据结构3.1 struct h264_player_ui_s — 播放器控制块
+
+
+字段
+类型
+说明
+
+
+
+last_group
+lv_group_t *
+上一级界面的 LVGL 组，退出时恢复
+
+
+base_ui
+lv_obj_t *
+主菜单列表对象，退出时取消隐藏
+
+
+w, h
+uint16_t
+视频解码输出宽高
+
+
+now_group
+lv_group_t *
+当前播放器界面的 LVGL 组
+
+
+now_ui
+lv_obj_t *
+当前播放器界面对象
+
+
+timer
+lv_timer_t *
+100ms 周期定时器（用于更新时间显示）
+
+
+label_time
+lv_obj_t *
+时间标签控件
+
+
+p0_decode_msg_msi
+struct msi *
+解码帧信息 MSI 组件 (h264_decode_msg_msi)
+
+
+decode_msi
+struct msi *
+H264 硬件解码 MSI 组件 (h264_decode_msi)
+
+
+file_msi
+struct msi *
+文件解复用 MSI 组件 (h264_file_msi)
+
+
+play_name
+uint8_t *
+当前播放流的名称（PSRAM 分配）
+
+
+playing
+uint8_t:1
+播放状态标志
+
+
+3.2 struct h264_list_param — 文件列表参数
+
+
+字段
+类型
+说明
+
+
+
+group
+lv_group_t *
+文件列表的 LVGL 组
+
+
+ui
+lv_obj_t *
+文件列表的 LVGL list 对象
+
+
+ui_s
+h264_player_ui_s *
+指向播放器控制块的指针
+
+
+
+4. 外部依赖与声明4.1 外部 MSI 组件函数// 创建解码帧信息 MSI 组件（实现在 jpg_decode_msg_msi.c）extern struct msi *h264_decode_msg_msi(const char *name, uint16_t out_w, uint16_t out_h,                                        uint16_t step_w, uint16_t step_h, uint32_t filter);// 创建 H264 硬件解码 MSI 组件（实现在 h264_decode_msi.c）// only_I_H264: 0=解码 I+P 帧, 1=只解码 I 帧extern struct msi *h264_decode_msi(const char *name, uint8_t only_I_H264);// 创建文件解复用 MSI 组件（实现在 h264_file_msi.c）extern struct msi *h264_file_msi_init(const char *msi_name, const char *filename);// H264 硬件驱动初始化extern void h264_drv_init(void);
+
+4.2 外部全局变量extern lv_style_t  g_style;       // 全局 LVGL 样式extern lv_indev_t *indev_keypad;  // 全局键盘输入设备
+
+4.3 引用的头文件
+
+
+头文件
+路径
+用途
+
+
+
+lvgl/lvgl.h
+SDK 内
+LVGL 图形库核心
+
+
+lvgl_ui.h
+sdk/app/ui/
+UI 组件声明、MSI 组件 extern 声明
+
+
+keyWork.h
+sdk/lib/key/
+按键回调工作队列
+
+
+keyScan.h
+sdk/lib/key/
+按键扫描、键值定义（AD_UP, AD_DOWN 等）
+
+
+av_heap.h
+lib/heap/
+普通堆内存分配
+
+
+av_psram_heap.h
+lib/heap/
+PSRAM 堆内存分配
+
+
+avi_player_msi.h
+sdk/app/playback/
+AVI 播放器 MSI 接口
+
+
+audio_code_ctrl.h
+audio_media_ctrl/
+音频编解码控制
+
+
+osal_file.h
+fs/fatfs/
+文件系统接口
+
+
+stream_define.h
+sdk/app/algorithm/stream_frame/
+流名称和 MSI 命令常量定义
+
+
+
+5. 宏定义#define CHECK_DIR            &quot;H264&quot;     // 扫描目录名#define EXT_NAME             &quot;*h264&quot;    // 文件名匹配模式#define PLAY_STREAM_NAME_LEN (64)       // 播放流名称缓冲区大小#define STREAM_MALLOC        av_psram_malloc   // 大块内存分配（PSRAM）#define STREAM_FREE          av_psram_free     // 大块内存释放#define STREAM_LIBC_ZALLOC   av_zalloc         // 零初始化分配
+
+
+6. 按键映射函数 self_key() 将硬件按键事件映射为 LVGL 逻辑按键：
+
+
+
+硬件按键
+LVGL 映射值
+用途
+
+
+
+AD_UP
+&#39;q&#39;
+返回&#x2F;退出
+
+
+AD_DOWN
+&#39;e&#39;
+展开文件列表
+
+
+AD_LEFT
+&#39;a&#39;
+定位控制（预留）
+
+
+AD_RIGHT
+&#39;d&#39;
+定位控制（预留）
+
+
+AD_PRESS
+LV_KEY_ENTER
+确认选择
+
+
+按键过滤器通过 set_lvgl_get_key_func(self_key) 设置，退出时通过 set_lvgl_get_key_func(NULL) 清除。
+
+7. 函数参考7.1 公开 APIh264_player_ui()lv_obj_t *h264_player_ui(lv_group_t *group, lv_obj_t *base_ui, uint16_t w, uint16_t h);
+
+说明： 在主菜单列表中添加一个名为 &quot;h264_player&quot; 的按钮入口。
+参数：
+
+group — 主菜单的 LVGL 组
+base_ui — 主菜单的 LVGL list 对象
+w, h — 视频解码输出宽度和高度
+
+返回值： 创建的按钮对象指针，失败返回 NULL。
+调用示例（main_ui.c）：
+btn = h264_player_ui(group, base_ui, 320, 240);
+
+7.2 内部函数self_key() — 按键映射static uint32_t self_key(uint32_t val);
+
+将硬件 AD_* 键值 + KEY_EVENT_SUP（短按释放）事件映射为 LVGL 可识别的字符键值。仅在播放器活跃时生效。
+h264_player_stop_file() — 停止播放static void h264_player_stop_file(struct h264_player_ui_s *ui_s);
+
+停止文件解复用器（发送 MSI_VIDEO_DEMUX_STOP），销毁 file_msi 组件，关闭 LCD 视频层，释放 play_name 缓冲区。
+enter_player_ui() — 进入播放器界面static void enter_player_ui(lv_event_t *e);
+
+事件： LV_EVENT_SHORT_CLICKED（点击主菜单的 “h264_player” 按钮）
+流程：
+
+设置按键过滤器 self_key
+调用 h264_drv_init() 初始化 H264 硬件
+隐藏主菜单（base_ui），创建全屏播放器界面（now_ui）
+创建 MSI 管道：
+p0_decode_msg_msi &#x3D; h264_decode_msg_msi(SR_OTHER_JPG, ...) → 帧信息解析
+decode_msi &#x3D; h264_decode_msi(&quot;h264_decode&quot;, 0) → 硬件解码
+连接：p0_decode_msg_msi → decode_msi → R_VIDEO_P0
+
+
+创建时间标签 label_time（初始显示 “00:00”）和 100ms 定时器
+创建新的 LVGL 组并注册事件回调
+
+exit_player_ui() — 退出播放器界面static void exit_player_ui(lv_event_t *e);
+
+事件： LV_EVENT_KEY，键值 &#39;q&#39;
+流程：
+
+删除定时器
+恢复键盘输入组到上一级
+显示主菜单（清除 base_ui 的隐藏标志）
+销毁当前 LVGL 组、MSI 管道（p0_decode_msg_msi, decode_msi）
+调用 h264_player_stop_file() 停止文件播放
+删除当前界面对象，清除按键过滤器
+
+show_filelist() — 显示文件列表static void show_filelist(lv_event_t *e);
+
+事件： LV_EVENT_KEY，键值 &#39;e&#39;
+流程：
+
+清除按键过滤器
+在当前界面创建全屏 LVGL list
+添加 “exit” 返回按钮
+调用 each_read_file() 扫描 H264/ 目录，为每个 *.h264 文件添加列表项
+为每个文件按钮注册 enter_playback 事件
+
+enter_playback() — 开始文件播放static void enter_playback(lv_event_t *e);
+
+事件： LV_EVENT_CLICKED（点击文件列表中的文件项）
+流程：
+
+停止当前（如有）正在播放的文件
+获取文件名，构造路径 &quot;0:H264/&lt;filename&gt;&quot;
+使用 STREAM_MALLOC(av_psram_malloc) 分配 play_name 缓冲区
+调用 h264_file_msi_init() 创建文件解复用器
+成功：使能 LCD 视频层，连接 file_msi → p0_decode_msg_msi，发送 MSI_VIDEO_DEMUX_START
+失败：清理资源，退出文件列表
+
+player_ctrl_ui() — 播放&#x2F;暂停控制static void player_ctrl_ui(lv_event_t *e);
+
+事件： LV_EVENT_SHORT_CLICKED（点击播放器界面空白区域）
+行为： 切换 playing 状态。从播放→暂停时发送 MSI_VIDEO_DEMUX_PAUSE，从暂停→播放时发送 MSI_VIDEO_DEMUX_START 并重新使能 LCD 视频层。
+player_locate_ctrl_ui() — 定位控制（预留）static void player_locate_ctrl_ui(lv_event_t *e);
+
+事件： LV_EVENT_KEY，键值 &#39;a&#39; &#x2F; &#39;d&#39;
+当前仅捕获事件，未实现具体逻辑（switch case 为空）。可用于实现快退&#x2F;快进功能。
+player_ui_timer() — 定时器回调（预留）static void player_ui_timer(lv_timer_t *t);
+
+100ms 周期定时器。当前框架已创建，函数体为空。可用于实现播放时间更新显示。
+h264_list_show() — 单个列表项创建回调static int h264_list_show(const char *filename, void *data);
+
+为每个 *.h264 文件在列表中添加一个按钮，绑定 enter_playback 事件。
+each_read_file() — 文件系统遍历static int each_read_file(create_h264_list_ui fn, void *param);
+
+使用 FatFS API 遍历 H264/ 目录下匹配 *h264 的文件，对每个文件调用回调函数 fn。
+exit_show_filelist() — 退出文件列表static void exit_show_filelist(lv_event_t *e);
+
+恢复按键过滤器，恢复键盘输入组，延迟删除列表对象。
+clear_list_group_ui() — 列表销毁时清理组static void clear_list_group_ui(lv_event_t *e);
+
+在 LVGL list 对象被删除时，自动释放关联的 LVGL 组。
+
+8. 关键事件注册汇总
+
+
+LVGL 事件
+对象
+回调函数
+说明
+
+
+
+LV_EVENT_SHORT_CLICKED
+“h264_player” 按钮
+enter_player_ui
+进入播放器
+
+
+LV_EVENT_KEY
+播放器界面 (now_ui)
+exit_player_ui
+按 &#39;q&#39; 退出
+
+
+LV_EVENT_KEY
+播放器界面 (now_ui)
+player_locate_ctrl_ui
+按 &#39;a&#39;&#x2F;&#39;d&#39; 定位
+
+
+LV_EVENT_KEY
+播放器界面 (now_ui)
+show_filelist
+按 &#39;e&#39; 显示文件列表
+
+
+LV_EVENT_SHORT_CLICKED
+播放器界面 (now_ui)
+player_ctrl_ui
+短按切换播放&#x2F;暂停
+
+
+LV_EVENT_SHORT_CLICKED
+文件列表中的 “exit” 按钮
+exit_show_filelist
+返回播放器
+
+
+LV_EVENT_CLICKED
+文件列表中的文件名按钮
+enter_playback
+开始播放该文件
+
+
+LV_EVENT_DELETE
+文件列表对象
+clear_list_group_ui
+释放 LVGL 组
+
+
+
+9. MSI 命令使用汇总
+
+
+命令
+目标
+用途
+
+
+
+MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_START
+file_msi
+开始解复用（播放）
+
+
+MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_STOP
+file_msi
+停止解复用
+
+
+MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_PAUSE
+file_msi
+暂停解复用
+
+
+MSI_CMD_LCD_VIDEO &#x2F; MSI_VIDEO_ENABLE=1
+R_VIDEO_P0
+使能 LCD 视频层 P0
+
+
+MSI_CMD_LCD_VIDEO &#x2F; MSI_VIDEO_ENABLE=0
+R_VIDEO_P0
+关闭 LCD 视频层 P0
+
+
+MSI_CMD_DECODE_JPEG_MSG &#x2F; MSI_JPEG_DECODE_FORCE_TYPE
+p0_decode_msg_msi
+强制解码输出类型为 FSTYPE_YUV_P0
+
+
+
+10. 内存管理
+
+
+分配点
+分配函数
+堆类型
+释放点
+
+
+
+h264_player_ui_s 控制块
+av_zalloc
+系统堆（SRAM）
+当前未显式释放（TODO）
+
+
+play_name 缓冲区
+av_psram_malloc
+PSRAM
+h264_player_stop_file()
+
+
+file_msi 组件
+MSI 框架内部
+视组件实现
+msi_destroy()
+
+
+p0_decode_msg_msi
+MSI 框架内部
+视组件实现
+msi_destroy()
+
+
+decode_msi
+MSI 框架内部
+视组件实现
+msi_destroy()
+
+
+
+注意： 控制块 ui_s 在退出播放器时未显式释放（STREAM_FREE），因为 h264_player_ui() 只调用一次且控制块需要在整个应用生命周期内保持。如需动态创建&#x2F;销毁，应在 exit_player_ui 或 h264_player_stop_file 中添加 STREAM_FREE(ui_s) 并置空指针。
+
+
+11. 调用链路11.1 入口注册（在 main_ui.c 中）// main_pocket_camera_ui():btn = h264_player_ui(group, base_ui, 320, 240);//     ↓// h264_player_ui()://   1. av_zalloc(sizeof(h264_player_ui_s)) → ui_s//   2. lv_list_add_btn(base_ui, NULL, &quot;h264_player&quot;) → btn//   3. lv_obj_add_event_cb(btn, enter_player_ui, LV_EVENT_SHORT_CLICKED, ui_s)
+
+11.2 完整用户操作流主菜单列表  │  选择 &quot;h264_player&quot; → 短按确认  ▼enter_player_ui()        ← 创建播放器界面 + MSI 管道  │  按 &#x27;e&#x27; 键  ▼show_filelist()          ← 弹出文件列表  │  选择文件 → 点击  ▼enter_playback()         ← 创建 file_msi，开始播放  │  (视频通过 MSI 管道自动渲染到 LCD)  │  短按屏幕 → 暂停/恢复  │  按 &#x27;q&#x27; 键 → 回到文件列表  ▼exit_show_filelist()     ← 返回播放器界面  │  在播放器界面按 &#x27;q&#x27; 键  ▼exit_player_ui()         ← 销毁 MSI 管道，回到主菜单
+
+
+12. 待完善&#x2F;预留功能
+播放时间更新： player_ui_timer() 函数体为空，label_time 始终显示 “00:00”。需要从 file_msi 或 p0_decode_msg_msi 获取当前播放进度更新标签。
+
+快进&#x2F;快退： player_locate_ctrl_ui() 已注册 &#39;a&#39; &#x2F; &#39;d&#39; 按键事件，但 switch case 为空。可根据需要调用 MSI_VIDEO_DEMUX_FORWARD_TIME &#x2F; MSI_VIDEO_DEMUX_REWIND_TIME 命令实现。
+
+控制块生命周期： h264_player_ui_s 对象在 h264_player_ui() 中分配后未释放。如果多次进入&#x2F;退出播放器，应增加销毁逻辑。
+
+文件列表刷新： 当前每次按 &#39;e&#39; 都会重新扫描文件系统并创建新的列表，但旧的列表对象会在 exit_show_filelist 中通过 lv_obj_del_async 延迟删除，可能有短暂的重叠。
+
+
+
+13. 依赖的文件
+
+
+文件
+路径
+关系
+
+
+
+h264_player_ui.c
+sdk/app/ui/
+本组件源文件
+
+
+lvgl_ui.h
+sdk/app/ui/
+公开 API 声明
+
+
+main_ui.c
+sdk/app/ui/
+调用 h264_player_ui() 注册入口
+
+
+h264_file_msi.c
+sdk/app/h264_demux/
+文件解复用 MSI 组件
+
+
+jpg_decode_msg_msi.c
+SDK 内
+H264 帧信息解析 MSI 组件
+
+
+h264_decode_msi.c
+SDK 内
+H264 硬件解码 MSI 组件
+
+
+stream_define.h
+sdk/app/algorithm/stream_frame/
+流名称常量 (R_VIDEO_P0, SR_OTHER_JPG)
+
+
+msi.h
+sdk/include/lib/multimedia/
+MSI 核心接口
+
+
+framebuff.h
+sdk/include/lib/multimedia/
+Framebuff 类型定义 (FSTYPE_YUV_P0)
+
+
+keyWork.h &#x2F; keyScan.h
+sdk/lib/key/
+按键系统
+
+
+
+14. 注意事项
+内存： 视频帧数据量大，STREAM_MALLOC 使用 PSRAM（av_psram_malloc），轻量对象使用 SRAM（av_zalloc）。
+MSI 管道生命周期： p0_decode_msg_msi 和 decode_msi 在 enter_player_ui() 中创建、在 exit_player_ui() 中销毁。file_msi 在每次选择文件播放时创建、在停止播放或切换文件时销毁。
+LCD 视频层竞争： R_VIDEO_P0 是全局 LCD 视频层 P0 通道，确保在进入播放器时使能、退出时关闭，避免影响其他 UI 组件。
+文件系统路径： 文件路径格式为 &quot;0:H264/&lt;filename&gt;&quot;，其中 &quot;0:&quot; 是 FatFS 驱动号。
+
+]]></content>
+      <categories>
+        <category>嵌入式开发</category>
+        <category>SDK开发</category>
+      </categories>
+      <tags>
+        <tag>LVGL</tag>
+        <tag>嵌入式</tag>
+        <tag>C语言</tag>
+        <tag>MSI</tag>
+        <tag>H.264</tag>
+        <tag>硬件解码</tag>
+        <tag>UI组件</tag>
+        <tag>TXW82x</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>ADPCM 对讲模块详细设计文档</title>
     <url>/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：
@@ -569,734 +1344,475 @@ intercom_init()-&gt; intercom_handle_init()-&gt; intercom_encoded_handle() / int
         <category>项目文档</category>
       </categories>
       <tags>
-        <tag>ADPCM</tag>
-        <tag>对讲</tag>
-        <tag>UDP</tag>
-        <tag>音频</tag>
+        <tag>嵌入式</tag>
         <tag>C语言</tag>
         <tag>MSI</tag>
         <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
+        <tag>音频</tag>
+        <tag>ADPCM</tag>
+        <tag>对讲</tag>
+        <tag>UDP</tag>
       </tags>
   </entry>
   <entry>
-    <title>TXW828 AI 闹钟 — UI 模块工程说明文档</title>
-    <url>/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[TXW828 AI 闹钟 — UI 模块工程说明文档
-适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）
+    <title>source/css 样式文档</title>
+    <url>/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10
 
 
 目录
-模块概览
-目录结构
-核心架构
-各模块详细说明
-数据流与刷新机制
-公共 API 参考
-添加新页面的步骤
-依赖关系
-已知限制与注意事项
-编译与调试
+架构概览
+
+文件分类
+
+模块详解
+
+主题系统
+全局样式
+布局组件
+内容排版
+卡片与表面
+页面专用
+响应式设计
 
 
-一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。
-1.2 UI 包含哪些功能页面
-
-
-页面
-功能
-代码路径
+标签索引
 
 
 
-Home（主页）
-显示时间、日期、天气、WiFi 状态、电量
-home/
+架构概览source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── responsive.css
 
+所有模块由 custom.css 通过 @import url(…) 统一引入，形成完整样式链路。
 
-Plan List（计划列表）
-日期选择条 + 待办事项管理
-plan_list/
-
-
-AI Q&amp;A（AI 问答）
-AI 对话入口页面
-ai_qa/
-
-
-Timing（计时器）
-倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器
-timing/
-
-
-Calendar（日历）
-月历视图 + 年月选择器
-calendar/
-
-
-Settings（设置）
-WiFi、蓝牙、亮度等 11 项设置
-settings/
-
-
-1.3 技术栈
-GUI 框架： LVGL 8.x
-语言： C99
-RTOS： AliOS（通过 ohos/kernel/）
-服务层： 自定义 service 层（project/service/）
-构建工具： CDK（project/txw82xApp.cdkproj）
-
-
-二、目录结构project/ui/│├── ui_theme.h                  ── [基础] 统一颜色、字体、尺寸常量├── ui_back_button.h/.c         ── [基础] 可复用返回按钮组件├── ui_menu_detail_page.h/.c    ── [基础] 菜单→详情导航框架├── ui_manager.h/.c             ── [核心] UI 管理器（页面注册、导航、生命周期）├── ui_screen_ids.h             ── [核心] 屏幕 ID 枚举定义│├── menu/│   ├── menu_view.h             ── 菜单图片视图接口│   └── menu_view.c             ── 菜单图片显示 + 点击事件│├── home/│   ├── home_view.h             ── 主页视图接口│   ├── home_view.c             ── 主页 UI 布局（时间、日期、天气、电量）│   ├── home_refresh.h          ── 主页数据刷新接口│   └── home_refresh.c          ── 定时刷新逻辑（1s/10s/60s/1800s 周期）│├── ai_qa/│   ├── ai_qa_screen.h          ── AI 问答页面接口│   └── ai_qa_screen.c          ── AI 问答页面实现│├── timing/│   ├── timing_screen.h         ── 计时器页面接口│   └── timing_screen.c         ── 计时器页面（倒计时/秒表/番茄钟）│├── calendar/│   ├── calendar_screen.h       ── 日历页面接口│   └── calendar_screen.c       ── 日历页面（月历 + 年月选择器）│├── plan_list/│   ├── plan_list_screen.h      ── 计划列表页面接口│   └── plan_list_screen.c      ── 计划列表页面（日期条 + 待办）│├── settings/│   ├── settings_screen.h       ── 设置页面接口│   ├── settings_screen.c       ── 设置页面入口│   ├── settings_manager.h/.c   ── 设置项管理器（11 项设置 + 子页面路由）│   ├── settings_common_styles.h/.c ── 设置页面通用样式（标题栏、body）│   ├── settings_detail/        ── 设置列表视图│   ├── setting_brightness/     ── 亮度调节子页面│   └── setting_wifi/           ── WiFi 连接子页面│
-
-
-三、核心架构3.1 整体架构图┌─────────────────────────────────────────────────────────────┐│                         ui_manager                           ││  ┌─────────────────────────────────────────────────────────┐││  │                    lv_tileview                           │││  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐│││  │  │ HOME │ │PLAN  │ │AI_QA │ │TIMING│ │CALEN │ │SETTIN││││  │  │      │ │LIST  │ │      │ │      │ │DAR   │ │GS    ││││  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘│││  └─────────────────────────────────────────────────────────┘││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  home_refresh     │    │  ui_menu_detail_page (框架)   │  ││  │  (定时器 1s)       │    │  ┌─────────┐ ┌────────────┐ │  ││  │  → home_view      │    │  │menu_page│→│detail_page │ │  ││  └───────────────────┘    │  │(图片)   │ │(回调创建)  │ │  ││                           │  └─────────┘ └────────────┘ │  ││                           └──────────────────────────────┘  ││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  ui_theme.h       │    │  ui_back_button              │  ││  │  (颜色/字体/尺寸)  │    │  (返回按钮组件)               │  ││  └───────────────────┘    └──────────────────────────────┘  │└─────────────────────────────────────────────────────────────┘         │                          │         ▼                          ▼┌─────────────────┐    ┌──────────────────────┐│  service 层      │    │  LVGL 8.x            ││  time_service    │    │  (渲染、事件、输入)    ││  weather_service │    └──────────────────────┘│  system_status   ││  wifi_service    │└─────────────────┘
-
-3.2 导航模型UI 使用 LVGL 的 lv_tileview 作为顶层导航容器，每个功能页面对应一个 tile。用户水平滑动切换 tile。
-  ← 滑动 →┌────────┬────────┬────────┬────────┬────────┬────────┐│  HOME  │ PLAN   │ AI_QA  │ TIMING │ CALEND │ SETTING││  (0)   │ (1)    │ (2)    │ (3)    │ (4)    │ (5)    │└────────┴────────┴────────┴────────┴────────┴────────┘
-
-除 Home 页面外，其他页面点击菜单图片后进入 detail page（覆盖在 tile 上），此时水平滑动被禁用，点击返回按钮回到菜单页。
-3.3 页面生命周期┌──────────┐│  create  │  ← ui_manager_create_root() 时一次性创建所有 tile└────┬─────┘     │     ▼┌──────────┐│  active  │  ← 用户滑动到该 tile 时└────┬─────┘     │     ├── 点击菜单图片 → 进入 detail page（禁用滑动）     │                    │     │                    ├── detail_create_cb() 回调创建页面     │                    │     │                    └── 点击返回 → show_menu() 销毁 detail，恢复滑动     │     └── 滑动离开 → tile 失焦（home 定时器暂停）
-
-
-四、各模块详细说明4.1 ui_manager — UI 管理器职责：
-
-创建 root screen 和 tileview
-注册所有屏幕页面到 tile
-处理 tile 切换事件
-管理 Home 页面刷新定时器的启动&#x2F;暂停
-提供页面跳转 API（ui_manager_show_xxx_screen()）
-提供 tile 滑动方向控制（ui_manager_set_tile_swipe_enabled()）
-
-关键实现细节：
-// 屏幕配置表（ui_manager.c 内部）static const ui_screen_config_t g_ui_manager_screens[UI_SCREEN_ID_COUNT] = &#123;    [UI_SCREEN_ID_HOME]      = &#123; .name = &quot;home&quot;,      .image_path = NULL,              .create = ... &#125;,    [UI_SCREEN_ID_PLAN_LIST] = &#123; .name = &quot;plan_list&quot;,  .image_path = &quot;F:/jihuaqingdan.png&quot;, .create = ... &#125;,    [UI_SCREEN_ID_AI_QA]     = &#123; .name = &quot;ai_qa&quot;,     .image_path = &quot;F:/aiduihua.png&quot;,     .create = ... &#125;,    // ... 共 6 个页面&#125;;
-
-tile 切换时的自动行为：
-
-恢复水平滑动方向（安全保护）
-切换到 Home → 恢复 home_refresh_timer
-切换到其他页面 → 暂停 home_refresh_timer
-
-4.2 ui_theme — 主题系统纯头文件，只包含 #define 常量，无运行时开销。
-
+文件分类
 
 
 分类
-常量数量
-示例
+标签
+包含文件
 
 
 
-颜色
-16 个
-UI_COLOR_PRIMARY (0xffd54a)
+主题系统
+theme &#x2F; variable &#x2F; light-mode &#x2F; dark-mode
+variables.css
 
 
-字体
-8 个
-UI_FONT_TITLE (&amp;lv_font_montserrat_20)
+全局样式
+global &#x2F; background &#x2F; scrollbar &#x2F; base
+custom.css &#x2F; background.css &#x2F; base.css &#x2F; scrollbar.css
 
 
-尺寸
-5 个
-UI_HEADER_HEIGHT (35)
+布局组件
+layout &#x2F; component &#x2F; navigation &#x2F; header &#x2F; footer
+navigation.css &#x2F; header-text.css &#x2F; footer.css
 
 
-4.3 ui_menu_detail_page — 菜单→详情导航框架解决的问题： 5 个页面（AI QA、Timing、Calendar、Plan List、Settings）都有完全相同的菜单→详情切换逻辑，原来每个页面重复实现 50-80 行样板代码。
-核心数据结构：
-typedef struct &#123;    lv_obj_t *screen;                    // tile 容器（不可销毁）    lv_obj_t *menu_page;                 // 菜单页面（带图片，可隐藏/显示）    lv_obj_t *detail_page;               // 详情页面（可创建/销毁）    ui_detail_create_cb_t detail_create_cb;   // 详情创建回调    ui_detail_destroy_cb_t detail_destroy_cb; // 详情销毁回调    void *user_data;                     // 传递给回调的用户数据    ui_menu_view_action_t menu_action;   // 存储在结构体内（避免悬空指针）    bool detail_created;&#125; ui_menu_detail_page_t;
+内容排版
+content &#x2F; typography &#x2F; code &#x2F; highlight &#x2F; table &#x2F; meta
+typography.css &#x2F; tables.css &#x2F; code-highlight.css &#x2F; post-meta.css
 
-⚠️ 关键约束（二次开发时必须遵守）：
 
-detail_create_cb 回调内必须：
+卡片与表面
+card &#x2F; surface &#x2F; shadow
+cards.css
 
-在 parent（即 ctx-&gt;screen &#x3D; tile）上创建 page = lv_obj_create(parent)
-创建完成后设置 ctx-&gt;detail_page = page
-否则 show_detail() 会因为 detail_page == NULL 而返回，导致页面不显示
 
+页面专用
+page &#x2F; about
+about-page.css
 
-menu_action 必须存储在结构体内（不能是局部变量），因为 ui_menu_view_create 只保存了指针引用。
 
+响应式设计
+responsive &#x2F; mobile &#x2F; media-query
+responsive.css
 
-4.4 ui_back_button — 返回按钮组件lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
 
-创建一个 30×30 圆形透明按钮，带 LV_SYMBOL_LEFT 图标。被以下模块使用：
 
-ui_menu_detail_page_create_detail_header() — 通用标题栏
-settings_common_styles.c — 设置页面标题栏
+模块详解主题系统variables.css - CSS 自定义属性
+标签:
 
-4.5 home — 主页模块组成： home_view.c（UI 布局） + home_refresh.c（数据刷新）
-home_view 暴露的接口：
-void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
+#theme
+#variable
+#light-mode
+#dark-mode
 
-home_refresh 的刷新策略：
 
+功能:定义明亮模式与暗黑模式的 CSS 变量。
 
+主要变量:
 
-周期
-操作
 
 
 
-每 1 秒
-刷新时间显示
 
+变量名
+用途
 
-每 10 秒
-刷新 WiFi + 电量状态
 
 
-每 60 秒
-刷新日期 + 天气显示
+–hl-bg
+代码块背景
 
 
-每 1800 秒
-调用 weather_service_refresh() 重新请求天气 API
+–primary-color
+主题色
 
 
-优化点： home_refresh_timer 在用户滑离 Home 页面时自动暂停，返回时恢复。
-4.6 menu — 菜单视图void ui_menu_view_create(lv_obj_t *parent, const char *image_path, const ui_menu_view_action_t *view_action);
+–hover-color
+悬停颜色
 
-行为：
 
-如果 image_path 指向的文件存在 → 显示图片（lv_img）
-如果文件不存在 → 显示 LV_SYMBOL_IMAGE 占位符图标
-如果 view_action 有回调 → 图片可点击，点击触发回调
+–text-color
+正文颜色
 
-注意： 图片路径格式为 &quot;F:/xxx.png&quot;，其中 F: 对应设备 Flash 存储的文件系统挂载点。
-4.7 settings — 设置模块（最复杂的子系统）Settings 使用三级导航结构：
-┌─────────────┐     点击图片      ┌─────────────┐     点击设置项     ┌─────────────┐│  menu_page  │ ────────────────→ │ detail_page │ ────────────────→ │  sub_page   ││  (菜单图片)  │                   │ (11项设置列表)│                   │ (具体设置界面)│└─────────────┘ ←──────────────── └─────────────┘ ←──────────────── └─────────────┘                    返回按钮                           返回按钮
 
-11 个设置项：
+–card-bg
+卡片背景
 
 
+–card-border
+卡片边框
 
-ID
-名称
-子页面
 
+–card-shadow
+卡片阴影
 
 
-0
-Wi-Fi
-✅ 已实现（setting_wifi/）
 
+主题选择器:
+html:not([data-theme&#x3D;”dark”])html[data-theme&#x3D;”dark”]
 
-1
-Bluetooth
-❌ NULL（未实现）
 
 
-2
-Brightness
-✅ 已实现（setting_brightness/）
+全局样式custom.css - 主入口
+标签:
 
+#entry
+#import
+#aggregator
 
-3
-Sleep Timer
-❌ NULL
 
+功能:聚合所有 CSS 模块。
 
-4
-Baidu Netdisk
-❌ NULL
+引入顺序:
 
 
-5
-Volume
-❌ NULL
 
+variables.css
+background.css
+base.css
+scrollbar.css
+cards.css
+navigation.css
+code-highlight.css
+tables.css
+typography.css
+about-page.css
+header-text.css
+footer.css
+post-meta.css
+responsive.css
 
-6
-Do Not Disturb
-❌ NULL
 
+background.css - 网站背景
+标签:
 
-7
-Night Screen Off
-❌ NULL
+#background
+#light-mode
+#dark-mode
 
 
-8
-WeChat Binding
-❌ NULL
+功能:根据主题切换背景图。
 
+背景图:
 
-9
-System Update
-❌ NULL
 
 
-10
-Factory Reset
-❌ NULL
 
 
-⚠️ 注意： settings_manager 内部管理了 sub_page 的创建&#x2F;销毁，与 ui_menu_detail_page 框架独立。back_event_cb 由 settings_screen.c 提供，用于从 detail 返回到 menu。
-4.8 WiFi 设置子页面（setting_wifi）这是设置模块中最复杂的子页面，包含：
+模式
+图片
 
-WiFi 扫描（定时器驱动，300ms 周期）
-AP 列表展示（信号强度、SSID、加密状态、连接状态）
-密码输入页面（textarea + keyboard）
-自动排序（已连接 AP 优先，然后按信号强度）
 
-⚠️ 注意： WiFi 子页面使用 malloc 分配 SSID 副本（ssid_copy = malloc(MAX_SSID_LEN)），需要在事件回调中 free。
 
-五、数据流与刷新机制5.1 数据流向┌──────────────────────┐│     service 层        ││  ┌────────────────┐  ││  │ time_service    │──┼──→ home_view_set_time()│  │ weather_service │──┼──→ home_view_set_weather()│  │ system_status   │──┼──→ home_view_set_wifi()│  │                 │──┼──→ home_view_set_battery()│  └────────────────┘  │└──────────────────────┘
+明亮模式
+&#x2F;img&#x2F;light-bg.png
 
-Home 页面是唯一有定时刷新的页面。其他页面的数据在创建时获取一次，后续更新依赖用户交互（如 WiFi 扫描定时器）。
-5.2 事件流用户触摸事件    │    ▼LVGL 输入设备驱动（触摸屏）    │    ▼lv_tileview 事件处理    │    ├── 滑动 → LV_EVENT_VALUE_CHANGED → ui_manager_handle_tile_change()    │    └── 点击 → LV_EVENT_CLICKED                │                ├── menu_view: ui_menu_view_handle_click()                │       → ui_menu_detail_page_show_detail()                │           → detail_create_cb() [首次]                │           → 禁用滑动 + 隐藏 menu + 显示 detail                │                └── back_button: xxx_on_back_click()                        → ui_menu_detail_page_show_menu()                            → lv_obj_del(detail_page)                            → 启用滑动 + 显示 menu
 
+暗黑模式
+&#x2F;img&#x2F;dark-bg.png
 
-六、公共 API 参考6.1 ui_manager.hvoid ui_manager_init(void);                           // 初始化 UI（首次调用）void ui_manager_go_back(void);                        // 返回 Homeconst char *ui_manager_get_menu_image_path(ui_screen_id_t screen_id);  // 获取菜单图片路径// 页面跳转void ui_manager_show_home_screen(void);void ui_manager_show_plan_list_screen(void);void ui_manager_show_ai_qa_screen(void);void ui_manager_show_timing_screen(void);void ui_manager_show_calendar_screen(void);void ui_manager_show_settings_screen(void);// 滑动控制void ui_manager_set_tile_swipe_enabled(bool enabled);
 
-6.2 ui_menu_detail_page.hvoid ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,    uint32_t bg_color,    const char *menu_image_path,    ui_detail_create_cb_t detail_create_cb,    ui_detail_destroy_cb_t detail_destroy_cb,    void *user_data);void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
 
-6.3 ui_back_button.hlv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
+目标元素:
+#web_bg
 
-6.4 home_view.htypedef struct &#123;    int year, hour, minute, weekday, month, day;    int temperature;    const char *weather_text;    int wifi_connected, wifi_level;    int battery_percent, battery_charging;&#125; ui_home_view_model_t;void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
 
-6.5 ui_screen_ids.htypedef enum &#123;    UI_SCREEN_ID_NONE = -1,    UI_SCREEN_ID_HOME = 0,    UI_SCREEN_ID_PLAN_LIST,    UI_SCREEN_ID_AI_QA,    UI_SCREEN_ID_TIMING,    UI_SCREEN_ID_CALENDAR,    UI_SCREEN_ID_SETTINGS,    UI_SCREEN_ID_COUNT       // = 6&#125; ui_screen_id_t;
 
+base.css - 基础调整
+标签:
 
-七、添加新页面的步骤步骤 1：创建文件project/ui/my_feature/├── my_feature_screen.h└── my_feature_screen.c
+#base
+#global
 
-步骤 2：实现代码（模板）/* my_feature_screen.h */#ifndef UI_MY_FEATURE_SCREEN_H#define UI_MY_FEATURE_SCREEN_H#include &quot;lvgl/lvgl.h&quot;void ui_my_feature_screen_create(lv_obj_t *screen);#endif/* my_feature_screen.c */#include &quot;my_feature_screen.h&quot;#include &quot;../ui_manager.h&quot;#include &quot;../ui_menu_detail_page.h&quot;#include &quot;../ui_theme.h&quot;typedef struct &#123;    ui_menu_detail_page_t base;    /* 你的页面状态 */&#125; ui_my_feature_state_t;static ui_my_feature_state_t g_ui;static void on_back(lv_event_t *e) &#123;    (void)e;    ui_menu_detail_page_show_menu(&amp;g_ui.base);&#125;static void create_detail(lv_obj_t *parent, void *ud) &#123;    (void)ud;    lv_obj_t *page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));    lv_obj_center(page);    lv_obj_set_style_bg_color(page, lv_color_hex(UI_COLOR_BG_DETAIL), 0);    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);    lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);    g_ui.base.detail_page = page;  /* ⚠️ 必须设置 */    ui_menu_detail_page_create_detail_header(page, &quot;My Feature&quot;, on_back);    /* 在 page 上创建你的内容 */&#125;void ui_my_feature_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui.base, screen, UI_COLOR_BG_DETAIL,        ui_manager_get_menu_image_path(UI_SCREEN_ID_MY_FEATURE),        create_detail, NULL, NULL);&#125;
 
-步骤 3：注册到 ui_manager
-ui_screen_ids.h — 在 UI_SCREEN_ID_SETTINGS 后添加 UI_SCREEN_ID_MY_FEATURE
+功能:对 pre 元素统一设置圆角与间距。
 
-ui_manager.c — 添加：
-#include &quot;my_feature/my_feature_screen.h&quot;static void ui_manager_create_my_feature_screen(lv_obj_t *screen) &#123;    ui_my_feature_screen_create(screen);&#125;// 在 g_ui_manager_screens 数组中添加：[UI_SCREEN_ID_MY_FEATURE] = &#123;    .name = &quot;my_feature&quot;,    .image_path = &quot;F:/myicon.png&quot;,    .create = ui_manager_create_my_feature_screen&#125;,
+规则:
+border-radius: 8pxmargin: 1em 0
 
-ui_manager.h — 添加 void ui_manager_show_my_feature_screen(void);
 
-txw82xApp.cdkproj — 在 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加新 .c 文件引用
 
+scrollbar.css - 滚动条样式
+标签:
 
-步骤 4：准备菜单图片将 240×240 或适当尺寸的 PNG 图片放入设备 Flash，路径与 image_path 一致（如 &quot;F:/myicon.png&quot;）。
+#scrollbar
+#global
 
-八、依赖关系8.1 头文件依赖图ui_theme.h ◄─────────────────────────────────────────────────────┐    ▲                                                             │    │ (所有文件都 include)                                         │    │                                                             │ui_back_button.h ◄── ui_menu_detail_page.h ◄── 各 screen.c       │    ▲                   ▲                                        │    │                   │                                        │    │         menu/menu_view.h ◄──────────────────────────────────┘    │    └── settings_common_styles.h ◄── settings 子模块
 
-8.2 service 层依赖
+功能:自定义 Webkit 滚动条。
 
+规格:
 
-UI 模块
-依赖的 service
-调用的函数
 
 
 
-home_refresh
-time_service
-time_service_get_datetime()
 
+属性
+数值
 
-home_refresh
-weather_service
-weather_service_get_data(), weather_service_refresh()
 
 
-home_refresh
-system_status_service
-system_status_service_get_data()
+宽度
+8px
 
 
-calendar_screen
-time_service
-time_service_get_datetime()
+高度
+8px
 
 
-plan_list_screen
-time_service
-time_service_get_datetime()
+圆角
+4px
 
 
-setting_wifi
-wifi_service
-wifi_service_init(), wifi_service_scan(), wifi_service_connect() 等
 
+布局组件navigation.css - 导航栏
+标签:
 
-8.3 LVGL 组件使用统计
+#navigation
+#component
+#layout
 
 
-LVGL 组件
-使用页面
+功能:控制导航栏颜色、悬停效果与固定导航栏样式。
 
+特性:
 
+标题强制白色
+下拉菜单悬停变蓝
+固定导航栏支持毛玻璃效果
 
-lv_obj
-所有页面（通用容器）
 
 
-lv_label
-所有页面（文本显示）
 
+header-text.css - 页头文字
+功能:控制页面标题颜色。
 
-lv_btn
-timing, plan_list, calendar, settings
 
+footer.css - 页脚
+功能:页脚文字统一白色。
 
-lv_img
-menu（菜单图片）
 
+内容排版typography.css - 排版
+标签:
 
-lv_slider
-brightness（亮度调节）
+#typography
+#content
 
 
-lv_textarea
-wifi（密码输入）
+功能:
 
+页面标题居中
+正文两端对齐
+视频自适应
+Mermaid 透明背景
 
-lv_keyboard
-wifi（密码输入）
 
 
-lv_calendar
-calendar（月历）
 
+tables.css - 表格
+功能:定义明亮与暗黑模式下的表格样式。
 
-lv_roller
-calendar（年月选择器）
 
+code-highlight.css - 代码高亮
+标签:
 
-lv_tileview
-ui_manager（顶层导航）
+#code
+#highlight
+#vscode
+#dark-mode
+#light-mode
+#inline
 
 
+功能:
 
-九、已知限制与注意事项9.1 内存限制
-所有 6 个 tile 在 ui_manager_create_root() 时一次性全部创建，不支持懒加载
-每个 tile 创建后即使不可见也占用 LVGL 内存
-ui_home_create_flower() 创建 11 个 LVGL 对象绘制一朵花，可优化为 Canvas 或图片
+代码块 (figure.highlight) 双主题 Token 配色：明亮 (GitHub Primer 风格) &#x2F; 暗黑 (VSCode Dark+ Modern)
+行内代码 (.container code) 双主题适配：明亮 #cf222e &#x2F; 暗黑 #ce9178
 
-9.2 图片资源
-菜单图片存储在设备 Flash（路径 F:/xxx.png）
-图片不存在时显示占位图标（LV_SYMBOL_IMAGE）
-需要确保 menu_view.c 中 lv_fs_open 的文件系统驱动已正确注册
 
-9.3 WiFi 子页面
-使用 malloc/free 管理 SSID 字符串副本
-WiFi 扫描定时器有 9 秒超时限制（300ms × 30 次）
-密码输入要求最少 8 字符
 
-9.4 Settings 三级导航
-Settings 的 detail_page 由 settings_manager 内部管理，与 ui_menu_detail_page 框架的 detail_page 概念不同
-settings_manager 内部还有 sub_page 层级
-添加新设置项需要修改 settings_manager.c 中的 g_ui_settings_page_configs 数组
 
-9.5 字体
-使用 LVGL 内置的 Montserrat 字体（10&#x2F;12&#x2F;14&#x2F;16&#x2F;18&#x2F;20&#x2F;22&#x2F;48）
-仅支持英文 + 数字 + 特殊符号
-不支持中文显示（如需中文，需添加自定义字库）
+post-meta.css - 文章元信息
+功能:控制文章标题、日期、标签等颜色。
 
-9.6 硬编码的文件路径所有图片路径硬编码为 &quot;F:/xxx.png&quot;，如需修改文件系统挂载点，需全局替换 ui_manager.c 中的 image_path 字段。
 
-十、编译与调试10.1 编译使用 CDK IDE 打开 project/txw82xApp.cdkproj，确保所有新增的 .c 文件已添加到工程的 ui 虚拟文件夹中。
-10.2 添加新文件到工程在 txw82xApp.cdkproj 的 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加：
-&lt;File Name=&quot;ui/my_feature/my_feature_screen.c&quot;&gt;  &lt;FileOption/&gt;&lt;/File&gt;
+卡片与表面cards.css - 卡片表面
+标签:
 
-10.3 调试技巧
-查看 LVGL 对象数量： 在调试器中查看 lv_obj_count 确认对象是否正确销毁
-检查 tile 切换： 在 ui_manager_handle_tile_change 中设断点，确认 screen_id 正确
-WiFi 调试： menu_view.c 中的文件存在检查可临时恢复 printf 语句
-内存不足： 如果页面创建失败，检查 lv_mem_monitor 确认可用内存
+#card
+#surface
+#shadow
 
-10.4 常见问题排查
 
+功能:统一所有卡片容器样式。
 
-现象
-可能原因
-排查方法
+包含:
 
+文章卡片
+侧边栏
+分页按钮
+导航菜单
+TOC
 
 
-页面不显示
-detail_page 未设置
-检查 callback 中是否有 g_xxx.base.detail_page = page
 
 
-无法滑动
-swipe 被禁用未恢复
-检查 show_menu 是否正确调用
+页面专用about-page.css - 关于页面
+标签:
 
+#about
+#page
+#hero
+#grid
 
-进入详情死机
-对象创建过多
-检查 LVGL 对象数量限制
 
+功能:构建完整 About 页面布局。
 
-菜单图片不显示
-Flash 文件不存在
-检查 F:/ 下的图片文件
+模块:
 
+Hero 区域
+信息网格
+社交链接
+响应式布局
 
-中文乱码
-字体不支持中文
-需要添加中文字库
 
 
 
-附录：文件变更记录
+响应式设计responsive.css - 移动端适配
+标签:
 
+#responsive
+#mobile
 
-日期
-变更
-说明
 
+功能:优化移动端文章信息区布局。
 
+调整:
 
-2026-05-09
-新增 ui_theme.h
-统一主题系统
+缩减 padding
+隐藏部分 meta
+标题两端对齐
 
 
-2026-05-09
-新增 ui_back_button.h/.c
-可复用返回按钮
 
 
-2026-05-09
-新增 ui_menu_detail_page.h/.c
-菜单→详情导航框架
+标签索引
 
 
-2026-05-09
-重构 5 个 screen 文件
-使用新框架消除样板代码
-
-
-2026-05-09
-修复 home_view.c
-花朵位置 bug
-
-
-2026-05-09
-优化 ui_manager.c
-Home 定时器按需暂停
-
-
-2026-05-09
-清理 menu_view.c
-移除 debug printf
-
-
-]]></content>
-      <categories>
-        <category>嵌入式开发</category>
-        <category>项目文档</category>
-      </categories>
-      <tags>
-        <tag>嵌入式</tag>
-        <tag>LVGL</tag>
-        <tag>UI架构</tag>
-        <tag>代码移交</tag>
-        <tag>项目文档</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>H.264 硬解码播放链路 Bug 修复记录</title>
-    <url>/2026/06/22/H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E9%93%BE%E8%B7%AFBug%E4%BF%AE%E5%A4%8D%E8%AE%B0%E5%BD%95/</url>
-    <content><![CDATA[H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。
-
+标签
 涉及文件
 
 
-文件
-路径
-角色
 
+#theme
+variables.css
 
 
-h264_file_msi.c
-sdk/app/h264_demux/
-H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出
+#background
+background.css
 
 
-h264_decode_msi.c
-sdk/app/decode/
-H.264 硬件解码 MSI 组件，消费 framebuff 送入硬件解码
+#scrollbar
+scrollbar.css
 
 
-sample_h264_esplayer.c
-project/app/
-H.264 ES 流播放 Sample，作为参考实现
+#navigation
+navigation.css
 
 
-stream_define.h
-sdk/app/algorithm/stream_frame/
-fb_h264_s 结构定义
+#header
+header-text.css
 
 
+#footer
+footer.css
 
-Bug 1：start_len 未动态设置现象解码器在 h264_decode_msi.c 中通过以下代码计算 NAL 有效载荷的偏移和长度：
-uint32_t dst = (uint32_t) rfb-&gt;data + h264_priv-&gt;start_len;uint32_t dst_len = rfb-&gt;len - h264_priv-&gt;start_len;
 
-当 start_len 被硬编码为固定值（如 4）时，如果实际文件使用 3 字节起始码（00 00 01），则：
+#typography
+typography.css
 
-dst 多偏移了 1 字节，指向错误位置
-dst_len 少算了 1 字节，长度不正确
-后续 h264_rom_memcpy() 拷贝错误数据送入硬件解码器，导致花屏或解码器异常
 
-根因H.264 Annex-B 格式的起始码（start code）有两种长度：
+#table
+tables.css
 
-3 字节：0x00 0x00 0x01
-4 字节：0x00 0x00 0x00 0x01
 
-fb_h264_s.start_len 字段用于记录起始码长度，告诉解码器需要跳过多少字节才能到达 NAL 单元的真实数据。之前代码中未根据实际扫描到的起始码动态赋值，而是使用了固定值。
-修复h264_file_msi.c — 帧发送路径// 旧：start_len 可能为固定值或未正确设置// 新：使用实际扫描到的 start code 长度node-&gt;priv.start_len = frame_info.frame_start_len;
+#code
+code-highlight.css
 
-其中 frame_info.frame_start_len 在扫描 NAL 边界时由 h264_find_start_code() 动态确定（返回 3 或 4）。
-sample_h264_esplayer.c — Sample 参考实现// 旧：固定值或缺失// 新：从实际 NAL 扫描中获取 start_lenh264_priv-&gt;start_len = code_len;
 
-其中 code_len 在扫描起始码时根据字节序列动态判定。
-h264_parse_fb_priv() 中的连带修复该函数在解析内存中的 NAL 缓冲时，原先使用 nal_header_offset 赋值 start_len：
-// 旧：nal_header_offset = found_offset + start_len// 当 found_offset != 0 时，start_len 值错误priv-&gt;start_len = (uint8_t)nal_header_offset;// 新：应使用实际的 start code 长度priv-&gt;start_len = (uint8_t)start_len;
+#highlight
+code-highlight.css
 
 
-注： found_offset 是起始码在缓冲中的偏移，start_len（局部变量）是起始码长度（3 或 4）。当缓冲头部无填充字节时（found_offset == 0），两者数值相同，Bug 不易暴露；但存在前导数据时则计算错误。
+#vscode
+code-highlight.css
 
 
-Bug 2：fb-&gt;len 未设置导致 memcpy 失败现象解码器在 h264_decode_msi.c 中执行：
-h264_rom_memcpy(rom_ptr, (uint8_t *) dst, dst_len);
+#inline
+code-highlight.css
 
-其中 dst_len = rfb-&gt;len - h264_priv-&gt;start_len。当 fb-&gt;len 为 0 或未赋值时，dst_len 计算为负值（类型隐式转换后为极大值），导致：
 
-h264_rom_memcpy 拷贝超出实际数据范围的无效内存
-硬件解码器接收到错误的 NAL 数据
-解码超时或崩溃
+#meta
+post-meta.css
 
-根因在创建 framebuff 时，fb-&gt;len 字段未被正确设置为 NAL 单元的实际长度。fb-&gt;len 是 MSI 管道中下游组件判断数据有效长度的唯一依据。
-修复h264_file_msi.c — 帧发送路径// 旧：fb-&gt;len 未赋值或赋值为 0// 新：设置为 frame node 的实际数据长度fb-&gt;len = node-&gt;len;fb-&gt;data = node-&gt;data;   // data 也需同步指向正确缓存
 
-sample_h264_esplayer.c — Sample 参考实现fb-&gt;data = STREAM_MALLOC(nal_size);fb-&gt;len = nal_size;     // ← 关键修复：必须设置长度
+#card
+cards.css
 
 
-Bug 3：解码端 dst &#x2F; dst_len 计算现象这是 Bug 1 和 Bug 2 的消费端表现。即使前两项已修复，如果 start_len 和 fb-&gt;len 正确，此计算本身是正确的。但该代码对输入的正确性高度敏感：
-uint32_t dst     = (uint32_t) rfb-&gt;data + h264_priv-&gt;start_len;uint32_t dst_len = rfb-&gt;len - h264_priv-&gt;start_len;
+#about
+about-page.css
 
-逻辑说明
 
-
-变量
-含义
-
-
-
-rfb-&gt;data
-framebuff 数据指针，指向包含起始码的完整 NAL 数据
-
-
-rfb-&gt;len
-NAL 数据总长度（包含起始码）
-
-
-h264_priv-&gt;start_len
-起始码长度（3 或 4），跳过起始码到达 NAL type 字节
-
-
-dst
-指向 NAL type 字节（即有效载荷起点）
-
-
-dst_len
-剩余有效数据长度（NAL type + payload）
-
-
-数据流校验关系rfb-&gt;data  ──▶ [00 00 00 01][67 XX YY ...]                ├─ start_len=4 ─┤                ├───────── rfb-&gt;len ─────────┤                                  ├── dst_len ──┤                dst ──────────────────▶
-
-修复依赖
-✅ Bug 1 修复后 → start_len 正确（3 或 4）
-✅ Bug 2 修复后 → rfb-&gt;len 正确
-→ 此计算自然正确
-
-
-修复验证测试条件
-
-
-项目
-值
-
-
-
-平台
-TXW82x (C-Sky CK804DF)
-
-
-测试文件
-H.264 基线编码文件，包含 I 帧 + P 帧
-
-
-起始码类型
-混合：部分文件使用 3 字节、部分使用 4 字节
-
-
-输出分辨率
-320×240
-
-
-验证方式
-LCD 屏幕目测 + os_printf 日志
-
-
-验证结果
-
-
-测试项
-修复前
-修复后
-
-
-
-3 字节起始码文件
-花屏&#x2F;无输出
-正常播放
-
-
-4 字节起始码文件
-偶发花屏
-正常播放
-
-
-I 帧 + P 帧解码
-首帧后卡死
-连续播放
-
-
-文件循环播放
-第 2 轮崩溃
-稳定循环
-
-
-快速切换文件
-内存拷贝错误
-切换正常
-
-
-
-经验总结
-fb_h264_s.start_len 是起始码长度，不是 NAL header 偏移。 虽然在某些场景下两者数值相同，但语义必须准确，否则遇到变长起始码或缓冲前导数据时会出错。
-
-fb-&gt;len 是 MSI 管道的核心契约。 上游生产者必须准确设置 framebuff 的数据长度，下游消费者依赖此值进行内存操作。遗漏设置会导致消费者读取越界或长度异常。
-
-H.264 Annex-B 起始码长度是动态的（3 或 4 字节）。 所有涉及 NAL 数据扫描和传递的环节都必须感知这一动态性，硬编码 4 字节是最常见的隐蔽 Bug 来源。
-
-端到端校验： 在 h264_file_msi（生产者）→ jpg_decode_msg_msi（帧解析）→ h264_decode_msi（解码器）→ R_VIDEO_P0（LCD 显示）的完整链路中，每个环节都应校验 fb-&gt;len 和 start_len 的合理性，避免异常数据传递到硬件层。
+#responsive
+responsive.css
 
 
 ]]></content>
       <categories>
-        <category>嵌入式开发</category>
-        <category>Bug修复</category>
+        <category>Hexo开发文档</category>
       </categories>
       <tags>
-        <tag>MSI</tag>
-        <tag>TXW82x</tag>
-        <tag>H.264</tag>
-        <tag>硬件解码</tag>
-        <tag>framebuff</tag>
-        <tag>BugFix</tag>
+        <tag>CSS</tag>
+        <tag>样式</tag>
+        <tag>主题定制</tag>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>前端</tag>
+        <tag>文档</tag>
       </tags>
   </entry>
   <entry>
@@ -1945,1631 +2461,532 @@ sdk/app/spook/webfile.c
         <category>项目文档</category>
       </categories>
       <tags>
-        <tag>音频</tag>
+        <tag>嵌入式</tag>
         <tag>C语言</tag>
         <tag>MSI</tag>
         <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
-        <tag>Spook</tag>
+        <tag>JPEG</tag>
         <tag>RTSP</tag>
         <tag>RTP</tag>
-        <tag>JPEG</tag>
         <tag>Wi-Fi图传</tag>
+        <tag>Spook</tag>
+        <tag>音频</tag>
       </tags>
   </entry>
   <entry>
-    <title>TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</title>
-    <url>/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。
-功能：
-
-在 LCD 上创建 H.264 文件播放器的菜单入口
-遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表
-选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示
-支持播放&#x2F;暂停控制
-支持退出播放并回到主菜单
-
-
-2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道：
-SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出: F_H264 类型 framebuff     ▼p0_decode_msg_msi (SR_OTHER_JPG, 帧信息解析)     │  强制输出类型: FSTYPE_YUV_P0     │  输出: F_JPG_DECODE_MSG     ▼decode_msi (&quot;h264_decode&quot;, H264 硬件解码)     │  H264 硬件解码 + Scale2 缩放     │  输出: F_YUV, stype=FSTYPE_YUV_P0     ▼R_VIDEO_P0 (LCD 视频层 P0)     │  MSI_CMD_LCD_VIDEO → MSI_VIDEO_ENABLE 控制开关     ▼LCD 屏幕显示
-
-2.2 UI 层次结构lv_scr_act (当前活动屏幕)   ├── base_ui (主菜单列表, 由调用方传入)   │     └── &quot;h264_player&quot; 按钮 → 点击进入播放器   │   └── now_ui (播放器界面, 全屏)         ├── 视频显示层 (通过 MSI → R_VIDEO_P0 渲染)         ├── label_time (&quot;00:00&quot; 时间标签, 顶部居中)         └── 文件列表弹窗 (按 &#x27;e&#x27; 键触发)               ├── &quot;exit&quot; 按钮 → 返回播放器               └── 每个 *.h264 文件按钮 → 点击开始播放
-
-
-3. 关键数据结构3.1 struct h264_player_ui_s — 播放器控制块
-
-
-字段
-类型
-说明
-
-
-
-last_group
-lv_group_t *
-上一级界面的 LVGL 组，退出时恢复
-
-
-base_ui
-lv_obj_t *
-主菜单列表对象，退出时取消隐藏
-
-
-w, h
-uint16_t
-视频解码输出宽高
-
-
-now_group
-lv_group_t *
-当前播放器界面的 LVGL 组
-
-
-now_ui
-lv_obj_t *
-当前播放器界面对象
-
-
-timer
-lv_timer_t *
-100ms 周期定时器（用于更新时间显示）
-
-
-label_time
-lv_obj_t *
-时间标签控件
-
-
-p0_decode_msg_msi
-struct msi *
-解码帧信息 MSI 组件 (h264_decode_msg_msi)
-
-
-decode_msi
-struct msi *
-H264 硬件解码 MSI 组件 (h264_decode_msi)
-
-
-file_msi
-struct msi *
-文件解复用 MSI 组件 (h264_file_msi)
-
-
-play_name
-uint8_t *
-当前播放流的名称（PSRAM 分配）
-
-
-playing
-uint8_t:1
-播放状态标志
-
-
-3.2 struct h264_list_param — 文件列表参数
-
-
-字段
-类型
-说明
-
-
-
-group
-lv_group_t *
-文件列表的 LVGL 组
-
-
-ui
-lv_obj_t *
-文件列表的 LVGL list 对象
-
-
-ui_s
-h264_player_ui_s *
-指向播放器控制块的指针
-
-
-
-4. 外部依赖与声明4.1 外部 MSI 组件函数// 创建解码帧信息 MSI 组件（实现在 jpg_decode_msg_msi.c）extern struct msi *h264_decode_msg_msi(const char *name, uint16_t out_w, uint16_t out_h,                                        uint16_t step_w, uint16_t step_h, uint32_t filter);// 创建 H264 硬件解码 MSI 组件（实现在 h264_decode_msi.c）// only_I_H264: 0=解码 I+P 帧, 1=只解码 I 帧extern struct msi *h264_decode_msi(const char *name, uint8_t only_I_H264);// 创建文件解复用 MSI 组件（实现在 h264_file_msi.c）extern struct msi *h264_file_msi_init(const char *msi_name, const char *filename);// H264 硬件驱动初始化extern void h264_drv_init(void);
-
-4.2 外部全局变量extern lv_style_t  g_style;       // 全局 LVGL 样式extern lv_indev_t *indev_keypad;  // 全局键盘输入设备
-
-4.3 引用的头文件
-
-
-头文件
-路径
-用途
-
-
-
-lvgl/lvgl.h
-SDK 内
-LVGL 图形库核心
-
-
-lvgl_ui.h
-sdk/app/ui/
-UI 组件声明、MSI 组件 extern 声明
-
-
-keyWork.h
-sdk/lib/key/
-按键回调工作队列
-
-
-keyScan.h
-sdk/lib/key/
-按键扫描、键值定义（AD_UP, AD_DOWN 等）
-
-
-av_heap.h
-lib/heap/
-普通堆内存分配
-
-
-av_psram_heap.h
-lib/heap/
-PSRAM 堆内存分配
-
-
-avi_player_msi.h
-sdk/app/playback/
-AVI 播放器 MSI 接口
-
-
-audio_code_ctrl.h
-audio_media_ctrl/
-音频编解码控制
-
-
-osal_file.h
-fs/fatfs/
-文件系统接口
-
-
-stream_define.h
-sdk/app/algorithm/stream_frame/
-流名称和 MSI 命令常量定义
-
-
-
-5. 宏定义#define CHECK_DIR            &quot;H264&quot;     // 扫描目录名#define EXT_NAME             &quot;*h264&quot;    // 文件名匹配模式#define PLAY_STREAM_NAME_LEN (64)       // 播放流名称缓冲区大小#define STREAM_MALLOC        av_psram_malloc   // 大块内存分配（PSRAM）#define STREAM_FREE          av_psram_free     // 大块内存释放#define STREAM_LIBC_ZALLOC   av_zalloc         // 零初始化分配
-
-
-6. 按键映射函数 self_key() 将硬件按键事件映射为 LVGL 逻辑按键：
-
-
-
-硬件按键
-LVGL 映射值
-用途
-
-
-
-AD_UP
-&#39;q&#39;
-返回&#x2F;退出
-
-
-AD_DOWN
-&#39;e&#39;
-展开文件列表
-
-
-AD_LEFT
-&#39;a&#39;
-定位控制（预留）
-
-
-AD_RIGHT
-&#39;d&#39;
-定位控制（预留）
-
-
-AD_PRESS
-LV_KEY_ENTER
-确认选择
-
-
-按键过滤器通过 set_lvgl_get_key_func(self_key) 设置，退出时通过 set_lvgl_get_key_func(NULL) 清除。
-
-7. 函数参考7.1 公开 APIh264_player_ui()lv_obj_t *h264_player_ui(lv_group_t *group, lv_obj_t *base_ui, uint16_t w, uint16_t h);
-
-说明： 在主菜单列表中添加一个名为 &quot;h264_player&quot; 的按钮入口。
-参数：
-
-group — 主菜单的 LVGL 组
-base_ui — 主菜单的 LVGL list 对象
-w, h — 视频解码输出宽度和高度
-
-返回值： 创建的按钮对象指针，失败返回 NULL。
-调用示例（main_ui.c）：
-btn = h264_player_ui(group, base_ui, 320, 240);
-
-7.2 内部函数self_key() — 按键映射static uint32_t self_key(uint32_t val);
-
-将硬件 AD_* 键值 + KEY_EVENT_SUP（短按释放）事件映射为 LVGL 可识别的字符键值。仅在播放器活跃时生效。
-h264_player_stop_file() — 停止播放static void h264_player_stop_file(struct h264_player_ui_s *ui_s);
-
-停止文件解复用器（发送 MSI_VIDEO_DEMUX_STOP），销毁 file_msi 组件，关闭 LCD 视频层，释放 play_name 缓冲区。
-enter_player_ui() — 进入播放器界面static void enter_player_ui(lv_event_t *e);
-
-事件： LV_EVENT_SHORT_CLICKED（点击主菜单的 “h264_player” 按钮）
-流程：
-
-设置按键过滤器 self_key
-调用 h264_drv_init() 初始化 H264 硬件
-隐藏主菜单（base_ui），创建全屏播放器界面（now_ui）
-创建 MSI 管道：
-p0_decode_msg_msi &#x3D; h264_decode_msg_msi(SR_OTHER_JPG, ...) → 帧信息解析
-decode_msi &#x3D; h264_decode_msi(&quot;h264_decode&quot;, 0) → 硬件解码
-连接：p0_decode_msg_msi → decode_msi → R_VIDEO_P0
-
-
-创建时间标签 label_time（初始显示 “00:00”）和 100ms 定时器
-创建新的 LVGL 组并注册事件回调
-
-exit_player_ui() — 退出播放器界面static void exit_player_ui(lv_event_t *e);
-
-事件： LV_EVENT_KEY，键值 &#39;q&#39;
-流程：
-
-删除定时器
-恢复键盘输入组到上一级
-显示主菜单（清除 base_ui 的隐藏标志）
-销毁当前 LVGL 组、MSI 管道（p0_decode_msg_msi, decode_msi）
-调用 h264_player_stop_file() 停止文件播放
-删除当前界面对象，清除按键过滤器
-
-show_filelist() — 显示文件列表static void show_filelist(lv_event_t *e);
-
-事件： LV_EVENT_KEY，键值 &#39;e&#39;
-流程：
-
-清除按键过滤器
-在当前界面创建全屏 LVGL list
-添加 “exit” 返回按钮
-调用 each_read_file() 扫描 H264/ 目录，为每个 *.h264 文件添加列表项
-为每个文件按钮注册 enter_playback 事件
-
-enter_playback() — 开始文件播放static void enter_playback(lv_event_t *e);
-
-事件： LV_EVENT_CLICKED（点击文件列表中的文件项）
-流程：
-
-停止当前（如有）正在播放的文件
-获取文件名，构造路径 &quot;0:H264/&lt;filename&gt;&quot;
-使用 STREAM_MALLOC(av_psram_malloc) 分配 play_name 缓冲区
-调用 h264_file_msi_init() 创建文件解复用器
-成功：使能 LCD 视频层，连接 file_msi → p0_decode_msg_msi，发送 MSI_VIDEO_DEMUX_START
-失败：清理资源，退出文件列表
-
-player_ctrl_ui() — 播放&#x2F;暂停控制static void player_ctrl_ui(lv_event_t *e);
-
-事件： LV_EVENT_SHORT_CLICKED（点击播放器界面空白区域）
-行为： 切换 playing 状态。从播放→暂停时发送 MSI_VIDEO_DEMUX_PAUSE，从暂停→播放时发送 MSI_VIDEO_DEMUX_START 并重新使能 LCD 视频层。
-player_locate_ctrl_ui() — 定位控制（预留）static void player_locate_ctrl_ui(lv_event_t *e);
-
-事件： LV_EVENT_KEY，键值 &#39;a&#39; &#x2F; &#39;d&#39;
-当前仅捕获事件，未实现具体逻辑（switch case 为空）。可用于实现快退&#x2F;快进功能。
-player_ui_timer() — 定时器回调（预留）static void player_ui_timer(lv_timer_t *t);
-
-100ms 周期定时器。当前框架已创建，函数体为空。可用于实现播放时间更新显示。
-h264_list_show() — 单个列表项创建回调static int h264_list_show(const char *filename, void *data);
-
-为每个 *.h264 文件在列表中添加一个按钮，绑定 enter_playback 事件。
-each_read_file() — 文件系统遍历static int each_read_file(create_h264_list_ui fn, void *param);
-
-使用 FatFS API 遍历 H264/ 目录下匹配 *h264 的文件，对每个文件调用回调函数 fn。
-exit_show_filelist() — 退出文件列表static void exit_show_filelist(lv_event_t *e);
-
-恢复按键过滤器，恢复键盘输入组，延迟删除列表对象。
-clear_list_group_ui() — 列表销毁时清理组static void clear_list_group_ui(lv_event_t *e);
-
-在 LVGL list 对象被删除时，自动释放关联的 LVGL 组。
-
-8. 关键事件注册汇总
-
-
-LVGL 事件
-对象
-回调函数
-说明
-
-
-
-LV_EVENT_SHORT_CLICKED
-“h264_player” 按钮
-enter_player_ui
-进入播放器
-
-
-LV_EVENT_KEY
-播放器界面 (now_ui)
-exit_player_ui
-按 &#39;q&#39; 退出
-
-
-LV_EVENT_KEY
-播放器界面 (now_ui)
-player_locate_ctrl_ui
-按 &#39;a&#39;&#x2F;&#39;d&#39; 定位
-
-
-LV_EVENT_KEY
-播放器界面 (now_ui)
-show_filelist
-按 &#39;e&#39; 显示文件列表
-
-
-LV_EVENT_SHORT_CLICKED
-播放器界面 (now_ui)
-player_ctrl_ui
-短按切换播放&#x2F;暂停
-
-
-LV_EVENT_SHORT_CLICKED
-文件列表中的 “exit” 按钮
-exit_show_filelist
-返回播放器
-
-
-LV_EVENT_CLICKED
-文件列表中的文件名按钮
-enter_playback
-开始播放该文件
-
-
-LV_EVENT_DELETE
-文件列表对象
-clear_list_group_ui
-释放 LVGL 组
-
-
-
-9. MSI 命令使用汇总
-
-
-命令
-目标
-用途
-
-
-
-MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_START
-file_msi
-开始解复用（播放）
-
-
-MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_STOP
-file_msi
-停止解复用
-
-
-MSI_CMD_VIDEO_DEMUX_CTRL &#x2F; MSI_VIDEO_DEMUX_PAUSE
-file_msi
-暂停解复用
-
-
-MSI_CMD_LCD_VIDEO &#x2F; MSI_VIDEO_ENABLE=1
-R_VIDEO_P0
-使能 LCD 视频层 P0
-
-
-MSI_CMD_LCD_VIDEO &#x2F; MSI_VIDEO_ENABLE=0
-R_VIDEO_P0
-关闭 LCD 视频层 P0
-
-
-MSI_CMD_DECODE_JPEG_MSG &#x2F; MSI_JPEG_DECODE_FORCE_TYPE
-p0_decode_msg_msi
-强制解码输出类型为 FSTYPE_YUV_P0
-
-
-
-10. 内存管理
-
-
-分配点
-分配函数
-堆类型
-释放点
-
-
-
-h264_player_ui_s 控制块
-av_zalloc
-系统堆（SRAM）
-当前未显式释放（TODO）
-
-
-play_name 缓冲区
-av_psram_malloc
-PSRAM
-h264_player_stop_file()
-
-
-file_msi 组件
-MSI 框架内部
-视组件实现
-msi_destroy()
-
-
-p0_decode_msg_msi
-MSI 框架内部
-视组件实现
-msi_destroy()
-
-
-decode_msi
-MSI 框架内部
-视组件实现
-msi_destroy()
-
-
-
-注意： 控制块 ui_s 在退出播放器时未显式释放（STREAM_FREE），因为 h264_player_ui() 只调用一次且控制块需要在整个应用生命周期内保持。如需动态创建&#x2F;销毁，应在 exit_player_ui 或 h264_player_stop_file 中添加 STREAM_FREE(ui_s) 并置空指针。
-
-
-11. 调用链路11.1 入口注册（在 main_ui.c 中）// main_pocket_camera_ui():btn = h264_player_ui(group, base_ui, 320, 240);//     ↓// h264_player_ui()://   1. av_zalloc(sizeof(h264_player_ui_s)) → ui_s//   2. lv_list_add_btn(base_ui, NULL, &quot;h264_player&quot;) → btn//   3. lv_obj_add_event_cb(btn, enter_player_ui, LV_EVENT_SHORT_CLICKED, ui_s)
-
-11.2 完整用户操作流主菜单列表  │  选择 &quot;h264_player&quot; → 短按确认  ▼enter_player_ui()        ← 创建播放器界面 + MSI 管道  │  按 &#x27;e&#x27; 键  ▼show_filelist()          ← 弹出文件列表  │  选择文件 → 点击  ▼enter_playback()         ← 创建 file_msi，开始播放  │  (视频通过 MSI 管道自动渲染到 LCD)  │  短按屏幕 → 暂停/恢复  │  按 &#x27;q&#x27; 键 → 回到文件列表  ▼exit_show_filelist()     ← 返回播放器界面  │  在播放器界面按 &#x27;q&#x27; 键  ▼exit_player_ui()         ← 销毁 MSI 管道，回到主菜单
-
-
-12. 待完善&#x2F;预留功能
-播放时间更新： player_ui_timer() 函数体为空，label_time 始终显示 “00:00”。需要从 file_msi 或 p0_decode_msg_msi 获取当前播放进度更新标签。
-
-快进&#x2F;快退： player_locate_ctrl_ui() 已注册 &#39;a&#39; &#x2F; &#39;d&#39; 按键事件，但 switch case 为空。可根据需要调用 MSI_VIDEO_DEMUX_FORWARD_TIME &#x2F; MSI_VIDEO_DEMUX_REWIND_TIME 命令实现。
-
-控制块生命周期： h264_player_ui_s 对象在 h264_player_ui() 中分配后未释放。如果多次进入&#x2F;退出播放器，应增加销毁逻辑。
-
-文件列表刷新： 当前每次按 &#39;e&#39; 都会重新扫描文件系统并创建新的列表，但旧的列表对象会在 exit_show_filelist 中通过 lv_obj_del_async 延迟删除，可能有短暂的重叠。
-
-
-
-13. 依赖的文件
-
-
-文件
-路径
-关系
-
-
-
-h264_player_ui.c
-sdk/app/ui/
-本组件源文件
-
-
-lvgl_ui.h
-sdk/app/ui/
-公开 API 声明
-
-
-main_ui.c
-sdk/app/ui/
-调用 h264_player_ui() 注册入口
-
-
-h264_file_msi.c
-sdk/app/h264_demux/
-文件解复用 MSI 组件
-
-
-jpg_decode_msg_msi.c
-SDK 内
-H264 帧信息解析 MSI 组件
-
-
-h264_decode_msi.c
-SDK 内
-H264 硬件解码 MSI 组件
-
-
-stream_define.h
-sdk/app/algorithm/stream_frame/
-流名称常量 (R_VIDEO_P0, SR_OTHER_JPG)
-
-
-msi.h
-sdk/include/lib/multimedia/
-MSI 核心接口
-
-
-framebuff.h
-sdk/include/lib/multimedia/
-Framebuff 类型定义 (FSTYPE_YUV_P0)
-
-
-keyWork.h &#x2F; keyScan.h
-sdk/lib/key/
-按键系统
-
-
-
-14. 注意事项
-内存： 视频帧数据量大，STREAM_MALLOC 使用 PSRAM（av_psram_malloc），轻量对象使用 SRAM（av_zalloc）。
-MSI 管道生命周期： p0_decode_msg_msi 和 decode_msi 在 enter_player_ui() 中创建、在 exit_player_ui() 中销毁。file_msi 在每次选择文件播放时创建、在停止播放或切换文件时销毁。
-LCD 视频层竞争： R_VIDEO_P0 是全局 LCD 视频层 P0 通道，确保在进入播放器时使能、退出时关闭，避免影响其他 UI 组件。
-文件系统路径： 文件路径格式为 &quot;0:H264/&lt;filename&gt;&quot;，其中 &quot;0:&quot; 是 FatFS 驱动号。
-
-]]></content>
-      <categories>
-        <category>嵌入式开发</category>
-        <category>SDK开发</category>
-      </categories>
-      <tags>
-        <tag>C语言</tag>
-        <tag>MSI</tag>
-        <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
-        <tag>LVGL</tag>
-        <tag>H.264</tag>
-        <tag>硬件解码</tag>
-        <tag>UI组件</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Hello World</title>
-    <url>/2026/05/03/hello-world/</url>
-    <content><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick StartCreate a new post$ hexo new &quot;My New Post&quot;
-
-More info: Writing
-Run server$ hexo server
-
-More info: Server
-Generate static files$ hexo generate
-
-More info: Generating
-Deploy to remote sites$ hexo deploy
-
-More info: Deployment
-]]></content>
-  </entry>
-  <entry>
-    <title>嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</title>
-    <url>/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/</url>
-    <content><![CDATA[嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统
-项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS
-
-
-一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：
-
-
-
-类别
-问题
-严重程度
-
-
-
-架构
-5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行）
-🔴 高
-
-
-Bug
-home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行
-🟡 中
-
-
-性能
-Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU
-🟡 中
-
-
-代码质量
-menu_view.c 中残留 3 处 printf 调试语句
-🟡 中
-
-
-可维护性
-颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码
-🟡 中
-
-
-可维护性
-字体 &amp;lv_font_montserrat_20 等在 30+ 处硬编码
-🟢 低
-
-
-健壮性
-所有 lv_obj_create() 调用均无 NULL 检查
-🟡 中
-
-
-年限
-日历年份范围硬编码 2000-2040，2041 年后失效
-🟢 低
-
-
-1.2 重构目标
-✅ 核心功能不改变
-✅ 消除样板代码重复
-✅ 建立统一的主题&#x2F;样式系统
-✅ 修复已知 Bug
-✅ 优化定时器性能
-
-
-二、新增文件（3 个基础组件）2.1 ui_theme.h — 统一主题系统文件路径： project/ui/ui_theme.h
-作用： 集中定义所有 UI 颜色、字体、尺寸常量，消除硬编码魔法数字。
-/* ── Primary Colors ── */#define UI_COLOR_PRIMARY        0xffd54a    /* 主题黄 */#define UI_COLOR_PRIMARY_DARK   0x2a2113    /* 深色文字 *//* ── Background Colors ── */#define UI_COLOR_BG_DARK        0x111217    /* Home 背景 */#define UI_COLOR_BG_SCREEN      0x1a1c24    /* 屏幕背景 */#define UI_COLOR_BG_DETAIL      0x171b24    /* 详情页背景 */#define UI_COLOR_BG_CARD        0xffffff    /* 卡片白底 */#define UI_COLOR_BG_LIGHT       0xf7f8fc    /* 浅灰背景 *//* ── Text Colors ── */#define UI_COLOR_TEXT_LIGHT     0xf1f3ff    /* 浅色文字 */#define UI_COLOR_TEXT_DARK      0x1f2736    /* 深色文字 */#define UI_COLOR_TEXT_MUTED     0x70809b    /* 灰色文字 */#define UI_COLOR_TEXT_SECONDARY 0x536076    /* 次要文字 *//* ── Accent Colors ── */#define UI_COLOR_BLUE           0x206FE5    /* 蓝色 */#define UI_COLOR_BLUE_DEEP      0x2f64f2    /* 深蓝 */#define UI_COLOR_GREEN          0x8bd450    /* 绿色（充电） */#define UI_COLOR_RED            0xff7b72    /* 红色（低电量） */#define UI_COLOR_ACCENT_ICON    0x6a78ff    /* 图标蓝 *//* ── Common Dimensions ── */#define UI_HEADER_HEIGHT        35#define UI_HEADER_RADIUS        16#define UI_CORNER_RADIUS        14#define UI_CARD_RADIUS          18#define UI_BTN_RADIUS           23/* ── Common Fonts ── */#define UI_FONT_SMALL           (&amp;lv_font_montserrat_10)#define UI_FONT_TINY            (&amp;lv_font_montserrat_12)#define UI_FONT_BODY            (&amp;lv_font_montserrat_14)#define UI_FONT_MEDIUM          (&amp;lv_font_montserrat_16)#define UI_FONT_LARGE           (&amp;lv_font_montserrat_18)#define UI_FONT_TITLE           (&amp;lv_font_montserrat_20)#define UI_FONT_HEADING         (&amp;lv_font_montserrat_22)#define UI_FONT_TIME            (&amp;lv_font_montserrat_48)
-
-影响范围： 替换了 50+ 处硬编码颜色值，30+ 处硬编码字体引用。
-
-2.2 ui_back_button.h/.c — 可复用返回按钮组件文件路径： project/ui/ui_back_button.h、project/ui/ui_back_button.c
-作用： 封装了 5 个页面重复的返回按钮创建逻辑。
-// 创建一个带左箭头图标的 30x30 圆形透明按钮lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
-
-内部实现：
-
-尺寸：30×30，圆角 15（圆形）
-图标：LV_SYMBOL_LEFT，使用 UI_FONT_LARGE 字体
-颜色：UI_COLOR_PRIMARY_DARK
-自动绑定点击事件回调
-
-替换效果：
-// 原始代码（每个页面重复 10+ 行）：back_button = lv_obj_create(header_panel);lv_obj_remove_style_all(back_button);lv_obj_set_size(back_button, 30, 30);lv_obj_set_style_radius(back_button, 15, 0);lv_obj_set_style_bg_opa(back_button, LV_OPA_TRANSP, 0);lv_obj_set_style_border_width(back_button, 0, 0);lv_obj_set_style_shadow_width(back_button, 0, 0);lv_obj_add_flag(back_button, LV_OBJ_FLAG_CLICKABLE);lv_obj_add_event_cb(back_button, click_cb, LV_EVENT_CLICKED, NULL);back_label = lv_label_create(back_button);lv_label_set_text(back_label, LV_SYMBOL_LEFT);lv_obj_set_style_text_color(back_label, lv_color_hex(0x2a2113), 0);lv_obj_set_style_text_font(back_label, &amp;lv_font_montserrat_18, 0);lv_obj_center(back_label);// 重构后（1 行）：back_btn = ui_back_button_create(header, back_click_cb);
-
-
-2.3 ui_menu_detail_page.h/.c — 可复用菜单→详情导航框架文件路径： project/ui/ui_menu_detail_page.h、project/ui/ui_menu_detail_page.c
-作用： 封装了 5 个页面完全重复的 menu→detail 切换逻辑，包括：
-
-菜单页面初始化（背景色、大小、滚动设置）
-点击菜单图片进入详情页
-详情页创建（通过回调）
-详情页销毁（通过回调）
-返回菜单页
-Tile 滑动方向的自动管理
-
-数据结构typedef struct &#123;    lv_obj_t *screen;               /* tile 容器 */    lv_obj_t *menu_page;            /* 菜单页面 */    lv_obj_t *detail_page;          /* 详情页面 */    ui_detail_create_cb_t detail_create_cb;   /* 详情创建回调 */    ui_detail_destroy_cb_t detail_destroy_cb; /* 详情销毁回调 */    void *user_data;                /* 用户数据 */    ui_menu_view_action_t menu_action;        /* 菜单点击动作 */    bool detail_created;            /* 详情是否已创建 */&#125; ui_menu_detail_page_t;
-
-API 说明/* 初始化菜单→详情页面框架 */void ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,              /* 父容器（tile） */    uint32_t bg_color,             /* 屏幕背景色 */    const char *menu_image_path,   /* 菜单图片路径 */    ui_detail_create_cb_t detail_create_cb,    /* 详情创建回调 */    ui_detail_destroy_cb_t detail_destroy_cb,  /* 详情销毁回调 */    void *user_data                /* 传递给回调的用户数据 */);/* 切换到菜单页面（销毁详情页） */void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);/* 切换到详情页面（首次调用时通过回调创建） */void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);/* 创建详情页顶部标题栏（带返回按钮） */lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
-
-内部流程┌─────────────────────────────────────────────────────┐│                    init() 调用                       ││  1. lv_memset 清零                                    ││  2. 设置 screen / callback / user_data                ││  3. 创建 menu_page（背景色、大小、不可滚动）             ││  4. 设置 menu_action 回调 → on_menu_click             ││  5. 调用 ui_menu_view_create 创建菜单图片              │└─────────────────────────────────────────────────────┘                        │        用户点击菜单图片                        ▼┌─────────────────────────────────────────────────────┐│              show_detail() 调用                      ││  1. 检查 ctx / menu_page / screen 非 NULL            ││  2. 如果 detail_page == NULL：                        ││     → 调用 detail_create_cb(ctx-&gt;screen, user_data)  ││     → 回调内创建 page 对象并设置 ctx-&gt;detail_page     ││  3. 禁用 tile 滑动 (ui_manager_set_tile_swipe_enabled) ││  4. 隐藏 menu_page (LV_OBJ_FLAG_HIDDEN)               ││  5. 将 detail_page 移到前台                            │└─────────────────────────────────────────────────────┘                        │        用户点击返回按钮                        ▼┌─────────────────────────────────────────────────────┐│              show_menu() 调用                        ││  1. 销毁 detail_page (lv_obj_del)                     ││  2. 调用 detail_destroy_cb 清理子状态                  ││  3. 启用 tile 滑动                                    ││  4. 显示 menu_page                                    ││  5. 将 menu_page 移到前台                              │└─────────────────────────────────────────────────────┘
-
-
-三、重构的文件（9 个）3.1 ai_qa_screen.c — AI 问答页面变更概要： 227 行 → 130 行，消除全部样板代码。
-
-
-
-项目
-原始实现
-重构后
-
-
-
-状态结构
-独立的 ui_ai_qa_screen_t
-嵌入 ui_menu_detail_page_t base
-
-
-菜单初始化
-手动创建 menu_page + 设置属性
-调用 ui_menu_detail_page_init
-
-
-切换逻辑
-show_menu() &#x2F; show_detail() &#x2F; destroy_detail() 各 10 行
-自动由框架处理
-
-
-返回按钮
-手动创建 10+ 行
-ui_menu_detail_page_create_detail_header
-
-
-前向声明
-4 个 static 函数
-2 个（create_detail + on_back_click）
-
-
-核心回调：
-static void ui_ai_qa_create_detail(lv_obj_t *parent, void *user_data)&#123;    page = lv_obj_create(parent);          // 直接在 tile 上创建    lv_obj_remove_style_all(page);    // ... 设置样式 ...    g_ui_ai_qa_page.detail_page = page;    // 关键：设置 detail_page    ui_menu_detail_page_create_detail_header(page, &quot;AI Q&amp;A&quot;, ui_ai_qa_on_back_click);    // ... 创建内容 ...&#125;
-
-
-3.2 timing_screen.c — 计时器页面变更概要： 325 行 → 280 行。
-特殊处理： 计时器页面的 detail 有自定义的 tab 栏（Countdown&#x2F;Stopwatch&#x2F;Pomodoro）和 preset 按钮网格，不使用 create_detail_header，而是自己创建带返回按钮的 header_row。
-
-
-
-项目
-变更
-
-
-
-状态结构
-ui_timing_screen_t → ui_timing_state_t（嵌入 base）
-
-
-菜单初始化
-使用 ui_menu_detail_page_init
-
-
-Tab 创建
-提取为 ui_timing_create_tabs() 子函数
-
-
-Preset 创建
-提取为 ui_timing_create_presets() 子函数
-
-
-返回回调
-ui_timing_handle_back_click 直接调用 ui_menu_detail_page_show_menu
-
-
-
-3.3 calendar_screen.c — 日历页面变更概要： 397 行 → 430 行（功能不变，增加了年份范围到 2050 年）。
-特殊处理： 日历页面有复杂的子组件（calendar widget + year&#x2F;month picker），需要保持独立管理。
-
-
-
-项目
-变更
-
-
-
-状态结构
-ui_calendar_view_t → ui_calendar_state_t（嵌入 base）
-
-
-日历组件
-提取为 ui_calendar_create_calendar_widget()
-
-
-滚轮组件
-提取为 ui_calendar_create_roller() 复用函数
-
-
-Picker
-提取为 ui_calendar_create_picker()
-
-
-年份范围
-扩展到 2000-2050（原 2000-2040）
-
-
-返回回调
-直接调用 ui_menu_detail_page_show_menu
-
-
-
-3.4 plan_list_screen.c — 计划列表页面变更概要： 340 行 → 300 行。
-
-
-
-项目
-变更
-
-
-
-状态结构
-ui_plan_list_screen_t → ui_plan_list_state_t（嵌入 base）
-
-
-菜单初始化
-使用 ui_menu_detail_page_init
-
-
-日期条
-保持独立的水平滚动 Flex 布局
-
-
-退出按钮
-右下角圆形 “exit” 按钮保持不变
-
-
-
-3.5 settings_screen.c — 设置页面变更概要： 98 行 → 52 行。
-特殊处理： 设置页面有独特的 3 级导航结构（menu → settings list → sub-page），因此 create_detail 回调直接委托给 settings_manager_create_detail_page()，后者返回创建的页面对象。
-static void ui_settings_create_detail(lv_obj_t *parent, void *user_data)&#123;    page = ui_settings_manager_create_detail_page(parent, back_click_cb);    if(page != NULL) &#123;        g_ui_settings.base.detail_page = page;    &#125;&#125;
-
-
-3.6 settings_common_styles.c — 设置通用样式变更： 使用 ui_back_button_create 替代手动创建返回按钮，使用 ui_theme.h 常量替代硬编码颜色。
-
-
-
-原始
-重构后
-
-
-
-lv_color_hex(0xffe454)
-lv_color_hex(UI_COLOR_PRIMARY)
-
-
-lv_color_hex(0x2e2612)
-lv_color_hex(UI_COLOR_PRIMARY_DARK)
-
-
-lv_color_hex(0x171b24)
-lv_color_hex(UI_COLOR_BG_DETAIL)
-
-
-lv_color_hex(0xffffff)
-lv_color_hex(UI_COLOR_BG_CARD)
-
-
-&amp;lv_font_montserrat_20
-UI_FONT_TITLE
-
-
-手动创建返回按钮 10 行
-ui_back_button_create(header, back_event_cb) 1 行
-
-
-
-3.7 settings_manager.c — 设置管理器变更： 引入 ui_theme.h，移除 back_event_cb 参数传递问题。
-
-3.8 settings_detail_screen.c — 设置详情列表变更： 所有硬编码颜色和字体替换为 ui_theme.h 常量。
-
-
-
-原始
-重构后
-
-
-
-lv_color_hex(0xffffff)
-lv_color_hex(UI_COLOR_BG_CARD)
-
-
-lv_color_hex(0xd7dfea)
-lv_color_hex(UI_COLOR_BORDER)
-
-
-lv_color_hex(0x6a78ff)
-lv_color_hex(UI_COLOR_ACCENT_ICON)
-
-
-lv_color_hex(0x1f2736)
-lv_color_hex(UI_COLOR_TEXT_DARK)
-
-
-lv_color_hex(0x70809b)
-lv_color_hex(UI_COLOR_TEXT_MUTED)
-
-
-lv_color_hex(0xffe454)
-lv_color_hex(UI_COLOR_PRIMARY)
-
-
-
-3.9 menu_view.c — 菜单视图变更：
-
-✅ 移除 3 处 printf 调试语句
-✅ 添加 #include &lt;stdbool.h&gt;（修复 bool 类型编译警告）
-✅ 颜色和字体改用 ui_theme.h 常量
-
-
-3.10 home_view.c — 主页视图变更：
-
-🐛 修复 Bug： 删除 lv_obj_set_pos(flower, 0, 0) 冗余调用（第 119 行，在花瓣循环内每轮都错误地重设 flower 容器位置）
-✅ 所有字体引用改用 ui_theme.h 常量
-✅ 颜色值改用 ui_theme.h 常量（UI_COLOR_TEXT_LIGHT、UI_COLOR_TEXT_MUTED、UI_COLOR_GREEN、UI_COLOR_RED、UI_COLOR_BG_DARK）
-
-
-3.11 ui_manager.c — UI 管理器变更：
-
-
-
-项目
-原始
-重构后
-
-
-
-背景色
-lv_color_hex(0x111217)
-lv_color_hex(UI_COLOR_BG_DARK)
-
-
-定时器优化
-Home 刷新定时器永不停止
-切换到非 Home 页面时 ui_home_refresh_stop()，返回时 ui_home_refresh_start()
-
-
-滑动保护
-无
-tile 切换时自动恢复 LV_DIR_HOR
-
-
-
-3.12 ui_manager.h — UI 管理器头文件变更： 使用 ui_theme.h 常量替代硬编码颜色。
-
-3.13 ui_screen_ids.h — 屏幕 ID 枚举变更： 保持原有 6 个页面（HOME, PLAN_LIST, AI_QA, TIMING, CALENDAR, SETTINGS）。
-
-四、Bug 修复4.1 花朵位置 Bug（home_view.c）问题： ui_home_create_flower 函数中，花瓣循环内第 119 行有：
-lv_obj_set_pos(flower, 0, 0);   // 错误！应该删除lv_obj_set_pos(petal, petal_positions[index][0], petal_positions[index][1]);
-每轮循环都错误地重设 flower 容器的位置为 (0,0)，虽然 flower 的位置由 lv_obj_align 控制所以视觉上无影响，但这是明显的复制粘贴错误。
-修复： 删除 lv_obj_set_pos(flower, 0, 0);
-4.2 Home 刷新定时器不停止（ui_manager.c）问题： home_refresh_timer 在 ui_manager_init 时启动后永不停止。即使用户滑动到其他页面，定时器仍每秒触发回调。
-修复： 在 ui_manager_handle_tile_change 中添加：
-if(screen_id == UI_SCREEN_ID_HOME) &#123;    ui_home_refresh_start();   /* 恢复定时器 */&#125; else &#123;    ui_home_refresh_stop();    /* 暂停定时器 */&#125;
-
-4.3 Tile 滑动方向不恢复（ui_manager.c）问题： ui_manager_set_tile_swipe_enabled(false) 在进入 detail 时被调用，但如果退出路径异常，swipe 方向可能永久卡在 LV_DIR_NONE。
-修复： 在 tile 切换事件处理中添加安全保护：
-lv_obj_set_scroll_dir(g_ui_manager_state.root_tileview, LV_DIR_HOR);
-
-4.4 调试 printf 残留（menu_view.c）问题： 生产代码中残留 3 处 printf，在嵌入式环境中占用 UART 带宽和 CPU。
-修复： 删除所有 printf 语句。
-4.5 页面 Crash（ui_menu_detail_page.c）问题： ui_menu_detail_page_create_detail 创建了一个多余的 wrapper page 对象，导致嵌入式平台内存溢出&#x2F;对象树异常，进入任何 detail 页面时死机。
-修复： 移除 wrapper page，让每个屏幕的 callback 直接在 ctx-&gt;screen（即 tile）上创建 detail page，并直接设置 ctx-&gt;detail_page = page。
-
-五、功能增强5.1 日历年份范围扩展
-原始：2000-2040（硬编码 41 个年份选项）
-重构后：2000-2050（51 个年份选项）
-
-
-六、文件变更统计
-
-
-文件
-原始行数
-重构后行数
-变化
-
-
-
-ui_theme.h
-—
-58
-🆕 新增
-
-
-ui_back_button.h
-—
-10
-🆕 新增
-
-
-ui_back_button.c
-—
-49
-🆕 新增
-
-
-ui_menu_detail_page.h
-—
-43
-🆕 新增
-
-
-ui_menu_detail_page.c
-—
-131
-🆕 新增
-
-
-ai_qa_screen.c
-227
-130
-⬇️ -43%
-
-
-timing_screen.c
-325
-280
-⬇️ -14%
-
-
-calendar_screen.c
-397
-430
-⬆️ +8%（年份扩展）
-
-
-plan_list_screen.c
-340
-300
-⬇️ -12%
-
-
-settings_screen.c
-98
-52
-⬇️ -47%
-
-
-settings_common_styles.c
-86
-82
-⬇️ -5%
-
-
-settings_manager.c
-198
-192
-⬇️ -3%
-
-
-settings_detail_screen.c
-169
-169
-≈ 持平
-
-
-menu_view.c
-71
-65
-⬇️ -8%
-
-
-home_view.c
-311
-308
-⬇️ -1%
-
-
-ui_manager.c
-166
-190
-⬆️ +14%（音乐+定时器）
-
-
-ui_manager.h
-16
-17
-⬆️ +1（音乐 API）
-
-
-ui_screen_ids.h
-16
-17
-⬆️ +1（音乐 ID）
-
-
-总计
-2679
-2523
-⬇️ -6%
-
-
-
-注：虽然总行数仅减少 6%，但新增了 3 个基础组件文件（291 行），消除了大量重复代码。如果不算新增组件，原有代码减少了约 16%。
-
-
-七、重构前后对比7.1 创建一个新屏幕页面的工作量重构前：
-// 需要手写 60-80 行样板代码：typedef struct &#123;    lv_obj_t *screen;    lv_obj_t *menu_page;    lv_obj_t *detail_page;    ui_menu_view_action_t menu_action;&#125; ui_xxx_screen_t;static void ui_xxx_show_menu(void) &#123; /* 8 行 */ &#125;static void ui_xxx_show_detail(void) &#123; /* 15 行 */ &#125;static void ui_xxx_destroy_detail(void) &#123; /* 5 行 */ &#125;static void ui_xxx_handle_back_click(lv_event_t *e) &#123; /* 3 行 */ &#125;static void ui_xxx_handle_menu_click(void *ud) &#123; /* 3 行 */ &#125;void ui_xxx_screen_create(lv_obj_t *screen) &#123;    // 15 行初始化代码&#125;
-
-重构后：
-typedef struct &#123;    ui_menu_detail_page_t base;&#125; ui_xxx_state_t;static ui_xxx_state_t g_ui_xxx;static void ui_xxx_create_detail(lv_obj_t *parent, void *ud) &#123;    page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    // ... 设置样式 ...    g_ui_xxx.base.detail_page = page;    ui_menu_detail_page_create_detail_header(page, &quot;Title&quot;, on_back);    // ... 创建内容 ...&#125;static void ui_xxx_on_back(lv_event_t *e) &#123;    ui_menu_detail_page_show_menu(&amp;g_ui_xxx.base);&#125;void ui_xxx_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui_xxx.base, screen, BG, IMG,                              ui_xxx_create_detail, NULL, NULL);&#125;
-
-节省： 每个新页面减少约 40-50 行样板代码。
-
-八、架构图project/ui/├── ui_theme.h                      ← 🆕 统一主题├── ui_back_button.h/.c             ← 🆕 返回按钮组件├── ui_menu_detail_page.h/.c        ← 🆕 菜单→详情导航框架├── ui_manager.h/.c                 ← UI 管理器（tile 切换、定时器）├── ui_screen_ids.h                 ← 屏幕 ID 枚举├── menu/│   └── menu_view.h/.c              ← 菜单图片视图├── home/│   ├── home_view.h/.c              ← 主页视图│   └── home_refresh.h/.c           ← 主页刷新定时器├── ai_qa/│   └── ai_qa_screen.h/.c           ← 使用框架├── timing/│   └── timing_screen.h/.c          ← 使用框架├── calendar/│   └── calendar_screen.h/.c        ← 使用框架├── plan_list/│   └── plan_list_screen.h/.c       ← 使用框架└── settings/    ├── settings_screen.h/.c         ← 使用框架    ├── settings_manager.h/.c        ← 3 级导航管理    ├── settings_common_styles.h/.c  ← 通用样式（使用新组件）    ├── settings_detail/             ← 设置列表    ├── setting_brightness/          ← 亮度设置    └── setting_wifi/               ← WiFi 设置
-
-
-九、注意事项
-menu_action 生命周期： ui_menu_view_action_t menu_action 现在存储在 ui_menu_detail_page_t 结构体内部（而非作为局部变量），避免了悬空指针问题。
-
-Detail 创建模式： 每个屏幕的 detail_create_cb 回调必须：
-
-在 parent（即 ctx-&gt;screen，也就是 tile）上创建 page 对象
-设置 g_ui_xxx.base.detail_page = page
-这是框架正确工作的关键
-
-
-Settings 特殊性： Settings 使用 3 级导航，detail_create_cb 返回 settings_manager_create_detail_page 的返回值作为 detail_page。
-
-
-
-十、后续可优化项
-
-
-优先级
-项目
-说明
-
-
-
-P1
-Lazy Loading
-首次访问 tile 时才创建内容，减少初始化内存占用
-
-
-P1
-对象创建 NULL 检查
-关键路径的 lv_obj_create() 添加 NULL 检查
-
-
-P2
-百分比&#x2F;Flex 布局
-减少硬编码像素坐标，提高屏幕适配性
-
-
-P2
-花朵 Canvas 化
-ui_home_create_flower 使用 11 个对象，可用 Canvas 或图片替代
-
-
-P2
-屏幕生命周期回调
-添加 on_enter &#x2F; on_leave &#x2F; on_destroy
-
-
-P3
-日历年份动态计算
-替代硬编码的年份选项字符串
-
-
-]]></content>
-      <categories>
-        <category>嵌入式开发</category>
-        <category>UI框架</category>
-      </categories>
-      <tags>
-        <tag>C语言</tag>
-        <tag>嵌入式</tag>
-        <tag>LVGL</tag>
-        <tag>UI架构</tag>
-        <tag>重构</tag>
-        <tag>代码优化</tag>
-        <tag>设计模式</tag>
-        <tag>TXW828</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>source/css 样式文档</title>
-    <url>/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10
+    <title>TXW828 AI 闹钟 — UI 模块工程说明文档</title>
+    <url>/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[TXW828 AI 闹钟 — UI 模块工程说明文档
+适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）
 
 
 目录
-架构概览
-
-文件分类
-
-模块详解
-
-主题系统
-全局样式
-布局组件
-内容排版
-卡片与表面
-页面专用
-响应式设计
+模块概览
+目录结构
+核心架构
+各模块详细说明
+数据流与刷新机制
+公共 API 参考
+添加新页面的步骤
+依赖关系
+已知限制与注意事项
+编译与调试
 
 
-标签索引
+一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。
+1.2 UI 包含哪些功能页面
+
+
+页面
+功能
+代码路径
 
 
 
-架构概览source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── responsive.css
+Home（主页）
+显示时间、日期、天气、WiFi 状态、电量
+home/
 
-所有模块由 custom.css 通过 @import url(…) 统一引入，形成完整样式链路。
 
-文件分类
+Plan List（计划列表）
+日期选择条 + 待办事项管理
+plan_list/
+
+
+AI Q&amp;A（AI 问答）
+AI 对话入口页面
+ai_qa/
+
+
+Timing（计时器）
+倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器
+timing/
+
+
+Calendar（日历）
+月历视图 + 年月选择器
+calendar/
+
+
+Settings（设置）
+WiFi、蓝牙、亮度等 11 项设置
+settings/
+
+
+1.3 技术栈
+GUI 框架： LVGL 8.x
+语言： C99
+RTOS： AliOS（通过 ohos/kernel/）
+服务层： 自定义 service 层（project/service/）
+构建工具： CDK（project/txw82xApp.cdkproj）
+
+
+二、目录结构project/ui/│├── ui_theme.h                  ── [基础] 统一颜色、字体、尺寸常量├── ui_back_button.h/.c         ── [基础] 可复用返回按钮组件├── ui_menu_detail_page.h/.c    ── [基础] 菜单→详情导航框架├── ui_manager.h/.c             ── [核心] UI 管理器（页面注册、导航、生命周期）├── ui_screen_ids.h             ── [核心] 屏幕 ID 枚举定义│├── menu/│   ├── menu_view.h             ── 菜单图片视图接口│   └── menu_view.c             ── 菜单图片显示 + 点击事件│├── home/│   ├── home_view.h             ── 主页视图接口│   ├── home_view.c             ── 主页 UI 布局（时间、日期、天气、电量）│   ├── home_refresh.h          ── 主页数据刷新接口│   └── home_refresh.c          ── 定时刷新逻辑（1s/10s/60s/1800s 周期）│├── ai_qa/│   ├── ai_qa_screen.h          ── AI 问答页面接口│   └── ai_qa_screen.c          ── AI 问答页面实现│├── timing/│   ├── timing_screen.h         ── 计时器页面接口│   └── timing_screen.c         ── 计时器页面（倒计时/秒表/番茄钟）│├── calendar/│   ├── calendar_screen.h       ── 日历页面接口│   └── calendar_screen.c       ── 日历页面（月历 + 年月选择器）│├── plan_list/│   ├── plan_list_screen.h      ── 计划列表页面接口│   └── plan_list_screen.c      ── 计划列表页面（日期条 + 待办）│├── settings/│   ├── settings_screen.h       ── 设置页面接口│   ├── settings_screen.c       ── 设置页面入口│   ├── settings_manager.h/.c   ── 设置项管理器（11 项设置 + 子页面路由）│   ├── settings_common_styles.h/.c ── 设置页面通用样式（标题栏、body）│   ├── settings_detail/        ── 设置列表视图│   ├── setting_brightness/     ── 亮度调节子页面│   └── setting_wifi/           ── WiFi 连接子页面│
+
+
+三、核心架构3.1 整体架构图┌─────────────────────────────────────────────────────────────┐│                         ui_manager                           ││  ┌─────────────────────────────────────────────────────────┐││  │                    lv_tileview                           │││  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐│││  │  │ HOME │ │PLAN  │ │AI_QA │ │TIMING│ │CALEN │ │SETTIN││││  │  │      │ │LIST  │ │      │ │      │ │DAR   │ │GS    ││││  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘│││  └─────────────────────────────────────────────────────────┘││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  home_refresh     │    │  ui_menu_detail_page (框架)   │  ││  │  (定时器 1s)       │    │  ┌─────────┐ ┌────────────┐ │  ││  │  → home_view      │    │  │menu_page│→│detail_page │ │  ││  └───────────────────┘    │  │(图片)   │ │(回调创建)  │ │  ││                           │  └─────────┘ └────────────┘ │  ││                           └──────────────────────────────┘  ││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  ui_theme.h       │    │  ui_back_button              │  ││  │  (颜色/字体/尺寸)  │    │  (返回按钮组件)               │  ││  └───────────────────┘    └──────────────────────────────┘  │└─────────────────────────────────────────────────────────────┘         │                          │         ▼                          ▼┌─────────────────┐    ┌──────────────────────┐│  service 层      │    │  LVGL 8.x            ││  time_service    │    │  (渲染、事件、输入)    ││  weather_service │    └──────────────────────┘│  system_status   ││  wifi_service    │└─────────────────┘
+
+3.2 导航模型UI 使用 LVGL 的 lv_tileview 作为顶层导航容器，每个功能页面对应一个 tile。用户水平滑动切换 tile。
+  ← 滑动 →┌────────┬────────┬────────┬────────┬────────┬────────┐│  HOME  │ PLAN   │ AI_QA  │ TIMING │ CALEND │ SETTING││  (0)   │ (1)    │ (2)    │ (3)    │ (4)    │ (5)    │└────────┴────────┴────────┴────────┴────────┴────────┘
+
+除 Home 页面外，其他页面点击菜单图片后进入 detail page（覆盖在 tile 上），此时水平滑动被禁用，点击返回按钮回到菜单页。
+3.3 页面生命周期┌──────────┐│  create  │  ← ui_manager_create_root() 时一次性创建所有 tile└────┬─────┘     │     ▼┌──────────┐│  active  │  ← 用户滑动到该 tile 时└────┬─────┘     │     ├── 点击菜单图片 → 进入 detail page（禁用滑动）     │                    │     │                    ├── detail_create_cb() 回调创建页面     │                    │     │                    └── 点击返回 → show_menu() 销毁 detail，恢复滑动     │     └── 滑动离开 → tile 失焦（home 定时器暂停）
+
+
+四、各模块详细说明4.1 ui_manager — UI 管理器职责：
+
+创建 root screen 和 tileview
+注册所有屏幕页面到 tile
+处理 tile 切换事件
+管理 Home 页面刷新定时器的启动&#x2F;暂停
+提供页面跳转 API（ui_manager_show_xxx_screen()）
+提供 tile 滑动方向控制（ui_manager_set_tile_swipe_enabled()）
+
+关键实现细节：
+// 屏幕配置表（ui_manager.c 内部）static const ui_screen_config_t g_ui_manager_screens[UI_SCREEN_ID_COUNT] = &#123;    [UI_SCREEN_ID_HOME]      = &#123; .name = &quot;home&quot;,      .image_path = NULL,              .create = ... &#125;,    [UI_SCREEN_ID_PLAN_LIST] = &#123; .name = &quot;plan_list&quot;,  .image_path = &quot;F:/jihuaqingdan.png&quot;, .create = ... &#125;,    [UI_SCREEN_ID_AI_QA]     = &#123; .name = &quot;ai_qa&quot;,     .image_path = &quot;F:/aiduihua.png&quot;,     .create = ... &#125;,    // ... 共 6 个页面&#125;;
+
+tile 切换时的自动行为：
+
+恢复水平滑动方向（安全保护）
+切换到 Home → 恢复 home_refresh_timer
+切换到其他页面 → 暂停 home_refresh_timer
+
+4.2 ui_theme — 主题系统纯头文件，只包含 #define 常量，无运行时开销。
+
 
 
 分类
-标签
-包含文件
+常量数量
+示例
 
 
 
-主题系统
-theme &#x2F; variable &#x2F; light-mode &#x2F; dark-mode
-variables.css
+颜色
+16 个
+UI_COLOR_PRIMARY (0xffd54a)
 
 
-全局样式
-global &#x2F; background &#x2F; scrollbar &#x2F; base
-custom.css &#x2F; background.css &#x2F; base.css &#x2F; scrollbar.css
+字体
+8 个
+UI_FONT_TITLE (&amp;lv_font_montserrat_20)
 
 
-布局组件
-layout &#x2F; component &#x2F; navigation &#x2F; header &#x2F; footer
-navigation.css &#x2F; header-text.css &#x2F; footer.css
+尺寸
+5 个
+UI_HEADER_HEIGHT (35)
 
 
-内容排版
-content &#x2F; typography &#x2F; code &#x2F; highlight &#x2F; table &#x2F; meta
-typography.css &#x2F; tables.css &#x2F; code-highlight.css &#x2F; post-meta.css
+4.3 ui_menu_detail_page — 菜单→详情导航框架解决的问题： 5 个页面（AI QA、Timing、Calendar、Plan List、Settings）都有完全相同的菜单→详情切换逻辑，原来每个页面重复实现 50-80 行样板代码。
+核心数据结构：
+typedef struct &#123;    lv_obj_t *screen;                    // tile 容器（不可销毁）    lv_obj_t *menu_page;                 // 菜单页面（带图片，可隐藏/显示）    lv_obj_t *detail_page;               // 详情页面（可创建/销毁）    ui_detail_create_cb_t detail_create_cb;   // 详情创建回调    ui_detail_destroy_cb_t detail_destroy_cb; // 详情销毁回调    void *user_data;                     // 传递给回调的用户数据    ui_menu_view_action_t menu_action;   // 存储在结构体内（避免悬空指针）    bool detail_created;&#125; ui_menu_detail_page_t;
 
+⚠️ 关键约束（二次开发时必须遵守）：
 
-卡片与表面
-card &#x2F; surface &#x2F; shadow
-cards.css
+detail_create_cb 回调内必须：
 
+在 parent（即 ctx-&gt;screen &#x3D; tile）上创建 page = lv_obj_create(parent)
+创建完成后设置 ctx-&gt;detail_page = page
+否则 show_detail() 会因为 detail_page == NULL 而返回，导致页面不显示
 
-页面专用
-page &#x2F; about
-about-page.css
 
+menu_action 必须存储在结构体内（不能是局部变量），因为 ui_menu_view_create 只保存了指针引用。
 
-响应式设计
-responsive &#x2F; mobile &#x2F; media-query
-responsive.css
 
+4.4 ui_back_button — 返回按钮组件lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
 
+创建一个 30×30 圆形透明按钮，带 LV_SYMBOL_LEFT 图标。被以下模块使用：
 
-模块详解主题系统variables.css - CSS 自定义属性
-标签:
+ui_menu_detail_page_create_detail_header() — 通用标题栏
+settings_common_styles.c — 设置页面标题栏
 
-#theme
-#variable
-#light-mode
-#dark-mode
+4.5 home — 主页模块组成： home_view.c（UI 布局） + home_refresh.c（数据刷新）
+home_view 暴露的接口：
+void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
 
+home_refresh 的刷新策略：
 
-功能:定义明亮模式与暗黑模式的 CSS 变量。
 
-主要变量:
 
+周期
+操作
 
 
 
+每 1 秒
+刷新时间显示
 
-变量名
-用途
 
+每 10 秒
+刷新 WiFi + 电量状态
 
 
-–hl-bg
-代码块背景
+每 60 秒
+刷新日期 + 天气显示
 
 
-–primary-color
-主题色
+每 1800 秒
+调用 weather_service_refresh() 重新请求天气 API
 
 
-–hover-color
-悬停颜色
+优化点： home_refresh_timer 在用户滑离 Home 页面时自动暂停，返回时恢复。
+4.6 menu — 菜单视图void ui_menu_view_create(lv_obj_t *parent, const char *image_path, const ui_menu_view_action_t *view_action);
 
+行为：
 
-–text-color
-正文颜色
+如果 image_path 指向的文件存在 → 显示图片（lv_img）
+如果文件不存在 → 显示 LV_SYMBOL_IMAGE 占位符图标
+如果 view_action 有回调 → 图片可点击，点击触发回调
 
+注意： 图片路径格式为 &quot;F:/xxx.png&quot;，其中 F: 对应设备 Flash 存储的文件系统挂载点。
+4.7 settings — 设置模块（最复杂的子系统）Settings 使用三级导航结构：
+┌─────────────┐     点击图片      ┌─────────────┐     点击设置项     ┌─────────────┐│  menu_page  │ ────────────────→ │ detail_page │ ────────────────→ │  sub_page   ││  (菜单图片)  │                   │ (11项设置列表)│                   │ (具体设置界面)│└─────────────┘ ←──────────────── └─────────────┘ ←──────────────── └─────────────┘                    返回按钮                           返回按钮
 
-–card-bg
-卡片背景
+11 个设置项：
 
 
-–card-border
-卡片边框
 
+ID
+名称
+子页面
 
-–card-shadow
-卡片阴影
 
 
+0
+Wi-Fi
+✅ 已实现（setting_wifi/）
 
-主题选择器:
-html:not([data-theme&#x3D;”dark”])html[data-theme&#x3D;”dark”]
 
+1
+Bluetooth
+❌ NULL（未实现）
 
 
-全局样式custom.css - 主入口
-标签:
+2
+Brightness
+✅ 已实现（setting_brightness/）
 
-#entry
-#import
-#aggregator
 
+3
+Sleep Timer
+❌ NULL
 
-功能:聚合所有 CSS 模块。
 
-引入顺序:
+4
+Baidu Netdisk
+❌ NULL
 
 
+5
+Volume
+❌ NULL
 
-variables.css
-background.css
-base.css
-scrollbar.css
-cards.css
-navigation.css
-code-highlight.css
-tables.css
-typography.css
-about-page.css
-header-text.css
-footer.css
-post-meta.css
-responsive.css
 
+6
+Do Not Disturb
+❌ NULL
 
-background.css - 网站背景
-标签:
 
-#background
-#light-mode
-#dark-mode
+7
+Night Screen Off
+❌ NULL
 
 
-功能:根据主题切换背景图。
+8
+WeChat Binding
+❌ NULL
 
-背景图:
 
+9
+System Update
+❌ NULL
 
 
+10
+Factory Reset
+❌ NULL
 
 
-模式
-图片
+⚠️ 注意： settings_manager 内部管理了 sub_page 的创建&#x2F;销毁，与 ui_menu_detail_page 框架独立。back_event_cb 由 settings_screen.c 提供，用于从 detail 返回到 menu。
+4.8 WiFi 设置子页面（setting_wifi）这是设置模块中最复杂的子页面，包含：
 
+WiFi 扫描（定时器驱动，300ms 周期）
+AP 列表展示（信号强度、SSID、加密状态、连接状态）
+密码输入页面（textarea + keyboard）
+自动排序（已连接 AP 优先，然后按信号强度）
 
+⚠️ 注意： WiFi 子页面使用 malloc 分配 SSID 副本（ssid_copy = malloc(MAX_SSID_LEN)），需要在事件回调中 free。
 
-明亮模式
-&#x2F;img&#x2F;light-bg.png
+五、数据流与刷新机制5.1 数据流向┌──────────────────────┐│     service 层        ││  ┌────────────────┐  ││  │ time_service    │──┼──→ home_view_set_time()│  │ weather_service │──┼──→ home_view_set_weather()│  │ system_status   │──┼──→ home_view_set_wifi()│  │                 │──┼──→ home_view_set_battery()│  └────────────────┘  │└──────────────────────┘
 
+Home 页面是唯一有定时刷新的页面。其他页面的数据在创建时获取一次，后续更新依赖用户交互（如 WiFi 扫描定时器）。
+5.2 事件流用户触摸事件    │    ▼LVGL 输入设备驱动（触摸屏）    │    ▼lv_tileview 事件处理    │    ├── 滑动 → LV_EVENT_VALUE_CHANGED → ui_manager_handle_tile_change()    │    └── 点击 → LV_EVENT_CLICKED                │                ├── menu_view: ui_menu_view_handle_click()                │       → ui_menu_detail_page_show_detail()                │           → detail_create_cb() [首次]                │           → 禁用滑动 + 隐藏 menu + 显示 detail                │                └── back_button: xxx_on_back_click()                        → ui_menu_detail_page_show_menu()                            → lv_obj_del(detail_page)                            → 启用滑动 + 显示 menu
 
-暗黑模式
-&#x2F;img&#x2F;dark-bg.png
 
+六、公共 API 参考6.1 ui_manager.hvoid ui_manager_init(void);                           // 初始化 UI（首次调用）void ui_manager_go_back(void);                        // 返回 Homeconst char *ui_manager_get_menu_image_path(ui_screen_id_t screen_id);  // 获取菜单图片路径// 页面跳转void ui_manager_show_home_screen(void);void ui_manager_show_plan_list_screen(void);void ui_manager_show_ai_qa_screen(void);void ui_manager_show_timing_screen(void);void ui_manager_show_calendar_screen(void);void ui_manager_show_settings_screen(void);// 滑动控制void ui_manager_set_tile_swipe_enabled(bool enabled);
 
+6.2 ui_menu_detail_page.hvoid ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,    uint32_t bg_color,    const char *menu_image_path,    ui_detail_create_cb_t detail_create_cb,    ui_detail_destroy_cb_t detail_destroy_cb,    void *user_data);void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
 
-目标元素:
-#web_bg
+6.3 ui_back_button.hlv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
 
+6.4 home_view.htypedef struct &#123;    int year, hour, minute, weekday, month, day;    int temperature;    const char *weather_text;    int wifi_connected, wifi_level;    int battery_percent, battery_charging;&#125; ui_home_view_model_t;void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
 
+6.5 ui_screen_ids.htypedef enum &#123;    UI_SCREEN_ID_NONE = -1,    UI_SCREEN_ID_HOME = 0,    UI_SCREEN_ID_PLAN_LIST,    UI_SCREEN_ID_AI_QA,    UI_SCREEN_ID_TIMING,    UI_SCREEN_ID_CALENDAR,    UI_SCREEN_ID_SETTINGS,    UI_SCREEN_ID_COUNT       // = 6&#125; ui_screen_id_t;
 
-base.css - 基础调整
-标签:
 
-#base
-#global
+七、添加新页面的步骤步骤 1：创建文件project/ui/my_feature/├── my_feature_screen.h└── my_feature_screen.c
 
+步骤 2：实现代码（模板）/* my_feature_screen.h */#ifndef UI_MY_FEATURE_SCREEN_H#define UI_MY_FEATURE_SCREEN_H#include &quot;lvgl/lvgl.h&quot;void ui_my_feature_screen_create(lv_obj_t *screen);#endif/* my_feature_screen.c */#include &quot;my_feature_screen.h&quot;#include &quot;../ui_manager.h&quot;#include &quot;../ui_menu_detail_page.h&quot;#include &quot;../ui_theme.h&quot;typedef struct &#123;    ui_menu_detail_page_t base;    /* 你的页面状态 */&#125; ui_my_feature_state_t;static ui_my_feature_state_t g_ui;static void on_back(lv_event_t *e) &#123;    (void)e;    ui_menu_detail_page_show_menu(&amp;g_ui.base);&#125;static void create_detail(lv_obj_t *parent, void *ud) &#123;    (void)ud;    lv_obj_t *page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));    lv_obj_center(page);    lv_obj_set_style_bg_color(page, lv_color_hex(UI_COLOR_BG_DETAIL), 0);    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);    lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);    g_ui.base.detail_page = page;  /* ⚠️ 必须设置 */    ui_menu_detail_page_create_detail_header(page, &quot;My Feature&quot;, on_back);    /* 在 page 上创建你的内容 */&#125;void ui_my_feature_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui.base, screen, UI_COLOR_BG_DETAIL,        ui_manager_get_menu_image_path(UI_SCREEN_ID_MY_FEATURE),        create_detail, NULL, NULL);&#125;
 
-功能:对 pre 元素统一设置圆角与间距。
+步骤 3：注册到 ui_manager
+ui_screen_ids.h — 在 UI_SCREEN_ID_SETTINGS 后添加 UI_SCREEN_ID_MY_FEATURE
 
-规则:
-border-radius: 8pxmargin: 1em 0
+ui_manager.c — 添加：
+#include &quot;my_feature/my_feature_screen.h&quot;static void ui_manager_create_my_feature_screen(lv_obj_t *screen) &#123;    ui_my_feature_screen_create(screen);&#125;// 在 g_ui_manager_screens 数组中添加：[UI_SCREEN_ID_MY_FEATURE] = &#123;    .name = &quot;my_feature&quot;,    .image_path = &quot;F:/myicon.png&quot;,    .create = ui_manager_create_my_feature_screen&#125;,
 
+ui_manager.h — 添加 void ui_manager_show_my_feature_screen(void);
 
+txw82xApp.cdkproj — 在 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加新 .c 文件引用
 
-scrollbar.css - 滚动条样式
-标签:
 
-#scrollbar
-#global
+步骤 4：准备菜单图片将 240×240 或适当尺寸的 PNG 图片放入设备 Flash，路径与 image_path 一致（如 &quot;F:/myicon.png&quot;）。
 
+八、依赖关系8.1 头文件依赖图ui_theme.h ◄─────────────────────────────────────────────────────┐    ▲                                                             │    │ (所有文件都 include)                                         │    │                                                             │ui_back_button.h ◄── ui_menu_detail_page.h ◄── 各 screen.c       │    ▲                   ▲                                        │    │                   │                                        │    │         menu/menu_view.h ◄──────────────────────────────────┘    │    └── settings_common_styles.h ◄── settings 子模块
 
-功能:自定义 Webkit 滚动条。
+8.2 service 层依赖
 
-规格:
 
+UI 模块
+依赖的 service
+调用的函数
 
 
 
+home_refresh
+time_service
+time_service_get_datetime()
 
-属性
-数值
 
+home_refresh
+weather_service
+weather_service_get_data(), weather_service_refresh()
 
 
-宽度
-8px
+home_refresh
+system_status_service
+system_status_service_get_data()
 
 
-高度
-8px
+calendar_screen
+time_service
+time_service_get_datetime()
 
 
-圆角
-4px
+plan_list_screen
+time_service
+time_service_get_datetime()
 
 
+setting_wifi
+wifi_service
+wifi_service_init(), wifi_service_scan(), wifi_service_connect() 等
 
-布局组件navigation.css - 导航栏
-标签:
 
-#navigation
-#component
-#layout
+8.3 LVGL 组件使用统计
 
 
-功能:控制导航栏颜色、悬停效果与固定导航栏样式。
+LVGL 组件
+使用页面
 
-特性:
 
-标题强制白色
-下拉菜单悬停变蓝
-固定导航栏支持毛玻璃效果
 
+lv_obj
+所有页面（通用容器）
 
 
+lv_label
+所有页面（文本显示）
 
-header-text.css - 页头文字
-功能:控制页面标题颜色。
 
+lv_btn
+timing, plan_list, calendar, settings
 
-footer.css - 页脚
-功能:页脚文字统一白色。
 
+lv_img
+menu（菜单图片）
 
-内容排版typography.css - 排版
-标签:
 
-#typography
-#content
+lv_slider
+brightness（亮度调节）
 
 
-功能:
+lv_textarea
+wifi（密码输入）
 
-页面标题居中
-正文两端对齐
-视频自适应
-Mermaid 透明背景
 
+lv_keyboard
+wifi（密码输入）
 
 
+lv_calendar
+calendar（月历）
 
-tables.css - 表格
-功能:定义明亮与暗黑模式下的表格样式。
 
+lv_roller
+calendar（年月选择器）
 
-code-highlight.css - 代码高亮
-标签:
 
-#code
-#highlight
-#vscode
-#dark-mode
-#light-mode
-#inline
+lv_tileview
+ui_manager（顶层导航）
 
 
-功能:
 
-代码块 (figure.highlight) 双主题 Token 配色：明亮 (GitHub Primer 风格) &#x2F; 暗黑 (VSCode Dark+ Modern)
-行内代码 (.container code) 双主题适配：明亮 #cf222e &#x2F; 暗黑 #ce9178
+九、已知限制与注意事项9.1 内存限制
+所有 6 个 tile 在 ui_manager_create_root() 时一次性全部创建，不支持懒加载
+每个 tile 创建后即使不可见也占用 LVGL 内存
+ui_home_create_flower() 创建 11 个 LVGL 对象绘制一朵花，可优化为 Canvas 或图片
 
+9.2 图片资源
+菜单图片存储在设备 Flash（路径 F:/xxx.png）
+图片不存在时显示占位图标（LV_SYMBOL_IMAGE）
+需要确保 menu_view.c 中 lv_fs_open 的文件系统驱动已正确注册
 
+9.3 WiFi 子页面
+使用 malloc/free 管理 SSID 字符串副本
+WiFi 扫描定时器有 9 秒超时限制（300ms × 30 次）
+密码输入要求最少 8 字符
 
+9.4 Settings 三级导航
+Settings 的 detail_page 由 settings_manager 内部管理，与 ui_menu_detail_page 框架的 detail_page 概念不同
+settings_manager 内部还有 sub_page 层级
+添加新设置项需要修改 settings_manager.c 中的 g_ui_settings_page_configs 数组
 
-post-meta.css - 文章元信息
-功能:控制文章标题、日期、标签等颜色。
+9.5 字体
+使用 LVGL 内置的 Montserrat 字体（10&#x2F;12&#x2F;14&#x2F;16&#x2F;18&#x2F;20&#x2F;22&#x2F;48）
+仅支持英文 + 数字 + 特殊符号
+不支持中文显示（如需中文，需添加自定义字库）
 
+9.6 硬编码的文件路径所有图片路径硬编码为 &quot;F:/xxx.png&quot;，如需修改文件系统挂载点，需全局替换 ui_manager.c 中的 image_path 字段。
 
-卡片与表面cards.css - 卡片表面
-标签:
+十、编译与调试10.1 编译使用 CDK IDE 打开 project/txw82xApp.cdkproj，确保所有新增的 .c 文件已添加到工程的 ui 虚拟文件夹中。
+10.2 添加新文件到工程在 txw82xApp.cdkproj 的 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加：
+&lt;File Name=&quot;ui/my_feature/my_feature_screen.c&quot;&gt;  &lt;FileOption/&gt;&lt;/File&gt;
 
-#card
-#surface
-#shadow
+10.3 调试技巧
+查看 LVGL 对象数量： 在调试器中查看 lv_obj_count 确认对象是否正确销毁
+检查 tile 切换： 在 ui_manager_handle_tile_change 中设断点，确认 screen_id 正确
+WiFi 调试： menu_view.c 中的文件存在检查可临时恢复 printf 语句
+内存不足： 如果页面创建失败，检查 lv_mem_monitor 确认可用内存
 
+10.4 常见问题排查
 
-功能:统一所有卡片容器样式。
 
-包含:
+现象
+可能原因
+排查方法
 
-文章卡片
-侧边栏
-分页按钮
-导航菜单
-TOC
 
 
+页面不显示
+detail_page 未设置
+检查 callback 中是否有 g_xxx.base.detail_page = page
 
 
-页面专用about-page.css - 关于页面
-标签:
+无法滑动
+swipe 被禁用未恢复
+检查 show_menu 是否正确调用
 
-#about
-#page
-#hero
-#grid
 
+进入详情死机
+对象创建过多
+检查 LVGL 对象数量限制
 
-功能:构建完整 About 页面布局。
 
-模块:
+菜单图片不显示
+Flash 文件不存在
+检查 F:/ 下的图片文件
 
-Hero 区域
-信息网格
-社交链接
-响应式布局
 
+中文乱码
+字体不支持中文
+需要添加中文字库
 
 
 
-响应式设计responsive.css - 移动端适配
-标签:
+附录：文件变更记录
 
-#responsive
-#mobile
 
+日期
+变更
+说明
 
-功能:优化移动端文章信息区布局。
 
-调整:
 
-缩减 padding
-隐藏部分 meta
-标题两端对齐
+2026-05-09
+新增 ui_theme.h
+统一主题系统
 
 
+2026-05-09
+新增 ui_back_button.h/.c
+可复用返回按钮
 
 
-标签索引
+2026-05-09
+新增 ui_menu_detail_page.h/.c
+菜单→详情导航框架
 
 
-标签
-涉及文件
+2026-05-09
+重构 5 个 screen 文件
+使用新框架消除样板代码
 
 
+2026-05-09
+修复 home_view.c
+花朵位置 bug
 
-#theme
-variables.css
 
+2026-05-09
+优化 ui_manager.c
+Home 定时器按需暂停
 
-#background
-background.css
 
-
-#scrollbar
-scrollbar.css
-
-
-#navigation
-navigation.css
-
-
-#header
-header-text.css
-
-
-#footer
-footer.css
-
-
-#typography
-typography.css
-
-
-#table
-tables.css
-
-
-#code
-code-highlight.css
-
-
-#highlight
-code-highlight.css
-
-
-#vscode
-code-highlight.css
-
-
-#inline
-code-highlight.css
-
-
-#meta
-post-meta.css
-
-
-#card
-cards.css
-
-
-#about
-about-page.css
-
-
-#responsive
-responsive.css
+2026-05-09
+清理 menu_view.c
+移除 debug printf
 
 
 ]]></content>
       <categories>
-        <category>Hexo开发文档</category>
+        <category>嵌入式开发</category>
+        <category>项目文档</category>
       </categories>
       <tags>
-        <tag>CSS</tag>
-        <tag>样式</tag>
-        <tag>主题定制</tag>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>前端</tag>
-        <tag>文档</tag>
+        <tag>LVGL</tag>
+        <tag>UI架构</tag>
+        <tag>代码移交</tag>
+        <tag>嵌入式</tag>
+        <tag>项目文档</tag>
       </tags>
   </entry>
   <entry>
@@ -4171,16 +3588,599 @@ TXW82x (C-SKY CK810 + lwIP)
         <category>项目文档</category>
       </categories>
       <tags>
+        <tag>嵌入式</tag>
         <tag>C语言</tag>
         <tag>MSI</tag>
-        <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
         <tag>H.264</tag>
+        <tag>TXW82x</tag>
+        <tag>JPEG</tag>
         <tag>RTSP</tag>
         <tag>RTP</tag>
-        <tag>JPEG</tag>
-        <tag>Wi-Fi图传</tag>
         <tag>流媒体</tag>
+        <tag>Wi-Fi图传</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</title>
+    <url>/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/</url>
+    <content><![CDATA[嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统
+项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS
+
+
+一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：
+
+
+
+类别
+问题
+严重程度
+
+
+
+架构
+5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行）
+🔴 高
+
+
+Bug
+home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行
+🟡 中
+
+
+性能
+Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU
+🟡 中
+
+
+代码质量
+menu_view.c 中残留 3 处 printf 调试语句
+🟡 中
+
+
+可维护性
+颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码
+🟡 中
+
+
+可维护性
+字体 &amp;lv_font_montserrat_20 等在 30+ 处硬编码
+🟢 低
+
+
+健壮性
+所有 lv_obj_create() 调用均无 NULL 检查
+🟡 中
+
+
+年限
+日历年份范围硬编码 2000-2040，2041 年后失效
+🟢 低
+
+
+1.2 重构目标
+✅ 核心功能不改变
+✅ 消除样板代码重复
+✅ 建立统一的主题&#x2F;样式系统
+✅ 修复已知 Bug
+✅ 优化定时器性能
+
+
+二、新增文件（3 个基础组件）2.1 ui_theme.h — 统一主题系统文件路径： project/ui/ui_theme.h
+作用： 集中定义所有 UI 颜色、字体、尺寸常量，消除硬编码魔法数字。
+/* ── Primary Colors ── */#define UI_COLOR_PRIMARY        0xffd54a    /* 主题黄 */#define UI_COLOR_PRIMARY_DARK   0x2a2113    /* 深色文字 *//* ── Background Colors ── */#define UI_COLOR_BG_DARK        0x111217    /* Home 背景 */#define UI_COLOR_BG_SCREEN      0x1a1c24    /* 屏幕背景 */#define UI_COLOR_BG_DETAIL      0x171b24    /* 详情页背景 */#define UI_COLOR_BG_CARD        0xffffff    /* 卡片白底 */#define UI_COLOR_BG_LIGHT       0xf7f8fc    /* 浅灰背景 *//* ── Text Colors ── */#define UI_COLOR_TEXT_LIGHT     0xf1f3ff    /* 浅色文字 */#define UI_COLOR_TEXT_DARK      0x1f2736    /* 深色文字 */#define UI_COLOR_TEXT_MUTED     0x70809b    /* 灰色文字 */#define UI_COLOR_TEXT_SECONDARY 0x536076    /* 次要文字 *//* ── Accent Colors ── */#define UI_COLOR_BLUE           0x206FE5    /* 蓝色 */#define UI_COLOR_BLUE_DEEP      0x2f64f2    /* 深蓝 */#define UI_COLOR_GREEN          0x8bd450    /* 绿色（充电） */#define UI_COLOR_RED            0xff7b72    /* 红色（低电量） */#define UI_COLOR_ACCENT_ICON    0x6a78ff    /* 图标蓝 *//* ── Common Dimensions ── */#define UI_HEADER_HEIGHT        35#define UI_HEADER_RADIUS        16#define UI_CORNER_RADIUS        14#define UI_CARD_RADIUS          18#define UI_BTN_RADIUS           23/* ── Common Fonts ── */#define UI_FONT_SMALL           (&amp;lv_font_montserrat_10)#define UI_FONT_TINY            (&amp;lv_font_montserrat_12)#define UI_FONT_BODY            (&amp;lv_font_montserrat_14)#define UI_FONT_MEDIUM          (&amp;lv_font_montserrat_16)#define UI_FONT_LARGE           (&amp;lv_font_montserrat_18)#define UI_FONT_TITLE           (&amp;lv_font_montserrat_20)#define UI_FONT_HEADING         (&amp;lv_font_montserrat_22)#define UI_FONT_TIME            (&amp;lv_font_montserrat_48)
+
+影响范围： 替换了 50+ 处硬编码颜色值，30+ 处硬编码字体引用。
+
+2.2 ui_back_button.h/.c — 可复用返回按钮组件文件路径： project/ui/ui_back_button.h、project/ui/ui_back_button.c
+作用： 封装了 5 个页面重复的返回按钮创建逻辑。
+// 创建一个带左箭头图标的 30x30 圆形透明按钮lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
+
+内部实现：
+
+尺寸：30×30，圆角 15（圆形）
+图标：LV_SYMBOL_LEFT，使用 UI_FONT_LARGE 字体
+颜色：UI_COLOR_PRIMARY_DARK
+自动绑定点击事件回调
+
+替换效果：
+// 原始代码（每个页面重复 10+ 行）：back_button = lv_obj_create(header_panel);lv_obj_remove_style_all(back_button);lv_obj_set_size(back_button, 30, 30);lv_obj_set_style_radius(back_button, 15, 0);lv_obj_set_style_bg_opa(back_button, LV_OPA_TRANSP, 0);lv_obj_set_style_border_width(back_button, 0, 0);lv_obj_set_style_shadow_width(back_button, 0, 0);lv_obj_add_flag(back_button, LV_OBJ_FLAG_CLICKABLE);lv_obj_add_event_cb(back_button, click_cb, LV_EVENT_CLICKED, NULL);back_label = lv_label_create(back_button);lv_label_set_text(back_label, LV_SYMBOL_LEFT);lv_obj_set_style_text_color(back_label, lv_color_hex(0x2a2113), 0);lv_obj_set_style_text_font(back_label, &amp;lv_font_montserrat_18, 0);lv_obj_center(back_label);// 重构后（1 行）：back_btn = ui_back_button_create(header, back_click_cb);
+
+
+2.3 ui_menu_detail_page.h/.c — 可复用菜单→详情导航框架文件路径： project/ui/ui_menu_detail_page.h、project/ui/ui_menu_detail_page.c
+作用： 封装了 5 个页面完全重复的 menu→detail 切换逻辑，包括：
+
+菜单页面初始化（背景色、大小、滚动设置）
+点击菜单图片进入详情页
+详情页创建（通过回调）
+详情页销毁（通过回调）
+返回菜单页
+Tile 滑动方向的自动管理
+
+数据结构typedef struct &#123;    lv_obj_t *screen;               /* tile 容器 */    lv_obj_t *menu_page;            /* 菜单页面 */    lv_obj_t *detail_page;          /* 详情页面 */    ui_detail_create_cb_t detail_create_cb;   /* 详情创建回调 */    ui_detail_destroy_cb_t detail_destroy_cb; /* 详情销毁回调 */    void *user_data;                /* 用户数据 */    ui_menu_view_action_t menu_action;        /* 菜单点击动作 */    bool detail_created;            /* 详情是否已创建 */&#125; ui_menu_detail_page_t;
+
+API 说明/* 初始化菜单→详情页面框架 */void ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,              /* 父容器（tile） */    uint32_t bg_color,             /* 屏幕背景色 */    const char *menu_image_path,   /* 菜单图片路径 */    ui_detail_create_cb_t detail_create_cb,    /* 详情创建回调 */    ui_detail_destroy_cb_t detail_destroy_cb,  /* 详情销毁回调 */    void *user_data                /* 传递给回调的用户数据 */);/* 切换到菜单页面（销毁详情页） */void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);/* 切换到详情页面（首次调用时通过回调创建） */void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);/* 创建详情页顶部标题栏（带返回按钮） */lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
+
+内部流程┌─────────────────────────────────────────────────────┐│                    init() 调用                       ││  1. lv_memset 清零                                    ││  2. 设置 screen / callback / user_data                ││  3. 创建 menu_page（背景色、大小、不可滚动）             ││  4. 设置 menu_action 回调 → on_menu_click             ││  5. 调用 ui_menu_view_create 创建菜单图片              │└─────────────────────────────────────────────────────┘                        │        用户点击菜单图片                        ▼┌─────────────────────────────────────────────────────┐│              show_detail() 调用                      ││  1. 检查 ctx / menu_page / screen 非 NULL            ││  2. 如果 detail_page == NULL：                        ││     → 调用 detail_create_cb(ctx-&gt;screen, user_data)  ││     → 回调内创建 page 对象并设置 ctx-&gt;detail_page     ││  3. 禁用 tile 滑动 (ui_manager_set_tile_swipe_enabled) ││  4. 隐藏 menu_page (LV_OBJ_FLAG_HIDDEN)               ││  5. 将 detail_page 移到前台                            │└─────────────────────────────────────────────────────┘                        │        用户点击返回按钮                        ▼┌─────────────────────────────────────────────────────┐│              show_menu() 调用                        ││  1. 销毁 detail_page (lv_obj_del)                     ││  2. 调用 detail_destroy_cb 清理子状态                  ││  3. 启用 tile 滑动                                    ││  4. 显示 menu_page                                    ││  5. 将 menu_page 移到前台                              │└─────────────────────────────────────────────────────┘
+
+
+三、重构的文件（9 个）3.1 ai_qa_screen.c — AI 问答页面变更概要： 227 行 → 130 行，消除全部样板代码。
+
+
+
+项目
+原始实现
+重构后
+
+
+
+状态结构
+独立的 ui_ai_qa_screen_t
+嵌入 ui_menu_detail_page_t base
+
+
+菜单初始化
+手动创建 menu_page + 设置属性
+调用 ui_menu_detail_page_init
+
+
+切换逻辑
+show_menu() &#x2F; show_detail() &#x2F; destroy_detail() 各 10 行
+自动由框架处理
+
+
+返回按钮
+手动创建 10+ 行
+ui_menu_detail_page_create_detail_header
+
+
+前向声明
+4 个 static 函数
+2 个（create_detail + on_back_click）
+
+
+核心回调：
+static void ui_ai_qa_create_detail(lv_obj_t *parent, void *user_data)&#123;    page = lv_obj_create(parent);          // 直接在 tile 上创建    lv_obj_remove_style_all(page);    // ... 设置样式 ...    g_ui_ai_qa_page.detail_page = page;    // 关键：设置 detail_page    ui_menu_detail_page_create_detail_header(page, &quot;AI Q&amp;A&quot;, ui_ai_qa_on_back_click);    // ... 创建内容 ...&#125;
+
+
+3.2 timing_screen.c — 计时器页面变更概要： 325 行 → 280 行。
+特殊处理： 计时器页面的 detail 有自定义的 tab 栏（Countdown&#x2F;Stopwatch&#x2F;Pomodoro）和 preset 按钮网格，不使用 create_detail_header，而是自己创建带返回按钮的 header_row。
+
+
+
+项目
+变更
+
+
+
+状态结构
+ui_timing_screen_t → ui_timing_state_t（嵌入 base）
+
+
+菜单初始化
+使用 ui_menu_detail_page_init
+
+
+Tab 创建
+提取为 ui_timing_create_tabs() 子函数
+
+
+Preset 创建
+提取为 ui_timing_create_presets() 子函数
+
+
+返回回调
+ui_timing_handle_back_click 直接调用 ui_menu_detail_page_show_menu
+
+
+
+3.3 calendar_screen.c — 日历页面变更概要： 397 行 → 430 行（功能不变，增加了年份范围到 2050 年）。
+特殊处理： 日历页面有复杂的子组件（calendar widget + year&#x2F;month picker），需要保持独立管理。
+
+
+
+项目
+变更
+
+
+
+状态结构
+ui_calendar_view_t → ui_calendar_state_t（嵌入 base）
+
+
+日历组件
+提取为 ui_calendar_create_calendar_widget()
+
+
+滚轮组件
+提取为 ui_calendar_create_roller() 复用函数
+
+
+Picker
+提取为 ui_calendar_create_picker()
+
+
+年份范围
+扩展到 2000-2050（原 2000-2040）
+
+
+返回回调
+直接调用 ui_menu_detail_page_show_menu
+
+
+
+3.4 plan_list_screen.c — 计划列表页面变更概要： 340 行 → 300 行。
+
+
+
+项目
+变更
+
+
+
+状态结构
+ui_plan_list_screen_t → ui_plan_list_state_t（嵌入 base）
+
+
+菜单初始化
+使用 ui_menu_detail_page_init
+
+
+日期条
+保持独立的水平滚动 Flex 布局
+
+
+退出按钮
+右下角圆形 “exit” 按钮保持不变
+
+
+
+3.5 settings_screen.c — 设置页面变更概要： 98 行 → 52 行。
+特殊处理： 设置页面有独特的 3 级导航结构（menu → settings list → sub-page），因此 create_detail 回调直接委托给 settings_manager_create_detail_page()，后者返回创建的页面对象。
+static void ui_settings_create_detail(lv_obj_t *parent, void *user_data)&#123;    page = ui_settings_manager_create_detail_page(parent, back_click_cb);    if(page != NULL) &#123;        g_ui_settings.base.detail_page = page;    &#125;&#125;
+
+
+3.6 settings_common_styles.c — 设置通用样式变更： 使用 ui_back_button_create 替代手动创建返回按钮，使用 ui_theme.h 常量替代硬编码颜色。
+
+
+
+原始
+重构后
+
+
+
+lv_color_hex(0xffe454)
+lv_color_hex(UI_COLOR_PRIMARY)
+
+
+lv_color_hex(0x2e2612)
+lv_color_hex(UI_COLOR_PRIMARY_DARK)
+
+
+lv_color_hex(0x171b24)
+lv_color_hex(UI_COLOR_BG_DETAIL)
+
+
+lv_color_hex(0xffffff)
+lv_color_hex(UI_COLOR_BG_CARD)
+
+
+&amp;lv_font_montserrat_20
+UI_FONT_TITLE
+
+
+手动创建返回按钮 10 行
+ui_back_button_create(header, back_event_cb) 1 行
+
+
+
+3.7 settings_manager.c — 设置管理器变更： 引入 ui_theme.h，移除 back_event_cb 参数传递问题。
+
+3.8 settings_detail_screen.c — 设置详情列表变更： 所有硬编码颜色和字体替换为 ui_theme.h 常量。
+
+
+
+原始
+重构后
+
+
+
+lv_color_hex(0xffffff)
+lv_color_hex(UI_COLOR_BG_CARD)
+
+
+lv_color_hex(0xd7dfea)
+lv_color_hex(UI_COLOR_BORDER)
+
+
+lv_color_hex(0x6a78ff)
+lv_color_hex(UI_COLOR_ACCENT_ICON)
+
+
+lv_color_hex(0x1f2736)
+lv_color_hex(UI_COLOR_TEXT_DARK)
+
+
+lv_color_hex(0x70809b)
+lv_color_hex(UI_COLOR_TEXT_MUTED)
+
+
+lv_color_hex(0xffe454)
+lv_color_hex(UI_COLOR_PRIMARY)
+
+
+
+3.9 menu_view.c — 菜单视图变更：
+
+✅ 移除 3 处 printf 调试语句
+✅ 添加 #include &lt;stdbool.h&gt;（修复 bool 类型编译警告）
+✅ 颜色和字体改用 ui_theme.h 常量
+
+
+3.10 home_view.c — 主页视图变更：
+
+🐛 修复 Bug： 删除 lv_obj_set_pos(flower, 0, 0) 冗余调用（第 119 行，在花瓣循环内每轮都错误地重设 flower 容器位置）
+✅ 所有字体引用改用 ui_theme.h 常量
+✅ 颜色值改用 ui_theme.h 常量（UI_COLOR_TEXT_LIGHT、UI_COLOR_TEXT_MUTED、UI_COLOR_GREEN、UI_COLOR_RED、UI_COLOR_BG_DARK）
+
+
+3.11 ui_manager.c — UI 管理器变更：
+
+
+
+项目
+原始
+重构后
+
+
+
+背景色
+lv_color_hex(0x111217)
+lv_color_hex(UI_COLOR_BG_DARK)
+
+
+定时器优化
+Home 刷新定时器永不停止
+切换到非 Home 页面时 ui_home_refresh_stop()，返回时 ui_home_refresh_start()
+
+
+滑动保护
+无
+tile 切换时自动恢复 LV_DIR_HOR
+
+
+
+3.12 ui_manager.h — UI 管理器头文件变更： 使用 ui_theme.h 常量替代硬编码颜色。
+
+3.13 ui_screen_ids.h — 屏幕 ID 枚举变更： 保持原有 6 个页面（HOME, PLAN_LIST, AI_QA, TIMING, CALENDAR, SETTINGS）。
+
+四、Bug 修复4.1 花朵位置 Bug（home_view.c）问题： ui_home_create_flower 函数中，花瓣循环内第 119 行有：
+lv_obj_set_pos(flower, 0, 0);   // 错误！应该删除lv_obj_set_pos(petal, petal_positions[index][0], petal_positions[index][1]);
+每轮循环都错误地重设 flower 容器的位置为 (0,0)，虽然 flower 的位置由 lv_obj_align 控制所以视觉上无影响，但这是明显的复制粘贴错误。
+修复： 删除 lv_obj_set_pos(flower, 0, 0);
+4.2 Home 刷新定时器不停止（ui_manager.c）问题： home_refresh_timer 在 ui_manager_init 时启动后永不停止。即使用户滑动到其他页面，定时器仍每秒触发回调。
+修复： 在 ui_manager_handle_tile_change 中添加：
+if(screen_id == UI_SCREEN_ID_HOME) &#123;    ui_home_refresh_start();   /* 恢复定时器 */&#125; else &#123;    ui_home_refresh_stop();    /* 暂停定时器 */&#125;
+
+4.3 Tile 滑动方向不恢复（ui_manager.c）问题： ui_manager_set_tile_swipe_enabled(false) 在进入 detail 时被调用，但如果退出路径异常，swipe 方向可能永久卡在 LV_DIR_NONE。
+修复： 在 tile 切换事件处理中添加安全保护：
+lv_obj_set_scroll_dir(g_ui_manager_state.root_tileview, LV_DIR_HOR);
+
+4.4 调试 printf 残留（menu_view.c）问题： 生产代码中残留 3 处 printf，在嵌入式环境中占用 UART 带宽和 CPU。
+修复： 删除所有 printf 语句。
+4.5 页面 Crash（ui_menu_detail_page.c）问题： ui_menu_detail_page_create_detail 创建了一个多余的 wrapper page 对象，导致嵌入式平台内存溢出&#x2F;对象树异常，进入任何 detail 页面时死机。
+修复： 移除 wrapper page，让每个屏幕的 callback 直接在 ctx-&gt;screen（即 tile）上创建 detail page，并直接设置 ctx-&gt;detail_page = page。
+
+五、功能增强5.1 日历年份范围扩展
+原始：2000-2040（硬编码 41 个年份选项）
+重构后：2000-2050（51 个年份选项）
+
+
+六、文件变更统计
+
+
+文件
+原始行数
+重构后行数
+变化
+
+
+
+ui_theme.h
+—
+58
+🆕 新增
+
+
+ui_back_button.h
+—
+10
+🆕 新增
+
+
+ui_back_button.c
+—
+49
+🆕 新增
+
+
+ui_menu_detail_page.h
+—
+43
+🆕 新增
+
+
+ui_menu_detail_page.c
+—
+131
+🆕 新增
+
+
+ai_qa_screen.c
+227
+130
+⬇️ -43%
+
+
+timing_screen.c
+325
+280
+⬇️ -14%
+
+
+calendar_screen.c
+397
+430
+⬆️ +8%（年份扩展）
+
+
+plan_list_screen.c
+340
+300
+⬇️ -12%
+
+
+settings_screen.c
+98
+52
+⬇️ -47%
+
+
+settings_common_styles.c
+86
+82
+⬇️ -5%
+
+
+settings_manager.c
+198
+192
+⬇️ -3%
+
+
+settings_detail_screen.c
+169
+169
+≈ 持平
+
+
+menu_view.c
+71
+65
+⬇️ -8%
+
+
+home_view.c
+311
+308
+⬇️ -1%
+
+
+ui_manager.c
+166
+190
+⬆️ +14%（音乐+定时器）
+
+
+ui_manager.h
+16
+17
+⬆️ +1（音乐 API）
+
+
+ui_screen_ids.h
+16
+17
+⬆️ +1（音乐 ID）
+
+
+总计
+2679
+2523
+⬇️ -6%
+
+
+
+注：虽然总行数仅减少 6%，但新增了 3 个基础组件文件（291 行），消除了大量重复代码。如果不算新增组件，原有代码减少了约 16%。
+
+
+七、重构前后对比7.1 创建一个新屏幕页面的工作量重构前：
+// 需要手写 60-80 行样板代码：typedef struct &#123;    lv_obj_t *screen;    lv_obj_t *menu_page;    lv_obj_t *detail_page;    ui_menu_view_action_t menu_action;&#125; ui_xxx_screen_t;static void ui_xxx_show_menu(void) &#123; /* 8 行 */ &#125;static void ui_xxx_show_detail(void) &#123; /* 15 行 */ &#125;static void ui_xxx_destroy_detail(void) &#123; /* 5 行 */ &#125;static void ui_xxx_handle_back_click(lv_event_t *e) &#123; /* 3 行 */ &#125;static void ui_xxx_handle_menu_click(void *ud) &#123; /* 3 行 */ &#125;void ui_xxx_screen_create(lv_obj_t *screen) &#123;    // 15 行初始化代码&#125;
+
+重构后：
+typedef struct &#123;    ui_menu_detail_page_t base;&#125; ui_xxx_state_t;static ui_xxx_state_t g_ui_xxx;static void ui_xxx_create_detail(lv_obj_t *parent, void *ud) &#123;    page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    // ... 设置样式 ...    g_ui_xxx.base.detail_page = page;    ui_menu_detail_page_create_detail_header(page, &quot;Title&quot;, on_back);    // ... 创建内容 ...&#125;static void ui_xxx_on_back(lv_event_t *e) &#123;    ui_menu_detail_page_show_menu(&amp;g_ui_xxx.base);&#125;void ui_xxx_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui_xxx.base, screen, BG, IMG,                              ui_xxx_create_detail, NULL, NULL);&#125;
+
+节省： 每个新页面减少约 40-50 行样板代码。
+
+八、架构图project/ui/├── ui_theme.h                      ← 🆕 统一主题├── ui_back_button.h/.c             ← 🆕 返回按钮组件├── ui_menu_detail_page.h/.c        ← 🆕 菜单→详情导航框架├── ui_manager.h/.c                 ← UI 管理器（tile 切换、定时器）├── ui_screen_ids.h                 ← 屏幕 ID 枚举├── menu/│   └── menu_view.h/.c              ← 菜单图片视图├── home/│   ├── home_view.h/.c              ← 主页视图│   └── home_refresh.h/.c           ← 主页刷新定时器├── ai_qa/│   └── ai_qa_screen.h/.c           ← 使用框架├── timing/│   └── timing_screen.h/.c          ← 使用框架├── calendar/│   └── calendar_screen.h/.c        ← 使用框架├── plan_list/│   └── plan_list_screen.h/.c       ← 使用框架└── settings/    ├── settings_screen.h/.c         ← 使用框架    ├── settings_manager.h/.c        ← 3 级导航管理    ├── settings_common_styles.h/.c  ← 通用样式（使用新组件）    ├── settings_detail/             ← 设置列表    ├── setting_brightness/          ← 亮度设置    └── setting_wifi/               ← WiFi 设置
+
+
+九、注意事项
+menu_action 生命周期： ui_menu_view_action_t menu_action 现在存储在 ui_menu_detail_page_t 结构体内部（而非作为局部变量），避免了悬空指针问题。
+
+Detail 创建模式： 每个屏幕的 detail_create_cb 回调必须：
+
+在 parent（即 ctx-&gt;screen，也就是 tile）上创建 page 对象
+设置 g_ui_xxx.base.detail_page = page
+这是框架正确工作的关键
+
+
+Settings 特殊性： Settings 使用 3 级导航，detail_create_cb 返回 settings_manager_create_detail_page 的返回值作为 detail_page。
+
+
+
+十、后续可优化项
+
+
+优先级
+项目
+说明
+
+
+
+P1
+Lazy Loading
+首次访问 tile 时才创建内容，减少初始化内存占用
+
+
+P1
+对象创建 NULL 检查
+关键路径的 lv_obj_create() 添加 NULL 检查
+
+
+P2
+百分比&#x2F;Flex 布局
+减少硬编码像素坐标，提高屏幕适配性
+
+
+P2
+花朵 Canvas 化
+ui_home_create_flower 使用 11 个对象，可用 Canvas 或图片替代
+
+
+P2
+屏幕生命周期回调
+添加 on_enter &#x2F; on_leave &#x2F; on_destroy
+
+
+P3
+日历年份动态计算
+替代硬编码的年份选项字符串
+
+
+]]></content>
+      <categories>
+        <category>嵌入式开发</category>
+        <category>UI框架</category>
+      </categories>
+      <tags>
+        <tag>LVGL</tag>
+        <tag>UI架构</tag>
+        <tag>嵌入式</tag>
+        <tag>C语言</tag>
+        <tag>重构</tag>
+        <tag>代码优化</tag>
+        <tag>设计模式</tag>
+        <tag>TXW828</tag>
       </tags>
   </entry>
   <entry>
@@ -5049,14 +5049,798 @@ sdk/app/ui/main_ui.c
         <category>项目文档</category>
       </categories>
       <tags>
+        <tag>LVGL</tag>
+        <tag>嵌入式</tag>
         <tag>C语言</tag>
         <tag>MSI</tag>
-        <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
-        <tag>LVGL</tag>
         <tag>硬件解码</tag>
-        <tag>JPEG</tag>
         <tag>UI组件</tag>
+        <tag>TXW82x</tag>
+        <tag>JPEG</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</title>
+    <url>/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[1. 项目概述本文面向 81x_intercom_ui 工程，重点说明以下两个模块：
+
+sdk/app/video_intercom/：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。
+sdk/lib/gui/81x_demo_ui/：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。
+
+当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收对端 JPEG 并解码显示。
+系统中的两路显示通道约定如下：
+
+
+
+通道
+数据来源
+用途
+
+
+
+LCD P0 &#x2F; R_VIDEO_P0
+本地摄像头缩放流
+本地预览
+
+
+LCD P1 &#x2F; R_VIDEO_P1
+网络接收后解码的远端 JPEG
+远端画面
+
+
+2. 总体架构本机摄像头    │    ▼DVP / VPP_DATA1    │    ▼JPEG0 编码器    │    ▼视频流框架 R_RTP_JPEG    │    ▼bbm_video_tx_thread    │  JPEG 提取、1300 Byte 分片、UDP:11011    ▼======================== Wi-Fi ========================    ▼bbm_video_rx_thread    │  包校验、乱序重组、超时丢帧    ▼S_BBM_REMOTE_JPG_SRC    │    ▼SR_OTHER_JPG_REMOTE    │  设置远端输出尺寸    ▼S_JPG_DECODE    │    ▼LCD R_VIDEO_P1 ─────┐                    ├── LCDC 合成 ── 屏幕本地缩放流 P0 ──────┘LVGL OSD：页面名称、启动 Logo、按键事件
+
+这里的 LVGL 主要承担 OSD 和交互控制，不直接绘制实时视频像素。视频由 LCDC 的 P0&#x2F;P1 硬件通道输出，LVGL 页面使用透明背景叠加在视频层之上。
+3. 目录与文件职责3.1 视频传输模块
+
+
+文件
+职责
+
+
+
+sdk/app/video_intercom/video_intercom.c
+UDP socket、发送&#x2F;接收任务、协议封包、JPEG 分片与重组、远端解码流初始化
+
+
+sdk/app/video_intercom/video_intercom.h
+视频传输控制 API，与 sdk/include/bbm_protocol.h 暴露的接口一致
+
+
+sdk/include/bbm_protocol.h
+UI、音频对讲等模块使用的公共协议头文件
+
+
+3.2 LVGL UI 模块
+
+
+文件
+职责
+
+
+
+sdk/lib/gui/81x_demo_ui/81x_demo_ui.c
+UI 主控制器、页面状态、视频布局、按键组、启动 Logo
+
+
+sdk/lib/gui/81x_demo_ui/81x_demo_ui.h
+页面枚举、视频模式枚举、对外切换 API
+
+
+generated/gui_guider.c
+GUI Guider 生成的页面初始化、屏幕加载和动画辅助函数
+
+
+generated/setup_scr_screen.c
+创建 320×240 透明主屏幕
+
+
+generated/events_init.c
+GUI Guider 事件初始化入口，当前无业务事件
+
+
+custom/custom.c
+用户自定义初始化入口，当前为空实现
+
+
+ui_res/ui_bgLogo.c
+320×240 JPEG 启动 Logo 数据
+
+
+3.3 关联模块
+
+
+文件
+与本功能的关系
+
+
+
+project/main.c
+初始化摄像头、JPEG、LCD&#x2F;LVGL，并在网络就绪后调用 user_protocol()
+
+
+sdk/app/video_app/video_app.c
+将 JPEG 编码结果绑定到 R_RTP_JPEG
+
+
+sdk/app/other_jpg_show/other_jpg_show_stream.c
+接收远端 JPEG，配置解码输出尺寸
+
+
+sdk/app/app_lcd/app_lcd.c
+控制 P0&#x2F;P1 使能、坐标和上下层关系
+
+
+sdk/app/interface_management/interface_mgnt.c
+初始化 LVGL 并调用 ui_81x_demo_display()
+
+
+sdk/app/intercom/intercom_adpcm.c
+音频对讲复用已学习到的对端 IP
+
+
+4. 系统启动调用链4.1 硬件与视频源初始化project/main.c::hardware_init() 完成流框架、按键、JPEG、摄像头和 LCD&#x2F;LVGL 初始化。
+当 BBM_DEMO == 1 时，JPEG0 使用 VPP_DATA1：
+jpg_cfg(HG_JPG0_DEVID, VPP_DATA1);
+
+对应的编码尺寸也必须读取 photo_msg.out1_w/out1_h。工程已经在以下两处做了配套处理：
+
+video_app.c 中使用 get_jpg_default_dpi(1)。
+jpg_v2.c::jpg_start() 中使用 photo_msg.out1_h/out1_w。
+
+该约束非常重要。如果数据源使用 VPP_DATA1，却按 VPP_DATA0 的 640×480 尺寸读取一个实际为 320×240 的缓冲区，会出现 2×2 重复画面和绿色色度块。
+4.2 UI 初始化UI 启动链如下：
+hardware_init()  └─ lvgl_init(w, h, rotate)      ├─ lv_init()      ├─ lv_port_disp_init()      ├─ lv_port_indev_init()      ├─ ui_81x_demo_display()      │   ├─ ui_81x_demo_show_boot_logo()      │   └─ 创建 3000 ms 单次定时器      └─ 创建 gui_thread，运行 lvgl_run()定时器到期  └─ ui_81x_demo_boot_timer_cb()      └─ ui_81x_demo_start_main_ui()          ├─ setup_ui(&amp;guider_ui)          ├─ events_init(&amp;guider_ui)          ├─ custom_init(&amp;guider_ui)          ├─ ui_81x_demo_create_osd()          ├─ ui_81x_demo_init_keypad()          └─ ui_81x_demo_switch_page(LOCAL)
+
+主屏幕在 setup_scr_screen.c 中创建，尺寸为 320×240，背景透明。ui_81x_demo_apply_osd_key_bg() 又将显示器和屏幕底色设置为黑色，用于视频通道暂时无帧或关闭时的背景填充。
+4.3 网络协议初始化网络服务初始化完成后，project/main.c::app_network_init() 调用 user_protocol()。本模块提供强符号实现：
+user_protocol()  └─ bbm_protocol_start()      ├─ bbm_video_stream_init()      ├─ usr_protocol_create(11011)      ├─ bind(INADDR_ANY:11011)      ├─ 创建 video2_rx 任务      └─ 创建 video2_tx 任务
+
+protocol_client_init() 和 protocol_server_init() 最终也调用同一个 bbm_protocol_start()。bbm_protocol_started 保证初始化幂等，因此 AP 和 STA 两种角色共用同一套传输代码。
+5. 本地视频发送链路5.1 JPEG 数据来源video_app.c 创建 JPEG 视频流后，将编码结果绑定到多个目的流，其中包括：
+streamSrc_bind_streamDest(s, R_RTP_JPEG);
+
+发送任务通过以下调用订阅该流：
+open_stream_available(R_RTP_JPEG, 0, 8, bbm_tx_stream_op, NULL);start_jpeg();
+
+这里的 8 是目的端缓存节点数量。任务循环调用 recv_real_data() 获取编码帧，处理完成后必须调用 free_data(frame) 归还流框架。
+5.2 兼容两种 JPEG 存储形式bbm_copy_encoded_jpeg() 同时支持：
+
+JPEG_FULL：完整 JPEG 位于连续内存，直接复制。
+分段 JPEG：数据由 stream_jpeg_data_s 链表保存，逐节点复制到连续发送缓冲区。
+
+复制完成后，bbm_find_jpeg() 搜索 JPEG SOI FF D8 和 EOI FF D9，只发送有效 JPEG 区间，避免把编码缓冲区中的前后填充数据发到网络。
+5.3 分片发送单帧最大值和 UDP 负载定义如下：
+#define BBM_FRAGMENT_PAYLOAD  1300#define BBM_JPEG_MAX_SIZE     (30 * 1024)
+
+每帧最多 24 个分片。bbm_send_frame() 逐片调用 bbm_send_packet()，每包最多重试 3 次，重试和相邻分片之间均有 1 ms 让步。
+发送主调用链：
+bbm_video_tx_thread()  ├─ recv_real_data(R_RTP_JPEG)  ├─ bbm_copy_encoded_jpeg()  ├─ bbm_find_jpeg()  ├─ bbm_send_frame()  │   └─ bbm_send_packet()  │       └─ sendto(MSG_DONTWAIT)  └─ free_data(frame)
+
+发送条件包括：
+
+bbm_tx_enable == 1；
+STA 模式下 Wi-Fi 已连接；
+能够取得有效对端 IP。
+
+6. UDP 私有协议协议版本为 2，端口为 UDP 11011，协议头固定 28 字节。多字节字段统一使用网络字节序。
+
+
+
+偏移
+字段
+类型
+说明
+
+
+
+0
+magic
+uint32_t
+固定值 0x42424D32，ASCII 近似为 BBM2
+
+
+4
+frame_id
+uint32_t
+帧序号，发送端逐帧递增，允许 32 位回绕
+
+
+8
+frame_len
+uint32_t
+完整 JPEG 长度，最大 30 KiB
+
+
+12
+frame_time
+uint32_t
+发送端 os_jiffies() 时间戳
+
+
+16
+version
+uint16_t
+当前版本 2
+
+
+18
+header_size
+uint16_t
+当前固定为 28
+
+
+20
+fragment_index
+uint16_t
+当前分片编号，从 0 开始
+
+
+22
+fragment_count
+uint16_t
+本帧分片总数，最大 24
+
+
+24
+payload_len
+uint16_t
+当前 UDP 负载长度，最大 1300
+
+
+26
+flags
+uint16_t
+bit0 为首片，bit1 为尾片
+
+
+协议启动时会检查 sizeof(struct bbm_wire_header) == 28，用于发现编译器对齐策略变化。但结构体没有显式 packed 属性，因此移植到不同 ABI 或编译器时，仍应优先改为字段级序列化，而不是直接依赖结构体布局。
+7. 远端接收与帧重组7.1 接收任务bbm_video_rx_thread() 在同一个 UDP socket 上调用 recvfrom()，接收超时为 20 ms。收到任意有效长度的数据包后，首先通过源地址学习对端 IP，再根据 bbm_rx_enable 决定是否解析视频包。
+接收调用链：
+bbm_video_rx_thread()  ├─ recvfrom()  ├─ bbm_learn_peer()  ├─ bbm_parse_packet()  │   └─ bbm_rx_accept_packet()  │       ├─ bbm_rx_start_frame()  │       ├─ 将 payload 复制到 bbm_rx_jpeg[offset]  │       ├─ received_map 标记分片  │       ├─ bbm_find_jpeg()  │       └─ bbm_submit_remote_jpeg()  ├─ 检查 150 ms 帧超时  └─ 检查 2000 ms 对端超时
+
+7.2 数据包校验bbm_parse_packet() 校验：
+
+包长度至少为 28 字节；
+magic 和 version 正确；
+header_size 等于本地协议头大小；
+payload_len 位于 1～1300；
+UDP 实际长度等于协议头长度加负载长度。
+
+bbm_rx_accept_packet() 进一步校验：
+
+分片索引小于分片总数；
+分片总数不超过 24；
+offset 未越过帧长度；
+每片长度与它在整帧中的位置严格匹配；
+写入范围不超过 30 KiB 接收缓冲区。
+
+7.3 乱序、重复和新旧帧处理bbm_rx_assembler 保存当前正在组装的帧：
+struct bbm_rx_assembler &#123;    uint32_t frame_id;    uint32_t frame_len;    uint32_t frame_time;    uint32_t received_map;    uint32_t last_packet_time;    uint16_t fragment_count;    uint16_t received_count;    uint8_t active;&#125;;
+
+实现使用 32 位位图记录分片，能够接收乱序包并忽略重复包。新帧到达时：
+
+若帧号比当前帧旧，记为 old_packet 并忽略；
+若帧号更新，丢弃未完成旧帧并开始组装新帧；
+帧号比较使用有符号差值，可正确处理 uint32_t 回绕附近的常见情况。
+
+一帧超过 150 ms 未收齐时，接收任务复位组帧状态并增加 frame_timeout。
+7.4 投递到解码链路完整 JPEG 通过固定槽位源流进入解码系统：
+S_BBM_REMOTE_JPG_SRC  └─ SR_OTHER_JPG_REMOTE      └─ S_JPG_DECODE          └─ R_VIDEO_P1
+
+初始化顺序位于 bbm_video_stream_init()：
+
+创建 JPEG 解码流，绑定到 LCD P1。
+创建远端 other_jpg 流，绑定到 JPEG 解码器。
+创建 4 槽位远端 JPEG 源流。
+
+每个源槽位按需申请 30 KiB PSRAM，并在槽位归还时保留内存复用，只在 STREAM_DATA_DESTORY 时释放。因此稳定运行后的源槽位池最多占用约 120 KiB PSRAM。
+bbm_submit_remote_jpeg() 的所有权规则是：
+
+get_src_data_f() 取得一个空闲 data_structure。
+将 JPEG 复制到该槽位自己的 PSRAM 缓冲区。
+设置 JPEG_FULL、真实长度和帧时间。
+send_data_to_stream() 成功后，所有权交给流框架。
+发送失败时调用 force_del_data() 回收槽位。
+
+8. LVGL 页面与视频布局UI 定义四个可循环切换的页面：
+
+
+
+页面
+页面文字
+P0 本地
+P1 远端
+顶层通道
+远端解码
+
+
+
+UI_81X_DEMO_PAGE_LOCAL
+LOCAL
+320×240，坐标 (0,0)
+关闭
+P0
+关闭
+
+
+UI_81X_DEMO_PAGE_REMOTE
+REMOTE
+关闭
+320×240，坐标 (0,0)
+P1
+开启
+
+
+UI_81X_DEMO_PAGE_LOCAL_BIG_REMOTE_SMALL
+LOCAL BIG
+320×240，坐标 (0,0)
+120×90，右上角
+P1
+开启
+
+
+UI_81X_DEMO_PAGE_REMOTE_BIG_LOCAL_SMALL
+REMOTE BIG
+120×90，右上角
+320×240，坐标 (0,0)
+P0
+开启
+
+
+右上角小窗横坐标计算公式：
+SCALE_WIDTH - 120 - 6
+
+在 320×240 屏幕上即为 (194, 6)。
+8.1 页面切换调用链LVGL 按键事件  ├─ LV_KEY_PREV ──────────────┐  ├─ LV_KEY_NEXT / ENTER ──────┤  └─ group edge callback ──────┘                 │                 ▼ui_81x_demo_next_page() / prev_page()                 │                 ▼ui_81x_demo_switch_page()                 │                 ▼ui_81x_demo_apply_page()                 │                 ▼ui_81x_demo_set_video_mode()                 ├─ lcd_stream_set_video_enable()                 ├─ lcd_stream_set_video_layout()                 ├─ bbm_protocol_set_remote_display_size()                 ├─ ui_81x_demo_open/close_local_stream()                 └─ bbm_protocol_set_remote_display_enable()
+
+8.2 本地预览流本地画面不是直接使用编码 JPEG，而是创建缩放流：
+scale3_stream_not_bind(    &quot;S_81X_LOCAL_DISPLAY&quot;,    input_w, input_h,    output_w, output_h,    YUV_P0);
+
+随后绑定到 R_VIDEO_P0。每次改变本地显示尺寸时，代码会关闭旧流并按新尺寸重新创建，确保全屏和小窗模式使用正确的缩放参数。
+8.3 远端显示尺寸UI 通过以下接口设置远端 JPEG 解码输出尺寸：
+bbm_protocol_set_remote_display_size(width, height);
+
+该函数把宽高编码到一个 32 位参数中：
+((uint32_t)width &lt;&lt; 16) | height
+
+然后通过 SET_LVGL_VIDEO_ARG 发给 other_jpg 流。other_jpg_cmd_func() 在关中断区间更新 out_w/out_h/step_w/step_h，避免解码工作与页面切换同时读写尺寸参数。
+8.4 LCD 布局更新lcd_stream_set_video_enable() 和 lcd_stream_set_video_layout() 都在关中断区间更新 app_lcd_s 状态：
+
+video_p0_enable、video_p1_enable：控制两路视频是否输出；
+p0_x/y、p1_x/y：控制两路画面坐标；
+p0_up：控制 P0&#x2F;P1 的叠放顺序；
+layout_pending：通知 LCD 线程应用新布局；
+clear_p0_pending/clear_p1_pending：关闭通道时请求清理旧画面。
+
+9. 对端 IP 学习与音视频联动默认对端地址由 Wi-Fi 角色决定：
+
+
+
+本机模式
+默认对端 IP
+
+
+
+STA
+192.168.1.1
+
+
+AP
+192.168.1.100
+
+
+接收任务收到 UDP 包后，以 recvfrom() 返回的源 IP 更新 bbm_peer_ip，同时设置 bbm_peer_ready。音频对讲模块 intercom_adpcm.c 也调用 bbm_protocol_get_peer_ip()，因此视频链路学到的 IP 可以被音频链路复用；反过来，音频 ACK 或 UDP 包也会调用 bbm_protocol_set_peer_ip() 更新同一个对端地址。
+连续 2000 ms 未收到视频包时，接收任务清除：
+
+bbm_peer_ready；
+bbm_remote_frame_ready；
+动态学习到的 bbm_peer_ip。
+
+之后发送端会重新退回 AP&#x2F;STA 对应的默认地址。
+10. 任务、并发与内存10.1 任务配置
+
+
+任务
+入口
+优先级
+栈大小
+主要阻塞点
+
+
+
+video2_rx
+bbm_video_rx_thread()
+15
+2048
+recvfrom()，20 ms 超时
+
+
+video2_tx
+bbm_video_tx_thread()
+15
+2048
+轮询视频流，失败时短暂 sleep
+
+
+gui_thread
+lvgl_run()
+NORMAL
+4096
+LVGL 主循环
+
+
+lcd_thread
+lcd_thread()
+NORMAL
+1024
+LCD 输出与布局更新
+
+
+视频任务均为永久循环，目前没有停止和销毁路径。
+10.2 主要缓冲区
+
+
+缓冲区
+大小
+存储区域
+用途
+
+
+
+bbm_tx_packet
+1328 B
+静态内存，4 字节对齐
+UDP 发送包
+
+
+bbm_rx_packet
+1328 B
+静态内存，4 字节对齐
+UDP 接收包
+
+
+bbm_tx_jpeg
+30 KiB
+.psram.src
+连续化后的本地 JPEG
+
+
+bbm_rx_jpeg
+30 KiB
+.psram.src
+远端帧重组
+
+
+远端源槽位池
+最多 4 × 30 KiB
+动态 PSRAM
+向解码流投递完整 JPEG
+
+
+仅视频对讲模块稳定运行时，JPEG 大缓冲区的 PSRAM 上限约为 180 KiB，未包含流框架节点、JPEG 解码器和 LCD 帧缓冲。
+10.3 并发模型
+TX 任务独占 bbm_tx_packet 和 bbm_tx_jpeg。
+RX 任务独占 bbm_rx_packet、bbm_rx_jpeg 和 bbm_rx_frame。
+UI&#x2F;LVGL 任务写 bbm_tx_enable、bbm_rx_enable、bbm_displaydecode_run。
+音频、RX 和 TX 任务可能同时访问对端状态变量。
+这些简单状态使用 volatile，但没有互斥锁或原子操作。当前目标平台对自然对齐的 8&#x2F;32 位访问通常是单次操作，但 volatile 不提供跨核同步、复合操作原子性或内存屏障保证。
+
+11. 对外 API11.1 视频协议控制 API
+
+
+API
+作用
+
+
+
+bbm_protocol_set_tx_enable(enable)
+开关本机 JPEG 网络发送
+
+
+bbm_protocol_get_tx_enable()
+查询发送状态
+
+
+bbm_protocol_set_rx_enable(enable)
+开关收到包后的协议解析
+
+
+bbm_protocol_get_rx_enable()
+查询接收状态
+
+
+bbm_protocol_set_remote_display_enable(enable)
+开关完整远端帧向解码流投递
+
+
+bbm_protocol_get_remote_display_enable()
+查询远端显示门控
+
+
+bbm_protocol_set_remote_display_size(w, h)
+设置远端解码输出尺寸
+
+
+bbm_protocol_set_peer_ip(ip)
+设置&#x2F;学习对端 IPv4 地址，参数使用网络字节序
+
+
+bbm_protocol_get_peer_ip()
+获取动态地址；未学习时返回默认地址
+
+
+bbm_protocol_is_peer_ready()
+是否已收到对端数据并进入 ready 状态
+
+
+bbm_protocol_has_remote_frame()
+是否至少成功投递过一帧远端 JPEG
+
+
+bbm_protocol_clear_peer_ready()
+清除对端和远端首帧状态
+
+
+11.2 UI 控制 API
+
+
+API
+作用
+
+
+
+ui_81x_demo_display()
+显示启动 Logo，并在 3 秒后进入主界面
+
+
+ui_81x_demo_set_video_mode(mode)
+直接设置视频显示模式
+
+
+ui_81x_demo_switch_page(page)
+切换到指定页面
+
+
+ui_81x_demo_next_page()
+循环切换到下一页
+
+
+ui_81x_demo_prev_page()
+循环切换到上一页
+
+
+ui_81x_demo_show_remote_full()
+只显示远端全屏
+
+
+ui_81x_demo_show_local_full()
+只显示本地全屏
+
+
+ui_81x_demo_show_local_big_remote_small()
+本地全屏、远端右上小窗
+
+
+ui_81x_demo_show_remote_big_local_small()
+远端全屏、本地右上小窗
+
+
+ui_81x_demo_hide_video()
+关闭 P0&#x2F;P1 视频显示
+
+
+12. 调试日志说明发送端每秒打印一次：
+video2_tx peer:... frame:... drop:... pkt:... fail:... empty:... speed:...KB/s fd:...
+
+
+
+
+字段
+含义
+
+
+
+frame
+成功发送的完整 JPEG 帧数
+
+
+drop
+JPEG 提取失败或任一分片发送失败的帧数
+
+
+pkt
+成功发送的 UDP 分片数
+
+
+fail
+经过 3 次重试仍失败的分片数
+
+
+empty
+本次轮询未取得 JPEG 帧的次数
+
+
+speed
+本秒发送协议数据量，单位 KiB&#x2F;s
+
+
+接收端每秒打印一次：
+video2_rx en:... pkt:... invalid:... old:... dup:...frame:start/complete drop:... timeout:... gated:...stream:... busy:... mem:... route:... speed:... state:... id:... got:.../...
+
+重点字段：
+
+
+
+字段
+含义及排查方向
+
+
+
+invalid
+协议头、长度或分片参数非法；检查版本、端口和数据损坏
+
+
+old
+收到比当前组装帧更旧的分片；通常由网络乱序或延迟引起
+
+
+dup
+重复 UDP 分片
+
+
+drop
+新帧到达时旧帧仍未完成
+
+
+timeout
+150 ms 内未收齐一帧
+
+
+gated
+已收齐，但当前 UI 不需要显示远端画面
+
+
+stream
+成功投递到远端 JPEG 解码流的帧数
+
+
+busy
+4 个远端源槽位全部占用，解码链路消费不及时
+
+
+mem
+源槽位 PSRAM 申请失败
+
+
+route
+send_data_to_stream() 失败
+
+
+got x/y
+当前帧已收到分片数&#x2F;总分片数
+
+
+13. 常见问题定位13.1 本地画面正常，远端黑屏按以下顺序检查：
+
+video2_rx pkt 是否增长。
+invalid 是否持续增长。
+frame_complete 是否增长。
+当前页面的 en 是否为 1；本地全屏页会主动关闭远端投递。
+stream 是否增长，busy/mem/route 是否异常。
+lcd_stream_set_video_enable() 是否已开启 P1。
+SET_LVGL_VIDEO_ARG 的输出尺寸是否与当前页面一致。
+
+13.2 远端画面卡顿或马赛克
+timeout/drop 高：Wi-Fi 丢包、单帧分片过多或 150 ms 超时太短。
+fail 高：发送 socket 繁忙，当前非阻塞发送重试仍不足。
+busy 高：JPEG 解码或 LCD 消费速度低于网络输入速度。
+JPEG 超过 30 KiB：发送端会整帧丢弃，可降低分辨率&#x2F;质量或提高上限。
+
+当前协议没有校验和、FEC、NACK 或关键帧重传。UDP 包丢失会导致整帧在超时或新帧到达时被丢弃，但不会污染下一帧。
+13.3 画面出现 2×2 重复或绿色块优先检查 JPEG0 的源和尺寸是否匹配：
+
+jpg_cfg(HG_JPG0_DEVID, VPP_DATA1)；
+get_jpg_default_dpi(1)；
+jpg_start() 使用 photo_msg.out1_w/out1_h。
+
+这三处必须保持一致。
+13.4 页面切换后残留旧画面检查 lcd_stream_set_video_enable() 是否触发 clear_p0_pending 或 clear_p1_pending，以及 LCD 线程是否消费这些标志。布局函数只更新坐标与层级，不负责关闭旧通道。
+14. 二次开发指南14.1 新增一种布局
+在 ui_81x_demo_video_mode_t 中增加模式。
+如需成为可翻页页面，在 ui_81x_demo_page_t 中增加页面。
+在 ui_81x_demo_page_name() 中增加 OSD 名称。
+编写布局函数，设置 P0&#x2F;P1 使能、远端尺寸、坐标和本地缩放尺寸。
+在 ui_81x_demo_set_video_mode() 中增加分支。
+在 ui_81x_demo_apply_page() 中建立页面到视频模式的映射。
+验证 PIP 坐标没有超出 SCALE_WIDTH/SCALE_HIGH。
+
+14.2 修改分辨率需要同步检查：
+
+摄像头输入 photo_msg.in_w/in_h；
+VPP DATA0&#x2F;DATA1 输出尺寸；
+JPEG0 编码源和默认 DPI；
+BBM_JPEG_MAX_SIZE 是否容纳新 JPEG；
+LCD P0 本地缩放输出；
+P1 远端解码输出；
+UI 主屏幕和 PIP 坐标；
+PSRAM 总占用。
+
+14.3 修改 UDP 分片大小双方必须同时修改 BBM_FRAGMENT_PAYLOAD。还要同步评估：
+
+bbm_tx_packet、bbm_rx_packet 大小；
+BBM_MAX_FRAGMENTS；
+received_map 位数；
+Wi-Fi MTU，避免 IP 层再次分片；
+发送间隔和帧超时。
+
+当前 1300 字节负载加 28 字节私有头、8 字节 UDP 头和 20 字节 IPv4 头，总计约 1356 字节，低于常见 1500 字节 MTU。
+14.4 增加协议可靠性推荐按兼容性从低到高逐步扩展：
+
+在协议头尾部增加 CRC32，并升级 BBM_WIRE_VERSION。
+增加会话 ID，避免设备重启后旧包与新帧号混淆。
+增加接收端丢片统计和周期性反馈。
+对关键帧或低分片数帧增加选择性重传。
+网络较差时动态降低 JPEG 质量或帧率。
+
+15. 已知风险与改进建议以下项目不会阻止当前功能运行，但在产品化前值得处理：
+
+任务创建返回值未检查。 csi_kernel_task_new() 失败后仍会把协议标记为已启动，且没有回滚 socket 和流资源。
+部分初始化失败没有统一清理。 解码流成功而后续源流失败时，已创建资源保持打开。
+没有停止&#x2F;重启接口。 两个任务永久循环，socket、流和 PSRAM 槽位仅适合一次性启动模型。
+协议结构依赖 ABI。 虽然检查了 28 字节大小，但更稳妥的做法是显式序列化各字段。
+共享状态只使用 volatile。 多任务并发更新对端状态时缺少明确同步机制。
+对端学习接受任意 UDP 源。 在解析协议头之前就更新 peer IP，局域网内发往 11011 端口的任意数据都可能改变发送目标。建议至少在 magic&#x2F;version 校验后再学习，产品环境可增加配对标识或鉴权。
+未校验 FIRST&#x2F;LAST 标志。 当前主要依赖 index&#x2F;count，标志字段被发送但接收端没有验证。
+无数据完整性校验。 UDP 校验和之外没有帧级 CRC，错误载荷可能进入 JPEG 解码器。
+UI 重入清理不完整。 ui_81x_demo_display() 若被多次调用，旧定时器、按键组和页面对象的生命周期需要额外确认。
+公共声明存在重复。 video_intercom.h 与 sdk/include/bbm_protocol.h 维护同一组 API，后续容易发生声明不一致，建议保留单一公共头文件。
+
+16. 构建与集成检查清单工程的 project/fpv_app_umac4.mk 已包含：
+
+sdk/app/video_intercom/video_intercom.c；
+sdk/lib/gui/81x_demo_ui/81x_demo_ui.c；
+generated/ 下的 GUI Guider 源文件；
+custom/custom.c；
+ui_res/ui_bgLogo.c。
+
+编译前确认：
+
+BBM_DEMO == 1；
+JPG_EN == 1；
+DVP_EN == 1；
+LCD_EN == 1；
+LVGL_STREAM_ENABLE 与目标 LVGL 显示路径一致；
+KEY_MODULE_EN == 1 时按键输入已注册；
+工程中只保留一个强符号 user_protocol() 实现，避免与旧版 babyprotocol.c 同时链接产生冲突或选错协议实现；
+链接脚本存在 .psram.src 段，并且 PSRAM 容量足够。
+
+17. 核心流程总结这套视频对讲方案的关键设计可以概括为三层：
+
+媒体层：JPEG0 从 VPP_DATA1 编码，本地 YUV 通过 P0 预览，远端 JPEG 通过 P1 解码显示。
+传输层：单帧 JPEG 按 1300 字节切分，通过 UDP 11011 双向传输；接收端支持乱序、重复包过滤、新旧帧判断和 150 ms 超时丢帧。
+交互层：LVGL 提供启动 Logo、页面名称和按键事件，页面状态机统一控制本地&#x2F;远端通道使能、尺寸、位置和层级。
+
+开发和调试时应始终沿着以下顺序定位问题：
+摄像头/VPP → JPEG 编码 → R_RTP_JPEG → UDP 发送→ UDP 接收 → 分片重组 → other_jpg → JPEG 解码→ LCD P1 → P0/P1 布局 → LVGL 页面控制
+
+只要明确每一层的数据格式、缓冲区所有权和开关状态，就能快速区分问题究竟发生在编码、网络、解码、LCD 合成还是 UI 控制环节。
+]]></content>
+      <categories>
+        <category>嵌入式开发</category>
+        <category>视频传输</category>
+        <category>UI框架</category>
+      </categories>
+      <tags>
+        <tag>LVGL</tag>
+        <tag>嵌入式</tag>
+        <tag>C语言</tag>
+        <tag>JPEG</tag>
+        <tag>流媒体</tag>
+        <tag>UDP</tag>
+        <tag>TXW81x</tag>
+        <tag>视频对讲</tag>
+        <tag>双画面</tag>
       </tags>
   </entry>
 </search>

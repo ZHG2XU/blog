@@ -1,0 +1,933 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="dark"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#0A0A1A"><meta name="description" content="基于 TXW81x SDK 的视频对讲方案开发文档：梳理本地摄像头 JPEG 编码、UDP 分片发送、远端乱序重组、JPEG 解码、LCD P0&#x2F;P1 双通道合成，以及 LVGL 四种显示页面之间的完整调用链。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="基于 TXW81x SDK 的视频对讲方案开发文档：梳理本地摄像头 JPEG 编码、UDP 分片发送、远端乱序重组、JPEG 解码、LCD P0&#x2F;P1 双通道合成，以及 LVGL 四种显示页面之间的完整调用链。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.jpeg">
+<meta property="article:published_time" content="2026-07-09T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-07-10T11:42:01.147Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="JPEG">
+<meta property="article:tag" content="流媒体">
+<meta property="article:tag" content="UDP">
+<meta property="article:tag" content="TXW81x">
+<meta property="article:tag" content="视频对讲">
+<meta property="article:tag" content="双画面">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.jpeg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动",
+  "url": "https://zhongxu.cyou/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.jpeg",
+  "datePublished": "2026-07-09T16:00:00.000Z",
+  "dateModified": "2026-07-10T11:42:01.147Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.jpeg"><link rel="canonical" href="https://zhongxu.cyou/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0A0A1A')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-image: url(/img/light-bg.png);"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">11</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">37</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background: transparent;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-building"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-chart-line"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user-tie"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-09T16:00:00.000Z" title="发表于 2026-07-10 00:00:00">2026-07-10</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-10T11:42:01.147Z" title="更新于 2026-07-10 19:42:01">2026-07-10</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/">嵌入式开发</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/%E8%A7%86%E9%A2%91%E4%BC%A0%E8%BE%93/">视频传输</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%BC%80%E5%8F%91/%E8%A7%86%E9%A2%91%E4%BC%A0%E8%BE%93/UI%E6%A1%86%E6%9E%B6/">UI框架</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="1-项目概述"><a href="#1-项目概述" class="headerlink" title="1. 项目概述"></a>1. 项目概述</h1><p>本文面向 <code>81x_intercom_ui</code> 工程，重点说明以下两个模块：</p>
+<ul>
+<li><code>sdk/app/video_intercom/</code>：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。</li>
+<li><code>sdk/lib/gui/81x_demo_ui/</code>：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。</li>
+</ul>
+<p>当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收对端 JPEG 并解码显示。</p>
+<p>系统中的两路显示通道约定如下：</p>
+<table>
+<thead>
+<tr>
+<th>通道</th>
+<th>数据来源</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LCD P0 &#x2F; <code>R_VIDEO_P0</code></td>
+<td>本地摄像头缩放流</td>
+<td>本地预览</td>
+</tr>
+<tr>
+<td>LCD P1 &#x2F; <code>R_VIDEO_P1</code></td>
+<td>网络接收后解码的远端 JPEG</td>
+<td>远端画面</td>
+</tr>
+</tbody></table>
+<h1 id="2-总体架构"><a href="#2-总体架构" class="headerlink" title="2. 总体架构"></a>2. 总体架构</h1><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">本机摄像头</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">DVP / VPP_DATA1</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">JPEG0 编码器</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">视频流框架 R_RTP_JPEG</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">bbm_video_tx_thread</span><br><span class="line">    │  JPEG 提取、1300 Byte 分片、UDP:11011</span><br><span class="line">    ▼</span><br><span class="line">======================== Wi-Fi ========================</span><br><span class="line">    ▼</span><br><span class="line">bbm_video_rx_thread</span><br><span class="line">    │  包校验、乱序重组、超时丢帧</span><br><span class="line">    ▼</span><br><span class="line">S_BBM_REMOTE_JPG_SRC</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">SR_OTHER_JPG_REMOTE</span><br><span class="line">    │  设置远端输出尺寸</span><br><span class="line">    ▼</span><br><span class="line">S_JPG_DECODE</span><br><span class="line">    │</span><br><span class="line">    ▼</span><br><span class="line">LCD R_VIDEO_P1 ─────┐</span><br><span class="line">                    ├── LCDC 合成 ── 屏幕</span><br><span class="line">本地缩放流 P0 ──────┘</span><br><span class="line"></span><br><span class="line">LVGL OSD：页面名称、启动 Logo、按键事件</span><br></pre></td></tr></table></figure>
+
+<p>这里的 LVGL 主要承担 OSD 和交互控制，不直接绘制实时视频像素。视频由 LCDC 的 P0&#x2F;P1 硬件通道输出，LVGL 页面使用透明背景叠加在视频层之上。</p>
+<h1 id="3-目录与文件职责"><a href="#3-目录与文件职责" class="headerlink" title="3. 目录与文件职责"></a>3. 目录与文件职责</h1><h2 id="3-1-视频传输模块"><a href="#3-1-视频传输模块" class="headerlink" title="3.1 视频传输模块"></a>3.1 视频传输模块</h2><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sdk/app/video_intercom/video_intercom.c</code></td>
+<td>UDP socket、发送&#x2F;接收任务、协议封包、JPEG 分片与重组、远端解码流初始化</td>
+</tr>
+<tr>
+<td><code>sdk/app/video_intercom/video_intercom.h</code></td>
+<td>视频传输控制 API，与 <code>sdk/include/bbm_protocol.h</code> 暴露的接口一致</td>
+</tr>
+<tr>
+<td><code>sdk/include/bbm_protocol.h</code></td>
+<td>UI、音频对讲等模块使用的公共协议头文件</td>
+</tr>
+</tbody></table>
+<h2 id="3-2-LVGL-UI-模块"><a href="#3-2-LVGL-UI-模块" class="headerlink" title="3.2 LVGL UI 模块"></a>3.2 LVGL UI 模块</h2><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sdk/lib/gui/81x_demo_ui/81x_demo_ui.c</code></td>
+<td>UI 主控制器、页面状态、视频布局、按键组、启动 Logo</td>
+</tr>
+<tr>
+<td><code>sdk/lib/gui/81x_demo_ui/81x_demo_ui.h</code></td>
+<td>页面枚举、视频模式枚举、对外切换 API</td>
+</tr>
+<tr>
+<td><code>generated/gui_guider.c</code></td>
+<td>GUI Guider 生成的页面初始化、屏幕加载和动画辅助函数</td>
+</tr>
+<tr>
+<td><code>generated/setup_scr_screen.c</code></td>
+<td>创建 320×240 透明主屏幕</td>
+</tr>
+<tr>
+<td><code>generated/events_init.c</code></td>
+<td>GUI Guider 事件初始化入口，当前无业务事件</td>
+</tr>
+<tr>
+<td><code>custom/custom.c</code></td>
+<td>用户自定义初始化入口，当前为空实现</td>
+</tr>
+<tr>
+<td><code>ui_res/ui_bgLogo.c</code></td>
+<td>320×240 JPEG 启动 Logo 数据</td>
+</tr>
+</tbody></table>
+<h2 id="3-3-关联模块"><a href="#3-3-关联模块" class="headerlink" title="3.3 关联模块"></a>3.3 关联模块</h2><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>与本功能的关系</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>project/main.c</code></td>
+<td>初始化摄像头、JPEG、LCD&#x2F;LVGL，并在网络就绪后调用 <code>user_protocol()</code></td>
+</tr>
+<tr>
+<td><code>sdk/app/video_app/video_app.c</code></td>
+<td>将 JPEG 编码结果绑定到 <code>R_RTP_JPEG</code></td>
+</tr>
+<tr>
+<td><code>sdk/app/other_jpg_show/other_jpg_show_stream.c</code></td>
+<td>接收远端 JPEG，配置解码输出尺寸</td>
+</tr>
+<tr>
+<td><code>sdk/app/app_lcd/app_lcd.c</code></td>
+<td>控制 P0&#x2F;P1 使能、坐标和上下层关系</td>
+</tr>
+<tr>
+<td><code>sdk/app/interface_management/interface_mgnt.c</code></td>
+<td>初始化 LVGL 并调用 <code>ui_81x_demo_display()</code></td>
+</tr>
+<tr>
+<td><code>sdk/app/intercom/intercom_adpcm.c</code></td>
+<td>音频对讲复用已学习到的对端 IP</td>
+</tr>
+</tbody></table>
+<h1 id="4-系统启动调用链"><a href="#4-系统启动调用链" class="headerlink" title="4. 系统启动调用链"></a>4. 系统启动调用链</h1><h2 id="4-1-硬件与视频源初始化"><a href="#4-1-硬件与视频源初始化" class="headerlink" title="4.1 硬件与视频源初始化"></a>4.1 硬件与视频源初始化</h2><p><code>project/main.c::hardware_init()</code> 完成流框架、按键、JPEG、摄像头和 LCD&#x2F;LVGL 初始化。</p>
+<p>当 <code>BBM_DEMO == 1</code> 时，JPEG0 使用 <code>VPP_DATA1</code>：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jpg_cfg(HG_JPG0_DEVID, VPP_DATA1);</span><br></pre></td></tr></table></figure>
+
+<p>对应的编码尺寸也必须读取 <code>photo_msg.out1_w/out1_h</code>。工程已经在以下两处做了配套处理：</p>
+<ul>
+<li><code>video_app.c</code> 中使用 <code>get_jpg_default_dpi(1)</code>。</li>
+<li><code>jpg_v2.c::jpg_start()</code> 中使用 <code>photo_msg.out1_h/out1_w</code>。</li>
+</ul>
+<p>该约束非常重要。如果数据源使用 <code>VPP_DATA1</code>，却按 <code>VPP_DATA0</code> 的 640×480 尺寸读取一个实际为 320×240 的缓冲区，会出现 2×2 重复画面和绿色色度块。</p>
+<h2 id="4-2-UI-初始化"><a href="#4-2-UI-初始化" class="headerlink" title="4.2 UI 初始化"></a>4.2 UI 初始化</h2><p>UI 启动链如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">hardware_init()</span><br><span class="line">  └─ lvgl_init(w, h, rotate)</span><br><span class="line">      ├─ lv_init()</span><br><span class="line">      ├─ lv_port_disp_init()</span><br><span class="line">      ├─ lv_port_indev_init()</span><br><span class="line">      ├─ ui_81x_demo_display()</span><br><span class="line">      │   ├─ ui_81x_demo_show_boot_logo()</span><br><span class="line">      │   └─ 创建 3000 ms 单次定时器</span><br><span class="line">      └─ 创建 gui_thread，运行 lvgl_run()</span><br><span class="line"></span><br><span class="line">定时器到期</span><br><span class="line">  └─ ui_81x_demo_boot_timer_cb()</span><br><span class="line">      └─ ui_81x_demo_start_main_ui()</span><br><span class="line">          ├─ setup_ui(&amp;guider_ui)</span><br><span class="line">          ├─ events_init(&amp;guider_ui)</span><br><span class="line">          ├─ custom_init(&amp;guider_ui)</span><br><span class="line">          ├─ ui_81x_demo_create_osd()</span><br><span class="line">          ├─ ui_81x_demo_init_keypad()</span><br><span class="line">          └─ ui_81x_demo_switch_page(LOCAL)</span><br></pre></td></tr></table></figure>
+
+<p>主屏幕在 <code>setup_scr_screen.c</code> 中创建，尺寸为 320×240，背景透明。<code>ui_81x_demo_apply_osd_key_bg()</code> 又将显示器和屏幕底色设置为黑色，用于视频通道暂时无帧或关闭时的背景填充。</p>
+<h2 id="4-3-网络协议初始化"><a href="#4-3-网络协议初始化" class="headerlink" title="4.3 网络协议初始化"></a>4.3 网络协议初始化</h2><p>网络服务初始化完成后，<code>project/main.c::app_network_init()</code> 调用 <code>user_protocol()</code>。本模块提供强符号实现：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">user_protocol()</span><br><span class="line">  └─ bbm_protocol_start()</span><br><span class="line">      ├─ bbm_video_stream_init()</span><br><span class="line">      ├─ usr_protocol_create(11011)</span><br><span class="line">      ├─ bind(INADDR_ANY:11011)</span><br><span class="line">      ├─ 创建 video2_rx 任务</span><br><span class="line">      └─ 创建 video2_tx 任务</span><br></pre></td></tr></table></figure>
+
+<p><code>protocol_client_init()</code> 和 <code>protocol_server_init()</code> 最终也调用同一个 <code>bbm_protocol_start()</code>。<code>bbm_protocol_started</code> 保证初始化幂等，因此 AP 和 STA 两种角色共用同一套传输代码。</p>
+<h1 id="5-本地视频发送链路"><a href="#5-本地视频发送链路" class="headerlink" title="5. 本地视频发送链路"></a>5. 本地视频发送链路</h1><h2 id="5-1-JPEG-数据来源"><a href="#5-1-JPEG-数据来源" class="headerlink" title="5.1 JPEG 数据来源"></a>5.1 JPEG 数据来源</h2><p><code>video_app.c</code> 创建 JPEG 视频流后，将编码结果绑定到多个目的流，其中包括：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">streamSrc_bind_streamDest(s, R_RTP_JPEG);</span><br></pre></td></tr></table></figure>
+
+<p>发送任务通过以下调用订阅该流：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">open_stream_available(R_RTP_JPEG, <span class="number">0</span>, <span class="number">8</span>, bbm_tx_stream_op, <span class="literal">NULL</span>);</span><br><span class="line">start_jpeg();</span><br></pre></td></tr></table></figure>
+
+<p>这里的 <code>8</code> 是目的端缓存节点数量。任务循环调用 <code>recv_real_data()</code> 获取编码帧，处理完成后必须调用 <code>free_data(frame)</code> 归还流框架。</p>
+<h2 id="5-2-兼容两种-JPEG-存储形式"><a href="#5-2-兼容两种-JPEG-存储形式" class="headerlink" title="5.2 兼容两种 JPEG 存储形式"></a>5.2 兼容两种 JPEG 存储形式</h2><p><code>bbm_copy_encoded_jpeg()</code> 同时支持：</p>
+<ul>
+<li><code>JPEG_FULL</code>：完整 JPEG 位于连续内存，直接复制。</li>
+<li>分段 JPEG：数据由 <code>stream_jpeg_data_s</code> 链表保存，逐节点复制到连续发送缓冲区。</li>
+</ul>
+<p>复制完成后，<code>bbm_find_jpeg()</code> 搜索 JPEG SOI <code>FF D8</code> 和 EOI <code>FF D9</code>，只发送有效 JPEG 区间，避免把编码缓冲区中的前后填充数据发到网络。</p>
+<h2 id="5-3-分片发送"><a href="#5-3-分片发送" class="headerlink" title="5.3 分片发送"></a>5.3 分片发送</h2><p>单帧最大值和 UDP 负载定义如下：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> BBM_FRAGMENT_PAYLOAD  1300</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> BBM_JPEG_MAX_SIZE     (30 * 1024)</span></span><br></pre></td></tr></table></figure>
+
+<p>每帧最多 24 个分片。<code>bbm_send_frame()</code> 逐片调用 <code>bbm_send_packet()</code>，每包最多重试 3 次，重试和相邻分片之间均有 1 ms 让步。</p>
+<p>发送主调用链：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">bbm_video_tx_thread()</span><br><span class="line">  ├─ recv_real_data(R_RTP_JPEG)</span><br><span class="line">  ├─ bbm_copy_encoded_jpeg()</span><br><span class="line">  ├─ bbm_find_jpeg()</span><br><span class="line">  ├─ bbm_send_frame()</span><br><span class="line">  │   └─ bbm_send_packet()</span><br><span class="line">  │       └─ sendto(MSG_DONTWAIT)</span><br><span class="line">  └─ free_data(frame)</span><br></pre></td></tr></table></figure>
+
+<p>发送条件包括：</p>
+<ul>
+<li><code>bbm_tx_enable == 1</code>；</li>
+<li>STA 模式下 Wi-Fi 已连接；</li>
+<li>能够取得有效对端 IP。</li>
+</ul>
+<h1 id="6-UDP-私有协议"><a href="#6-UDP-私有协议" class="headerlink" title="6. UDP 私有协议"></a>6. UDP 私有协议</h1><p>协议版本为 2，端口为 UDP <code>11011</code>，协议头固定 28 字节。多字节字段统一使用网络字节序。</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td><code>magic</code></td>
+<td><code>uint32_t</code></td>
+<td>固定值 <code>0x42424D32</code>，ASCII 近似为 <code>BBM2</code></td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td><code>frame_id</code></td>
+<td><code>uint32_t</code></td>
+<td>帧序号，发送端逐帧递增，允许 32 位回绕</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td><code>frame_len</code></td>
+<td><code>uint32_t</code></td>
+<td>完整 JPEG 长度，最大 30 KiB</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td><code>frame_time</code></td>
+<td><code>uint32_t</code></td>
+<td>发送端 <code>os_jiffies()</code> 时间戳</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td><code>version</code></td>
+<td><code>uint16_t</code></td>
+<td>当前版本 <code>2</code></td>
+</tr>
+<tr>
+<td align="right">18</td>
+<td><code>header_size</code></td>
+<td><code>uint16_t</code></td>
+<td>当前固定为 <code>28</code></td>
+</tr>
+<tr>
+<td align="right">20</td>
+<td><code>fragment_index</code></td>
+<td><code>uint16_t</code></td>
+<td>当前分片编号，从 0 开始</td>
+</tr>
+<tr>
+<td align="right">22</td>
+<td><code>fragment_count</code></td>
+<td><code>uint16_t</code></td>
+<td>本帧分片总数，最大 24</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td><code>payload_len</code></td>
+<td><code>uint16_t</code></td>
+<td>当前 UDP 负载长度，最大 1300</td>
+</tr>
+<tr>
+<td align="right">26</td>
+<td><code>flags</code></td>
+<td><code>uint16_t</code></td>
+<td>bit0 为首片，bit1 为尾片</td>
+</tr>
+</tbody></table>
+<p>协议启动时会检查 <code>sizeof(struct bbm_wire_header) == 28</code>，用于发现编译器对齐策略变化。但结构体没有显式 <code>packed</code> 属性，因此移植到不同 ABI 或编译器时，仍应优先改为字段级序列化，而不是直接依赖结构体布局。</p>
+<h1 id="7-远端接收与帧重组"><a href="#7-远端接收与帧重组" class="headerlink" title="7. 远端接收与帧重组"></a>7. 远端接收与帧重组</h1><h2 id="7-1-接收任务"><a href="#7-1-接收任务" class="headerlink" title="7.1 接收任务"></a>7.1 接收任务</h2><p><code>bbm_video_rx_thread()</code> 在同一个 UDP socket 上调用 <code>recvfrom()</code>，接收超时为 20 ms。收到任意有效长度的数据包后，首先通过源地址学习对端 IP，再根据 <code>bbm_rx_enable</code> 决定是否解析视频包。</p>
+<p>接收调用链：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">bbm_video_rx_thread()</span><br><span class="line">  ├─ recvfrom()</span><br><span class="line">  ├─ bbm_learn_peer()</span><br><span class="line">  ├─ bbm_parse_packet()</span><br><span class="line">  │   └─ bbm_rx_accept_packet()</span><br><span class="line">  │       ├─ bbm_rx_start_frame()</span><br><span class="line">  │       ├─ 将 payload 复制到 bbm_rx_jpeg[offset]</span><br><span class="line">  │       ├─ received_map 标记分片</span><br><span class="line">  │       ├─ bbm_find_jpeg()</span><br><span class="line">  │       └─ bbm_submit_remote_jpeg()</span><br><span class="line">  ├─ 检查 150 ms 帧超时</span><br><span class="line">  └─ 检查 2000 ms 对端超时</span><br></pre></td></tr></table></figure>
+
+<h2 id="7-2-数据包校验"><a href="#7-2-数据包校验" class="headerlink" title="7.2 数据包校验"></a>7.2 数据包校验</h2><p><code>bbm_parse_packet()</code> 校验：</p>
+<ul>
+<li>包长度至少为 28 字节；</li>
+<li><code>magic</code> 和 <code>version</code> 正确；</li>
+<li><code>header_size</code> 等于本地协议头大小；</li>
+<li><code>payload_len</code> 位于 1～1300；</li>
+<li>UDP 实际长度等于协议头长度加负载长度。</li>
+</ul>
+<p><code>bbm_rx_accept_packet()</code> 进一步校验：</p>
+<ul>
+<li>分片索引小于分片总数；</li>
+<li>分片总数不超过 24；</li>
+<li><code>offset</code> 未越过帧长度；</li>
+<li>每片长度与它在整帧中的位置严格匹配；</li>
+<li>写入范围不超过 30 KiB 接收缓冲区。</li>
+</ul>
+<h2 id="7-3-乱序、重复和新旧帧处理"><a href="#7-3-乱序、重复和新旧帧处理" class="headerlink" title="7.3 乱序、重复和新旧帧处理"></a>7.3 乱序、重复和新旧帧处理</h2><p><code>bbm_rx_assembler</code> 保存当前正在组装的帧：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">bbm_rx_assembler</span> &#123;</span></span><br><span class="line">    <span class="type">uint32_t</span> frame_id;</span><br><span class="line">    <span class="type">uint32_t</span> frame_len;</span><br><span class="line">    <span class="type">uint32_t</span> frame_time;</span><br><span class="line">    <span class="type">uint32_t</span> received_map;</span><br><span class="line">    <span class="type">uint32_t</span> last_packet_time;</span><br><span class="line">    <span class="type">uint16_t</span> fragment_count;</span><br><span class="line">    <span class="type">uint16_t</span> received_count;</span><br><span class="line">    <span class="type">uint8_t</span> active;</span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+
+<p>实现使用 32 位位图记录分片，能够接收乱序包并忽略重复包。新帧到达时：</p>
+<ul>
+<li>若帧号比当前帧旧，记为 <code>old_packet</code> 并忽略；</li>
+<li>若帧号更新，丢弃未完成旧帧并开始组装新帧；</li>
+<li>帧号比较使用有符号差值，可正确处理 <code>uint32_t</code> 回绕附近的常见情况。</li>
+</ul>
+<p>一帧超过 150 ms 未收齐时，接收任务复位组帧状态并增加 <code>frame_timeout</code>。</p>
+<h2 id="7-4-投递到解码链路"><a href="#7-4-投递到解码链路" class="headerlink" title="7.4 投递到解码链路"></a>7.4 投递到解码链路</h2><p>完整 JPEG 通过固定槽位源流进入解码系统：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">S_BBM_REMOTE_JPG_SRC</span><br><span class="line">  └─ SR_OTHER_JPG_REMOTE</span><br><span class="line">      └─ S_JPG_DECODE</span><br><span class="line">          └─ R_VIDEO_P1</span><br></pre></td></tr></table></figure>
+
+<p>初始化顺序位于 <code>bbm_video_stream_init()</code>：</p>
+<ol>
+<li>创建 JPEG 解码流，绑定到 LCD P1。</li>
+<li>创建远端 <code>other_jpg</code> 流，绑定到 JPEG 解码器。</li>
+<li>创建 4 槽位远端 JPEG 源流。</li>
+</ol>
+<p>每个源槽位按需申请 30 KiB PSRAM，并在槽位归还时保留内存复用，只在 <code>STREAM_DATA_DESTORY</code> 时释放。因此稳定运行后的源槽位池最多占用约 120 KiB PSRAM。</p>
+<p><code>bbm_submit_remote_jpeg()</code> 的所有权规则是：</p>
+<ol>
+<li><code>get_src_data_f()</code> 取得一个空闲 <code>data_structure</code>。</li>
+<li>将 JPEG 复制到该槽位自己的 PSRAM 缓冲区。</li>
+<li>设置 <code>JPEG_FULL</code>、真实长度和帧时间。</li>
+<li><code>send_data_to_stream()</code> 成功后，所有权交给流框架。</li>
+<li>发送失败时调用 <code>force_del_data()</code> 回收槽位。</li>
+</ol>
+<h1 id="8-LVGL-页面与视频布局"><a href="#8-LVGL-页面与视频布局" class="headerlink" title="8. LVGL 页面与视频布局"></a>8. LVGL 页面与视频布局</h1><p>UI 定义四个可循环切换的页面：</p>
+<table>
+<thead>
+<tr>
+<th>页面</th>
+<th>页面文字</th>
+<th>P0 本地</th>
+<th>P1 远端</th>
+<th>顶层通道</th>
+<th>远端解码</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>UI_81X_DEMO_PAGE_LOCAL</code></td>
+<td><code>LOCAL</code></td>
+<td>320×240，坐标 (0,0)</td>
+<td>关闭</td>
+<td>P0</td>
+<td>关闭</td>
+</tr>
+<tr>
+<td><code>UI_81X_DEMO_PAGE_REMOTE</code></td>
+<td><code>REMOTE</code></td>
+<td>关闭</td>
+<td>320×240，坐标 (0,0)</td>
+<td>P1</td>
+<td>开启</td>
+</tr>
+<tr>
+<td><code>UI_81X_DEMO_PAGE_LOCAL_BIG_REMOTE_SMALL</code></td>
+<td><code>LOCAL BIG</code></td>
+<td>320×240，坐标 (0,0)</td>
+<td>120×90，右上角</td>
+<td>P1</td>
+<td>开启</td>
+</tr>
+<tr>
+<td><code>UI_81X_DEMO_PAGE_REMOTE_BIG_LOCAL_SMALL</code></td>
+<td><code>REMOTE BIG</code></td>
+<td>120×90，右上角</td>
+<td>320×240，坐标 (0,0)</td>
+<td>P0</td>
+<td>开启</td>
+</tr>
+</tbody></table>
+<p>右上角小窗横坐标计算公式：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SCALE_WIDTH - <span class="number">120</span> - <span class="number">6</span></span><br></pre></td></tr></table></figure>
+
+<p>在 320×240 屏幕上即为 <code>(194, 6)</code>。</p>
+<h2 id="8-1-页面切换调用链"><a href="#8-1-页面切换调用链" class="headerlink" title="8.1 页面切换调用链"></a>8.1 页面切换调用链</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">LVGL 按键事件</span><br><span class="line">  ├─ LV_KEY_PREV ──────────────┐</span><br><span class="line">  ├─ LV_KEY_NEXT / ENTER ──────┤</span><br><span class="line">  └─ group edge callback ──────┘</span><br><span class="line">                 │</span><br><span class="line">                 ▼</span><br><span class="line">ui_81x_demo_next_page() / prev_page()</span><br><span class="line">                 │</span><br><span class="line">                 ▼</span><br><span class="line">ui_81x_demo_switch_page()</span><br><span class="line">                 │</span><br><span class="line">                 ▼</span><br><span class="line">ui_81x_demo_apply_page()</span><br><span class="line">                 │</span><br><span class="line">                 ▼</span><br><span class="line">ui_81x_demo_set_video_mode()</span><br><span class="line">                 ├─ lcd_stream_set_video_enable()</span><br><span class="line">                 ├─ lcd_stream_set_video_layout()</span><br><span class="line">                 ├─ bbm_protocol_set_remote_display_size()</span><br><span class="line">                 ├─ ui_81x_demo_open/close_local_stream()</span><br><span class="line">                 └─ bbm_protocol_set_remote_display_enable()</span><br></pre></td></tr></table></figure>
+
+<h2 id="8-2-本地预览流"><a href="#8-2-本地预览流" class="headerlink" title="8.2 本地预览流"></a>8.2 本地预览流</h2><p>本地画面不是直接使用编码 JPEG，而是创建缩放流：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">scale3_stream_not_bind(</span><br><span class="line">    <span class="string">&quot;S_81X_LOCAL_DISPLAY&quot;</span>,</span><br><span class="line">    input_w, input_h,</span><br><span class="line">    output_w, output_h,</span><br><span class="line">    YUV_P0);</span><br></pre></td></tr></table></figure>
+
+<p>随后绑定到 <code>R_VIDEO_P0</code>。每次改变本地显示尺寸时，代码会关闭旧流并按新尺寸重新创建，确保全屏和小窗模式使用正确的缩放参数。</p>
+<h2 id="8-3-远端显示尺寸"><a href="#8-3-远端显示尺寸" class="headerlink" title="8.3 远端显示尺寸"></a>8.3 远端显示尺寸</h2><p>UI 通过以下接口设置远端 JPEG 解码输出尺寸：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bbm_protocol_set_remote_display_size(width, height);</span><br></pre></td></tr></table></figure>
+
+<p>该函数把宽高编码到一个 32 位参数中：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">((<span class="type">uint32_t</span>)width &lt;&lt; <span class="number">16</span>) | height</span><br></pre></td></tr></table></figure>
+
+<p>然后通过 <code>SET_LVGL_VIDEO_ARG</code> 发给 <code>other_jpg</code> 流。<code>other_jpg_cmd_func()</code> 在关中断区间更新 <code>out_w/out_h/step_w/step_h</code>，避免解码工作与页面切换同时读写尺寸参数。</p>
+<h2 id="8-4-LCD-布局更新"><a href="#8-4-LCD-布局更新" class="headerlink" title="8.4 LCD 布局更新"></a>8.4 LCD 布局更新</h2><p><code>lcd_stream_set_video_enable()</code> 和 <code>lcd_stream_set_video_layout()</code> 都在关中断区间更新 <code>app_lcd_s</code> 状态：</p>
+<ul>
+<li><code>video_p0_enable</code>、<code>video_p1_enable</code>：控制两路视频是否输出；</li>
+<li><code>p0_x/y</code>、<code>p1_x/y</code>：控制两路画面坐标；</li>
+<li><code>p0_up</code>：控制 P0&#x2F;P1 的叠放顺序；</li>
+<li><code>layout_pending</code>：通知 LCD 线程应用新布局；</li>
+<li><code>clear_p0_pending/clear_p1_pending</code>：关闭通道时请求清理旧画面。</li>
+</ul>
+<h1 id="9-对端-IP-学习与音视频联动"><a href="#9-对端-IP-学习与音视频联动" class="headerlink" title="9. 对端 IP 学习与音视频联动"></a>9. 对端 IP 学习与音视频联动</h1><p>默认对端地址由 Wi-Fi 角色决定：</p>
+<table>
+<thead>
+<tr>
+<th>本机模式</th>
+<th>默认对端 IP</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>STA</td>
+<td><code>192.168.1.1</code></td>
+</tr>
+<tr>
+<td>AP</td>
+<td><code>192.168.1.100</code></td>
+</tr>
+</tbody></table>
+<p>接收任务收到 UDP 包后，以 <code>recvfrom()</code> 返回的源 IP 更新 <code>bbm_peer_ip</code>，同时设置 <code>bbm_peer_ready</code>。音频对讲模块 <code>intercom_adpcm.c</code> 也调用 <code>bbm_protocol_get_peer_ip()</code>，因此视频链路学到的 IP 可以被音频链路复用；反过来，音频 ACK 或 UDP 包也会调用 <code>bbm_protocol_set_peer_ip()</code> 更新同一个对端地址。</p>
+<p>连续 2000 ms 未收到视频包时，接收任务清除：</p>
+<ul>
+<li><code>bbm_peer_ready</code>；</li>
+<li><code>bbm_remote_frame_ready</code>；</li>
+<li>动态学习到的 <code>bbm_peer_ip</code>。</li>
+</ul>
+<p>之后发送端会重新退回 AP&#x2F;STA 对应的默认地址。</p>
+<h1 id="10-任务、并发与内存"><a href="#10-任务、并发与内存" class="headerlink" title="10. 任务、并发与内存"></a>10. 任务、并发与内存</h1><h2 id="10-1-任务配置"><a href="#10-1-任务配置" class="headerlink" title="10.1 任务配置"></a>10.1 任务配置</h2><table>
+<thead>
+<tr>
+<th>任务</th>
+<th>入口</th>
+<th align="right">优先级</th>
+<th align="right">栈大小</th>
+<th>主要阻塞点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>video2_rx</code></td>
+<td><code>bbm_video_rx_thread()</code></td>
+<td align="right">15</td>
+<td align="right">2048</td>
+<td><code>recvfrom()</code>，20 ms 超时</td>
+</tr>
+<tr>
+<td><code>video2_tx</code></td>
+<td><code>bbm_video_tx_thread()</code></td>
+<td align="right">15</td>
+<td align="right">2048</td>
+<td>轮询视频流，失败时短暂 sleep</td>
+</tr>
+<tr>
+<td><code>gui_thread</code></td>
+<td><code>lvgl_run()</code></td>
+<td align="right">NORMAL</td>
+<td align="right">4096</td>
+<td>LVGL 主循环</td>
+</tr>
+<tr>
+<td><code>lcd_thread</code></td>
+<td><code>lcd_thread()</code></td>
+<td align="right">NORMAL</td>
+<td align="right">1024</td>
+<td>LCD 输出与布局更新</td>
+</tr>
+</tbody></table>
+<p>视频任务均为永久循环，目前没有停止和销毁路径。</p>
+<h2 id="10-2-主要缓冲区"><a href="#10-2-主要缓冲区" class="headerlink" title="10.2 主要缓冲区"></a>10.2 主要缓冲区</h2><table>
+<thead>
+<tr>
+<th>缓冲区</th>
+<th align="right">大小</th>
+<th>存储区域</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>bbm_tx_packet</code></td>
+<td align="right">1328 B</td>
+<td>静态内存，4 字节对齐</td>
+<td>UDP 发送包</td>
+</tr>
+<tr>
+<td><code>bbm_rx_packet</code></td>
+<td align="right">1328 B</td>
+<td>静态内存，4 字节对齐</td>
+<td>UDP 接收包</td>
+</tr>
+<tr>
+<td><code>bbm_tx_jpeg</code></td>
+<td align="right">30 KiB</td>
+<td><code>.psram.src</code></td>
+<td>连续化后的本地 JPEG</td>
+</tr>
+<tr>
+<td><code>bbm_rx_jpeg</code></td>
+<td align="right">30 KiB</td>
+<td><code>.psram.src</code></td>
+<td>远端帧重组</td>
+</tr>
+<tr>
+<td>远端源槽位池</td>
+<td align="right">最多 4 × 30 KiB</td>
+<td>动态 PSRAM</td>
+<td>向解码流投递完整 JPEG</td>
+</tr>
+</tbody></table>
+<p>仅视频对讲模块稳定运行时，JPEG 大缓冲区的 PSRAM 上限约为 180 KiB，未包含流框架节点、JPEG 解码器和 LCD 帧缓冲。</p>
+<h2 id="10-3-并发模型"><a href="#10-3-并发模型" class="headerlink" title="10.3 并发模型"></a>10.3 并发模型</h2><ul>
+<li>TX 任务独占 <code>bbm_tx_packet</code> 和 <code>bbm_tx_jpeg</code>。</li>
+<li>RX 任务独占 <code>bbm_rx_packet</code>、<code>bbm_rx_jpeg</code> 和 <code>bbm_rx_frame</code>。</li>
+<li>UI&#x2F;LVGL 任务写 <code>bbm_tx_enable</code>、<code>bbm_rx_enable</code>、<code>bbm_displaydecode_run</code>。</li>
+<li>音频、RX 和 TX 任务可能同时访问对端状态变量。</li>
+<li>这些简单状态使用 <code>volatile</code>，但没有互斥锁或原子操作。当前目标平台对自然对齐的 8&#x2F;32 位访问通常是单次操作，但 <code>volatile</code> 不提供跨核同步、复合操作原子性或内存屏障保证。</li>
+</ul>
+<h1 id="11-对外-API"><a href="#11-对外-API" class="headerlink" title="11. 对外 API"></a>11. 对外 API</h1><h2 id="11-1-视频协议控制-API"><a href="#11-1-视频协议控制-API" class="headerlink" title="11.1 视频协议控制 API"></a>11.1 视频协议控制 API</h2><table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>bbm_protocol_set_tx_enable(enable)</code></td>
+<td>开关本机 JPEG 网络发送</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_get_tx_enable()</code></td>
+<td>查询发送状态</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_set_rx_enable(enable)</code></td>
+<td>开关收到包后的协议解析</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_get_rx_enable()</code></td>
+<td>查询接收状态</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_set_remote_display_enable(enable)</code></td>
+<td>开关完整远端帧向解码流投递</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_get_remote_display_enable()</code></td>
+<td>查询远端显示门控</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_set_remote_display_size(w, h)</code></td>
+<td>设置远端解码输出尺寸</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_set_peer_ip(ip)</code></td>
+<td>设置&#x2F;学习对端 IPv4 地址，参数使用网络字节序</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_get_peer_ip()</code></td>
+<td>获取动态地址；未学习时返回默认地址</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_is_peer_ready()</code></td>
+<td>是否已收到对端数据并进入 ready 状态</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_has_remote_frame()</code></td>
+<td>是否至少成功投递过一帧远端 JPEG</td>
+</tr>
+<tr>
+<td><code>bbm_protocol_clear_peer_ready()</code></td>
+<td>清除对端和远端首帧状态</td>
+</tr>
+</tbody></table>
+<h2 id="11-2-UI-控制-API"><a href="#11-2-UI-控制-API" class="headerlink" title="11.2 UI 控制 API"></a>11.2 UI 控制 API</h2><table>
+<thead>
+<tr>
+<th>API</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ui_81x_demo_display()</code></td>
+<td>显示启动 Logo，并在 3 秒后进入主界面</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_set_video_mode(mode)</code></td>
+<td>直接设置视频显示模式</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_switch_page(page)</code></td>
+<td>切换到指定页面</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_next_page()</code></td>
+<td>循环切换到下一页</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_prev_page()</code></td>
+<td>循环切换到上一页</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_show_remote_full()</code></td>
+<td>只显示远端全屏</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_show_local_full()</code></td>
+<td>只显示本地全屏</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_show_local_big_remote_small()</code></td>
+<td>本地全屏、远端右上小窗</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_show_remote_big_local_small()</code></td>
+<td>远端全屏、本地右上小窗</td>
+</tr>
+<tr>
+<td><code>ui_81x_demo_hide_video()</code></td>
+<td>关闭 P0&#x2F;P1 视频显示</td>
+</tr>
+</tbody></table>
+<h1 id="12-调试日志说明"><a href="#12-调试日志说明" class="headerlink" title="12. 调试日志说明"></a>12. 调试日志说明</h1><p>发送端每秒打印一次：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">video2_tx peer:... frame:... drop:... pkt:... fail:... empty:... speed:...KB/s fd:...</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>frame</code></td>
+<td>成功发送的完整 JPEG 帧数</td>
+</tr>
+<tr>
+<td><code>drop</code></td>
+<td>JPEG 提取失败或任一分片发送失败的帧数</td>
+</tr>
+<tr>
+<td><code>pkt</code></td>
+<td>成功发送的 UDP 分片数</td>
+</tr>
+<tr>
+<td><code>fail</code></td>
+<td>经过 3 次重试仍失败的分片数</td>
+</tr>
+<tr>
+<td><code>empty</code></td>
+<td>本次轮询未取得 JPEG 帧的次数</td>
+</tr>
+<tr>
+<td><code>speed</code></td>
+<td>本秒发送协议数据量，单位 KiB&#x2F;s</td>
+</tr>
+</tbody></table>
+<p>接收端每秒打印一次：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">video2_rx en:... pkt:... invalid:... old:... dup:...</span><br><span class="line">frame:start/complete drop:... timeout:... gated:...</span><br><span class="line">stream:... busy:... mem:... route:... speed:... state:... id:... got:.../...</span><br></pre></td></tr></table></figure>
+
+<p>重点字段：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义及排查方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>invalid</code></td>
+<td>协议头、长度或分片参数非法；检查版本、端口和数据损坏</td>
+</tr>
+<tr>
+<td><code>old</code></td>
+<td>收到比当前组装帧更旧的分片；通常由网络乱序或延迟引起</td>
+</tr>
+<tr>
+<td><code>dup</code></td>
+<td>重复 UDP 分片</td>
+</tr>
+<tr>
+<td><code>drop</code></td>
+<td>新帧到达时旧帧仍未完成</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>150 ms 内未收齐一帧</td>
+</tr>
+<tr>
+<td><code>gated</code></td>
+<td>已收齐，但当前 UI 不需要显示远端画面</td>
+</tr>
+<tr>
+<td><code>stream</code></td>
+<td>成功投递到远端 JPEG 解码流的帧数</td>
+</tr>
+<tr>
+<td><code>busy</code></td>
+<td>4 个远端源槽位全部占用，解码链路消费不及时</td>
+</tr>
+<tr>
+<td><code>mem</code></td>
+<td>源槽位 PSRAM 申请失败</td>
+</tr>
+<tr>
+<td><code>route</code></td>
+<td><code>send_data_to_stream()</code> 失败</td>
+</tr>
+<tr>
+<td><code>got x/y</code></td>
+<td>当前帧已收到分片数&#x2F;总分片数</td>
+</tr>
+</tbody></table>
+<h1 id="13-常见问题定位"><a href="#13-常见问题定位" class="headerlink" title="13. 常见问题定位"></a>13. 常见问题定位</h1><h2 id="13-1-本地画面正常，远端黑屏"><a href="#13-1-本地画面正常，远端黑屏" class="headerlink" title="13.1 本地画面正常，远端黑屏"></a>13.1 本地画面正常，远端黑屏</h2><p>按以下顺序检查：</p>
+<ol>
+<li><code>video2_rx pkt</code> 是否增长。</li>
+<li><code>invalid</code> 是否持续增长。</li>
+<li><code>frame_complete</code> 是否增长。</li>
+<li>当前页面的 <code>en</code> 是否为 1；本地全屏页会主动关闭远端投递。</li>
+<li><code>stream</code> 是否增长，<code>busy/mem/route</code> 是否异常。</li>
+<li><code>lcd_stream_set_video_enable()</code> 是否已开启 P1。</li>
+<li><code>SET_LVGL_VIDEO_ARG</code> 的输出尺寸是否与当前页面一致。</li>
+</ol>
+<h2 id="13-2-远端画面卡顿或马赛克"><a href="#13-2-远端画面卡顿或马赛克" class="headerlink" title="13.2 远端画面卡顿或马赛克"></a>13.2 远端画面卡顿或马赛克</h2><ul>
+<li><code>timeout/drop</code> 高：Wi-Fi 丢包、单帧分片过多或 150 ms 超时太短。</li>
+<li><code>fail</code> 高：发送 socket 繁忙，当前非阻塞发送重试仍不足。</li>
+<li><code>busy</code> 高：JPEG 解码或 LCD 消费速度低于网络输入速度。</li>
+<li>JPEG 超过 30 KiB：发送端会整帧丢弃，可降低分辨率&#x2F;质量或提高上限。</li>
+</ul>
+<p>当前协议没有校验和、FEC、NACK 或关键帧重传。UDP 包丢失会导致整帧在超时或新帧到达时被丢弃，但不会污染下一帧。</p>
+<h2 id="13-3-画面出现-2×2-重复或绿色块"><a href="#13-3-画面出现-2×2-重复或绿色块" class="headerlink" title="13.3 画面出现 2×2 重复或绿色块"></a>13.3 画面出现 2×2 重复或绿色块</h2><p>优先检查 JPEG0 的源和尺寸是否匹配：</p>
+<ul>
+<li><code>jpg_cfg(HG_JPG0_DEVID, VPP_DATA1)</code>；</li>
+<li><code>get_jpg_default_dpi(1)</code>；</li>
+<li><code>jpg_start()</code> 使用 <code>photo_msg.out1_w/out1_h</code>。</li>
+</ul>
+<p>这三处必须保持一致。</p>
+<h2 id="13-4-页面切换后残留旧画面"><a href="#13-4-页面切换后残留旧画面" class="headerlink" title="13.4 页面切换后残留旧画面"></a>13.4 页面切换后残留旧画面</h2><p>检查 <code>lcd_stream_set_video_enable()</code> 是否触发 <code>clear_p0_pending</code> 或 <code>clear_p1_pending</code>，以及 LCD 线程是否消费这些标志。布局函数只更新坐标与层级，不负责关闭旧通道。</p>
+<h1 id="14-二次开发指南"><a href="#14-二次开发指南" class="headerlink" title="14. 二次开发指南"></a>14. 二次开发指南</h1><h2 id="14-1-新增一种布局"><a href="#14-1-新增一种布局" class="headerlink" title="14.1 新增一种布局"></a>14.1 新增一种布局</h2><ol>
+<li>在 <code>ui_81x_demo_video_mode_t</code> 中增加模式。</li>
+<li>如需成为可翻页页面，在 <code>ui_81x_demo_page_t</code> 中增加页面。</li>
+<li>在 <code>ui_81x_demo_page_name()</code> 中增加 OSD 名称。</li>
+<li>编写布局函数，设置 P0&#x2F;P1 使能、远端尺寸、坐标和本地缩放尺寸。</li>
+<li>在 <code>ui_81x_demo_set_video_mode()</code> 中增加分支。</li>
+<li>在 <code>ui_81x_demo_apply_page()</code> 中建立页面到视频模式的映射。</li>
+<li>验证 PIP 坐标没有超出 <code>SCALE_WIDTH/SCALE_HIGH</code>。</li>
+</ol>
+<h2 id="14-2-修改分辨率"><a href="#14-2-修改分辨率" class="headerlink" title="14.2 修改分辨率"></a>14.2 修改分辨率</h2><p>需要同步检查：</p>
+<ul>
+<li>摄像头输入 <code>photo_msg.in_w/in_h</code>；</li>
+<li>VPP DATA0&#x2F;DATA1 输出尺寸；</li>
+<li>JPEG0 编码源和默认 DPI；</li>
+<li><code>BBM_JPEG_MAX_SIZE</code> 是否容纳新 JPEG；</li>
+<li>LCD P0 本地缩放输出；</li>
+<li>P1 远端解码输出；</li>
+<li>UI 主屏幕和 PIP 坐标；</li>
+<li>PSRAM 总占用。</li>
+</ul>
+<h2 id="14-3-修改-UDP-分片大小"><a href="#14-3-修改-UDP-分片大小" class="headerlink" title="14.3 修改 UDP 分片大小"></a>14.3 修改 UDP 分片大小</h2><p>双方必须同时修改 <code>BBM_FRAGMENT_PAYLOAD</code>。还要同步评估：</p>
+<ul>
+<li><code>bbm_tx_packet</code>、<code>bbm_rx_packet</code> 大小；</li>
+<li><code>BBM_MAX_FRAGMENTS</code>；</li>
+<li><code>received_map</code> 位数；</li>
+<li>Wi-Fi MTU，避免 IP 层再次分片；</li>
+<li>发送间隔和帧超时。</li>
+</ul>
+<p>当前 1300 字节负载加 28 字节私有头、8 字节 UDP 头和 20 字节 IPv4 头，总计约 1356 字节，低于常见 1500 字节 MTU。</p>
+<h2 id="14-4-增加协议可靠性"><a href="#14-4-增加协议可靠性" class="headerlink" title="14.4 增加协议可靠性"></a>14.4 增加协议可靠性</h2><p>推荐按兼容性从低到高逐步扩展：</p>
+<ol>
+<li>在协议头尾部增加 CRC32，并升级 <code>BBM_WIRE_VERSION</code>。</li>
+<li>增加会话 ID，避免设备重启后旧包与新帧号混淆。</li>
+<li>增加接收端丢片统计和周期性反馈。</li>
+<li>对关键帧或低分片数帧增加选择性重传。</li>
+<li>网络较差时动态降低 JPEG 质量或帧率。</li>
+</ol>
+<h1 id="15-已知风险与改进建议"><a href="#15-已知风险与改进建议" class="headerlink" title="15. 已知风险与改进建议"></a>15. 已知风险与改进建议</h1><p>以下项目不会阻止当前功能运行，但在产品化前值得处理：</p>
+<ol>
+<li><strong>任务创建返回值未检查。</strong> <code>csi_kernel_task_new()</code> 失败后仍会把协议标记为已启动，且没有回滚 socket 和流资源。</li>
+<li><strong>部分初始化失败没有统一清理。</strong> 解码流成功而后续源流失败时，已创建资源保持打开。</li>
+<li><strong>没有停止&#x2F;重启接口。</strong> 两个任务永久循环，socket、流和 PSRAM 槽位仅适合一次性启动模型。</li>
+<li><strong>协议结构依赖 ABI。</strong> 虽然检查了 28 字节大小，但更稳妥的做法是显式序列化各字段。</li>
+<li><strong>共享状态只使用 <code>volatile</code>。</strong> 多任务并发更新对端状态时缺少明确同步机制。</li>
+<li><strong>对端学习接受任意 UDP 源。</strong> 在解析协议头之前就更新 peer IP，局域网内发往 11011 端口的任意数据都可能改变发送目标。建议至少在 magic&#x2F;version 校验后再学习，产品环境可增加配对标识或鉴权。</li>
+<li><strong>未校验 FIRST&#x2F;LAST 标志。</strong> 当前主要依赖 index&#x2F;count，标志字段被发送但接收端没有验证。</li>
+<li><strong>无数据完整性校验。</strong> UDP 校验和之外没有帧级 CRC，错误载荷可能进入 JPEG 解码器。</li>
+<li><strong>UI 重入清理不完整。</strong> <code>ui_81x_demo_display()</code> 若被多次调用，旧定时器、按键组和页面对象的生命周期需要额外确认。</li>
+<li><strong>公共声明存在重复。</strong> <code>video_intercom.h</code> 与 <code>sdk/include/bbm_protocol.h</code> 维护同一组 API，后续容易发生声明不一致，建议保留单一公共头文件。</li>
+</ol>
+<h1 id="16-构建与集成检查清单"><a href="#16-构建与集成检查清单" class="headerlink" title="16. 构建与集成检查清单"></a>16. 构建与集成检查清单</h1><p>工程的 <code>project/fpv_app_umac4.mk</code> 已包含：</p>
+<ul>
+<li><code>sdk/app/video_intercom/video_intercom.c</code>；</li>
+<li><code>sdk/lib/gui/81x_demo_ui/81x_demo_ui.c</code>；</li>
+<li><code>generated/</code> 下的 GUI Guider 源文件；</li>
+<li><code>custom/custom.c</code>；</li>
+<li><code>ui_res/ui_bgLogo.c</code>。</li>
+</ul>
+<p>编译前确认：</p>
+<ul>
+<li><code>BBM_DEMO == 1</code>；</li>
+<li><code>JPG_EN == 1</code>；</li>
+<li><code>DVP_EN == 1</code>；</li>
+<li><code>LCD_EN == 1</code>；</li>
+<li><code>LVGL_STREAM_ENABLE</code> 与目标 LVGL 显示路径一致；</li>
+<li><code>KEY_MODULE_EN == 1</code> 时按键输入已注册；</li>
+<li>工程中只保留一个强符号 <code>user_protocol()</code> 实现，避免与旧版 <code>babyprotocol.c</code> 同时链接产生冲突或选错协议实现；</li>
+<li>链接脚本存在 <code>.psram.src</code> 段，并且 PSRAM 容量足够。</li>
+</ul>
+<h1 id="17-核心流程总结"><a href="#17-核心流程总结" class="headerlink" title="17. 核心流程总结"></a>17. 核心流程总结</h1><p>这套视频对讲方案的关键设计可以概括为三层：</p>
+<ol>
+<li><strong>媒体层</strong>：JPEG0 从 <code>VPP_DATA1</code> 编码，本地 YUV 通过 P0 预览，远端 JPEG 通过 P1 解码显示。</li>
+<li><strong>传输层</strong>：单帧 JPEG 按 1300 字节切分，通过 UDP 11011 双向传输；接收端支持乱序、重复包过滤、新旧帧判断和 150 ms 超时丢帧。</li>
+<li><strong>交互层</strong>：LVGL 提供启动 Logo、页面名称和按键事件，页面状态机统一控制本地&#x2F;远端通道使能、尺寸、位置和层级。</li>
+</ol>
+<p>开发和调试时应始终沿着以下顺序定位问题：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">摄像头/VPP → JPEG 编码 → R_RTP_JPEG → UDP 发送</span><br><span class="line">→ UDP 接收 → 分片重组 → other_jpg → JPEG 解码</span><br><span class="line">→ LCD P1 → P0/P1 布局 → LVGL 页面控制</span><br></pre></td></tr></table></figure>
+
+<p>只要明确每一层的数据格式、缓冲区所有权和开关状态，就能快速区分问题究竟发生在编码、网络、解码、LCD 合成还是 UI 控制环节。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/JPEG/">JPEG</a><a class="post-meta__tags" href="/tags/%E6%B5%81%E5%AA%92%E4%BD%93/">流媒体</a><a class="post-meta__tags" href="/tags/UDP/">UDP</a><a class="post-meta__tags" href="/tags/TXW81x/">TXW81x</a><a class="post-meta__tags" href="/tags/%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2/">视频对讲</a><a class="post-meta__tags" href="/tags/%E5%8F%8C%E7%94%BB%E9%9D%A2/">双画面</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.jpeg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/" title="Spook 图传模块分析文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Spook 图传模块分析文档</div></div><div class="info-2"><div class="info-item-1">Spook 图传模块分析文档1. 文档范围本文档分析 sdk/app/spook/ 目录中与图传直接相关的实现，重点覆盖以下内容：  spook 模块初始化 实时 RTSP 图传主流程 stream 分发机制 RTSP 会话建立与播放控制 RTP&#x2F;JPEG 实际发包流程 音频辅助链路 函数指针绑定关系  本文档主要针对实时预览链路 /webcam，同时补充 /file 文件回放链路与其复用关系。  2. 目录中与图传最相关的文件2.1 核心入口 sdk/app/spook/spook.c sdk/app/spook/spook_config.h  2.2 实时 RTSP 控制 sdk/app/spook/live.c sdk/app/spook/rtsp.c sdk/app/spook/rtsp_common.c sdk/app/spook/session.c  2.3 帧和流分发 sdk/app/spook/frame.c sdk/app/spook/frame.h sdk/app/spook/stream.c sdk/app/spook/stream.h  2.4 ...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/06/30/TXW82x%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x 平台相册功能开发文档</div></div><div class="info-2"><div class="info-item-1">TXW82x 平台相册功能开发文档 项目： TXW82x 相册功能日期： 2026-06-30基于提交： 72ce4df (更新相册功能) + eab804e (添加照片选中功能)技术栈： LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件   目录 功能概述 文件变更清单 数据结构详解 MSI 流水线架构 核心函数逐分析 UI 界面布局 按键系统与焦点导航 全屏预览机制 CSC 动态格式配置 JPEG 解码器扩展 内存管理策略 数据流完整跟踪 操作说明 内存泄漏修复回顾   一、功能概述相册功能为 TXW82x 平台提供基于 SD 卡的 JPEG 图片浏览能力。整体包含两大功能模块： 第一版（提交 72ce4df）— 相册功能骨架 从 SD 卡 IMG/ 目录扫描 *.jpg 文件 缩略图网格展示（自动根据屏幕分辨率计算网格行列数） 支持多页翻页（按键、触摸按钮、左右滑动手势） 点击缩略图进入全屏预览（使用 VIDEO_P1 硬件层） MSI 流水线：S_...</div></div></div></a><a class="pagination-related" href="/2026/06/30/TXW82x-Spook-RTSP%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/" title="TXW82x Spook RTSP 流媒体服务器架构文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x Spook RTSP 流媒体服务器架构文档</div></div><div class="info-2"><div class="info-item-1">TXW82x Spook RTSP 流媒体服务器架构文档1. 概述Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 RTSP 流媒体服务器，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。 1.1 核心能力   能力 说明    视频编码 MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.264 编码器)   音频编码 AAC (硬件音频编码器)   传输协议 RTP&#x2F;AVP over UDP、RTP&#x2F;AVP over TCP (RTSP 交织)   默认端口 554   多路流 同时注册多个 RTSP 路径，独立推流   录像回放 支持通过 RTSP 回放 SD 卡中的 MP4&#x2F;AVI 文件   并发客户端 多客户端同时连接同一路流   1.2 硬件平台   组件 说明    CPU CK810 (C-SKY 架构)   视频编码 ...</div></div></div></a><a class="pagination-related" href="/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/" title="Spook 图传模块分析文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">Spook 图传模块分析文档</div></div><div class="info-2"><div class="info-item-1">Spook 图传模块分析文档1. 文档范围本文档分析 sdk/app/spook/ 目录中与图传直接相关的实现，重点覆盖以下内容：  spook 模块初始化 实时 RTSP 图传主流程 stream 分发机制 RTSP 会话建立与播放控制 RTP&#x2F;JPEG 实际发包流程 音频辅助链路 函数指针绑定关系  本文档主要针对实时预览链路 /webcam，同时补充 /file 文件回放链路与其复用关系。  2. 目录中与图传最相关的文件2.1 核心入口 sdk/app/spook/spook.c sdk/app/spook/spook_config.h  2.2 实时 RTSP 控制 sdk/app/spook/live.c sdk/app/spook/rtsp.c sdk/app/spook/rtsp_common.c sdk/app/spook/session.c  2.3 帧和流分发 sdk/app/spook/frame.c sdk/app/spook/frame.h sdk/app/spook/stream.c sdk/app/spook/stream.h  2.4 ...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） 🔴 高   Bug home_view.c 第 119 行 lv_obj_set_pos(flower, 0, 0) 在花瓣循环内冗余执行 🟡 中   性能 Home 刷新定时器在非 Home 页面时仍每秒触发，浪费 CPU 🟡 中   代码质量 menu_view.c 中残留 3 处 printf 调试语句 🟡 中   可维护性 颜色值如 0xffd54a、0x2a2113、0x1a1c24 在 50+ 处硬编码 🟡 中   可维护性 字体 &amp;lv_font...</div></div></div></a><a class="pagination-related" href="/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层（R_VIDEO_P0）显示 支持播放&#x2F;暂停控制 支持退出播放并回到主菜单   2. 架构与数据流2.1 MSI 管道拓扑在进入播放界面时，组件建立如下 MSI 数据流管道： 12345678910111213141516171819SD 卡 H.264 文件 (*.h264)     │     ▼h264_file_msi (文件解复用器)     │  MSI_CMD_VIDEO_DEMUX_CTRL → START/STOP/PAUSE     │  输出:...</div></div></div></a><a class="pagination-related" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">ADPCM 对讲模块详细设计文档</div></div><div class="info-2"><div class="info-item-1">ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：  模块整体职责 依赖的流和内存资源 初始化顺序 线程之间的分工 编码、发送、接收、解码、播放链路 函数之间的调用关系 关键回调函数和函数指针绑定关系  本文档对应的核心文件：  sdk/app/intercom/intercom_adpcm.c sdk/app/intercom/intercom.h sdk/app/audio_app/bbm_audio_ad.c sdk/app/algorithm/stream_frame/stream_define.h project/main.c   2. 模块定位intercom_adpcm.c 实现的是一套基于 UDP + ADPCM 编解码 的对讲模块，不是 RTSP，也不是 RTP。 它完成的事情是：  从本地麦克风流 R_INTERCOM_AUDIO 读取 PCM 音频 使用 ADPCM 编码 通过 UDP 发给对端 接收对端发来的 ADPCM 包 对丢包进行简单...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.jpeg" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description"></div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">11</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">37</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">8</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">Building scalable systems & digital infrastructure.</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#1-%E9%A1%B9%E7%9B%AE%E6%A6%82%E8%BF%B0"><span class="toc-text">1. 项目概述</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#2-%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84"><span class="toc-text">2. 总体架构</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#3-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%96%87%E4%BB%B6%E8%81%8C%E8%B4%A3"><span class="toc-text">3. 目录与文件职责</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#3-1-%E8%A7%86%E9%A2%91%E4%BC%A0%E8%BE%93%E6%A8%A1%E5%9D%97"><span class="toc-text">3.1 视频传输模块</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-2-LVGL-UI-%E6%A8%A1%E5%9D%97"><span class="toc-text">3.2 LVGL UI 模块</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-3-%E5%85%B3%E8%81%94%E6%A8%A1%E5%9D%97"><span class="toc-text">3.3 关联模块</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#4-%E7%B3%BB%E7%BB%9F%E5%90%AF%E5%8A%A8%E8%B0%83%E7%94%A8%E9%93%BE"><span class="toc-text">4. 系统启动调用链</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#4-1-%E7%A1%AC%E4%BB%B6%E4%B8%8E%E8%A7%86%E9%A2%91%E6%BA%90%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">4.1 硬件与视频源初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-2-UI-%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">4.2 UI 初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-3-%E7%BD%91%E7%BB%9C%E5%8D%8F%E8%AE%AE%E5%88%9D%E5%A7%8B%E5%8C%96"><span class="toc-text">4.3 网络协议初始化</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#5-%E6%9C%AC%E5%9C%B0%E8%A7%86%E9%A2%91%E5%8F%91%E9%80%81%E9%93%BE%E8%B7%AF"><span class="toc-text">5. 本地视频发送链路</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#5-1-JPEG-%E6%95%B0%E6%8D%AE%E6%9D%A5%E6%BA%90"><span class="toc-text">5.1 JPEG 数据来源</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-2-%E5%85%BC%E5%AE%B9%E4%B8%A4%E7%A7%8D-JPEG-%E5%AD%98%E5%82%A8%E5%BD%A2%E5%BC%8F"><span class="toc-text">5.2 兼容两种 JPEG 存储形式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-3-%E5%88%86%E7%89%87%E5%8F%91%E9%80%81"><span class="toc-text">5.3 分片发送</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#6-UDP-%E7%A7%81%E6%9C%89%E5%8D%8F%E8%AE%AE"><span class="toc-text">6. UDP 私有协议</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#7-%E8%BF%9C%E7%AB%AF%E6%8E%A5%E6%94%B6%E4%B8%8E%E5%B8%A7%E9%87%8D%E7%BB%84"><span class="toc-text">7. 远端接收与帧重组</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#7-1-%E6%8E%A5%E6%94%B6%E4%BB%BB%E5%8A%A1"><span class="toc-text">7.1 接收任务</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-2-%E6%95%B0%E6%8D%AE%E5%8C%85%E6%A0%A1%E9%AA%8C"><span class="toc-text">7.2 数据包校验</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-3-%E4%B9%B1%E5%BA%8F%E3%80%81%E9%87%8D%E5%A4%8D%E5%92%8C%E6%96%B0%E6%97%A7%E5%B8%A7%E5%A4%84%E7%90%86"><span class="toc-text">7.3 乱序、重复和新旧帧处理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-4-%E6%8A%95%E9%80%92%E5%88%B0%E8%A7%A3%E7%A0%81%E9%93%BE%E8%B7%AF"><span class="toc-text">7.4 投递到解码链路</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#8-LVGL-%E9%A1%B5%E9%9D%A2%E4%B8%8E%E8%A7%86%E9%A2%91%E5%B8%83%E5%B1%80"><span class="toc-text">8. LVGL 页面与视频布局</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#8-1-%E9%A1%B5%E9%9D%A2%E5%88%87%E6%8D%A2%E8%B0%83%E7%94%A8%E9%93%BE"><span class="toc-text">8.1 页面切换调用链</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-2-%E6%9C%AC%E5%9C%B0%E9%A2%84%E8%A7%88%E6%B5%81"><span class="toc-text">8.2 本地预览流</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-3-%E8%BF%9C%E7%AB%AF%E6%98%BE%E7%A4%BA%E5%B0%BA%E5%AF%B8"><span class="toc-text">8.3 远端显示尺寸</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-4-LCD-%E5%B8%83%E5%B1%80%E6%9B%B4%E6%96%B0"><span class="toc-text">8.4 LCD 布局更新</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#9-%E5%AF%B9%E7%AB%AF-IP-%E5%AD%A6%E4%B9%A0%E4%B8%8E%E9%9F%B3%E8%A7%86%E9%A2%91%E8%81%94%E5%8A%A8"><span class="toc-text">9. 对端 IP 学习与音视频联动</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#10-%E4%BB%BB%E5%8A%A1%E3%80%81%E5%B9%B6%E5%8F%91%E4%B8%8E%E5%86%85%E5%AD%98"><span class="toc-text">10. 任务、并发与内存</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#10-1-%E4%BB%BB%E5%8A%A1%E9%85%8D%E7%BD%AE"><span class="toc-text">10.1 任务配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-2-%E4%B8%BB%E8%A6%81%E7%BC%93%E5%86%B2%E5%8C%BA"><span class="toc-text">10.2 主要缓冲区</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-3-%E5%B9%B6%E5%8F%91%E6%A8%A1%E5%9E%8B"><span class="toc-text">10.3 并发模型</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#11-%E5%AF%B9%E5%A4%96-API"><span class="toc-text">11. 对外 API</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#11-1-%E8%A7%86%E9%A2%91%E5%8D%8F%E8%AE%AE%E6%8E%A7%E5%88%B6-API"><span class="toc-text">11.1 视频协议控制 API</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-2-UI-%E6%8E%A7%E5%88%B6-API"><span class="toc-text">11.2 UI 控制 API</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#12-%E8%B0%83%E8%AF%95%E6%97%A5%E5%BF%97%E8%AF%B4%E6%98%8E"><span class="toc-text">12. 调试日志说明</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#13-%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98%E5%AE%9A%E4%BD%8D"><span class="toc-text">13. 常见问题定位</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#13-1-%E6%9C%AC%E5%9C%B0%E7%94%BB%E9%9D%A2%E6%AD%A3%E5%B8%B8%EF%BC%8C%E8%BF%9C%E7%AB%AF%E9%BB%91%E5%B1%8F"><span class="toc-text">13.1 本地画面正常，远端黑屏</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-2-%E8%BF%9C%E7%AB%AF%E7%94%BB%E9%9D%A2%E5%8D%A1%E9%A1%BF%E6%88%96%E9%A9%AC%E8%B5%9B%E5%85%8B"><span class="toc-text">13.2 远端画面卡顿或马赛克</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-3-%E7%94%BB%E9%9D%A2%E5%87%BA%E7%8E%B0-2%C3%972-%E9%87%8D%E5%A4%8D%E6%88%96%E7%BB%BF%E8%89%B2%E5%9D%97"><span class="toc-text">13.3 画面出现 2×2 重复或绿色块</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-4-%E9%A1%B5%E9%9D%A2%E5%88%87%E6%8D%A2%E5%90%8E%E6%AE%8B%E7%95%99%E6%97%A7%E7%94%BB%E9%9D%A2"><span class="toc-text">13.4 页面切换后残留旧画面</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#14-%E4%BA%8C%E6%AC%A1%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97"><span class="toc-text">14. 二次开发指南</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#14-1-%E6%96%B0%E5%A2%9E%E4%B8%80%E7%A7%8D%E5%B8%83%E5%B1%80"><span class="toc-text">14.1 新增一种布局</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-2-%E4%BF%AE%E6%94%B9%E5%88%86%E8%BE%A8%E7%8E%87"><span class="toc-text">14.2 修改分辨率</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-3-%E4%BF%AE%E6%94%B9-UDP-%E5%88%86%E7%89%87%E5%A4%A7%E5%B0%8F"><span class="toc-text">14.3 修改 UDP 分片大小</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-4-%E5%A2%9E%E5%8A%A0%E5%8D%8F%E8%AE%AE%E5%8F%AF%E9%9D%A0%E6%80%A7"><span class="toc-text">14.4 增加协议可靠性</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#15-%E5%B7%B2%E7%9F%A5%E9%A3%8E%E9%99%A9%E4%B8%8E%E6%94%B9%E8%BF%9B%E5%BB%BA%E8%AE%AE"><span class="toc-text">15. 已知风险与改进建议</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#16-%E6%9E%84%E5%BB%BA%E4%B8%8E%E9%9B%86%E6%88%90%E6%A3%80%E6%9F%A5%E6%B8%85%E5%8D%95"><span class="toc-text">16. 构建与集成检查清单</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#17-%E6%A0%B8%E5%BF%83%E6%B5%81%E7%A8%8B%E6%80%BB%E7%BB%93"><span class="toc-text">17. 核心流程总结</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</a><time datetime="2026-07-09T16:00:00.000Z" title="发表于 2026-07-10 00:00:00">2026-07-10</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档">ADPCM 对讲模块详细设计文档</a><time datetime="2026-07-02T16:00:00.000Z" title="发表于 2026-07-03 00:00:00">2026-07-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/" title="Spook 图传模块分析文档">Spook 图传模块分析文档</a><time datetime="2026-07-02T16:00:00.000Z" title="发表于 2026-07-03 00:00:00">2026-07-03</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/TXW82x-Spook-RTSP%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/" title="TXW82x Spook RTSP 流媒体服务器架构文档">TXW82x Spook RTSP 流媒体服务器架构文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/06/30/TXW82x%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档">TXW82x 平台相册功能开发文档</a><time datetime="2026-06-29T16:00:00.000Z" title="发表于 2026-06-30 00:00:00">2026-06-30</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
