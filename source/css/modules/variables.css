@@ -1,27 +1,91 @@
-/* ================== CSS Variables ================== */
-
+/* Design tokens shared by the light and dark themes. */
+:root,
 html:not([data-theme="dark"]) {
-    --hltools-bg: #e9eef4;
-    --hlscrollbar-bg: #dbe6f0;
-    --hlexpand-bg: linear-gradient(180deg, rgba(244, 247, 250, 0), rgba(244, 247, 250, 0.9));
+    color-scheme: light;
 
-    --primary-color: #49b1f5;
-    --hover-color: #ff7142d2;
-    --text-color: #2c3e50;
-    --card-bg: rgba(255, 255, 255, 0.85);
-    --card-border: #e8e8e8;
-    --card-shadow: 0 8px 16px -4px rgba(138, 138, 138, 0.15);
+    --ui-accent: #2563eb;
+    --ui-accent-strong: #1d4ed8;
+    --ui-accent-secondary: #0891b2;
+    --ui-accent-soft: rgba(37, 99, 235, 0.1);
+    --ui-success: #059669;
+
+    --ui-text: #182235;
+    --ui-text-muted: #667085;
+    --ui-heading: #0f172a;
+    --ui-surface: rgba(255, 255, 255, 0.88);
+    --ui-surface-solid: #ffffff;
+    --ui-surface-subtle: rgba(248, 250, 252, 0.82);
+    --ui-border: rgba(100, 116, 139, 0.2);
+    --ui-border-strong: rgba(37, 99, 235, 0.28);
+
+    --ui-shadow-sm: 0 8px 24px rgba(30, 41, 59, 0.07);
+    --ui-shadow-md: 0 18px 45px rgba(30, 41, 59, 0.1);
+    --ui-shadow-lg: 0 30px 80px rgba(15, 23, 42, 0.16);
+
+    --ui-radius-sm: 10px;
+    --ui-radius-md: 16px;
+    --ui-radius-lg: 24px;
+    --ui-content-width: 1280px;
+    --ui-reading-width: 860px;
+
+    --hltools-bg: #edf2f7;
+    --hlscrollbar-bg: #d9e2ec;
+    --hlexpand-bg: linear-gradient(180deg, rgba(248, 250, 252, 0), #f8fafc 82%);
+
+    /* Butterfly theme variables */
+    --global-bg: #f5f7fb;
+    --font-color: var(--ui-text);
+    --text-highlight-color: var(--ui-heading);
+    --card-bg: var(--ui-surface);
+    --card-meta: var(--ui-text-muted);
+    --card-box-shadow: var(--ui-shadow-sm);
+    --card-hover-box-shadow: var(--ui-shadow-md);
+    --btn-bg: var(--ui-accent);
+    --btn-hover-color: var(--ui-accent-strong);
+    --text-bg-hover: var(--ui-accent);
+    --toc-link-color: #64748b;
+    --blockquote-bg: rgba(37, 99, 235, 0.06);
+    --blockquote-color: var(--ui-accent);
 }
 
 html[data-theme="dark"] {
-    --hltools-bg: #111726;
-    --hlscrollbar-bg: #1e293b;
-    --hlexpand-bg: linear-gradient(180deg, rgba(11, 15, 25, 0), rgba(11, 15, 25, 0.9));
+    color-scheme: dark;
 
-    --primary-color: #49b1f5;
-    --hover-color: #ff7142d2;
-    --text-color: #c9d1d9;
-    --card-bg: rgba(30, 30, 30, 0.85);
-    --card-border: rgba(255, 255, 255, 0.08);
-    --card-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.2);
+    --ui-accent: #60a5fa;
+    --ui-accent-strong: #93c5fd;
+    --ui-accent-secondary: #22d3ee;
+    --ui-accent-soft: rgba(96, 165, 250, 0.13);
+    --ui-success: #34d399;
+
+    --ui-text: #d7e0ee;
+    --ui-text-muted: #94a3b8;
+    --ui-heading: #f8fafc;
+    --ui-surface: rgba(15, 23, 42, 0.88);
+    --ui-surface-solid: #111827;
+    --ui-surface-subtle: rgba(30, 41, 59, 0.72);
+    --ui-border: rgba(148, 163, 184, 0.16);
+    --ui-border-strong: rgba(96, 165, 250, 0.3);
+
+    --ui-shadow-sm: 0 10px 30px rgba(0, 0, 0, 0.2);
+    --ui-shadow-md: 0 20px 52px rgba(0, 0, 0, 0.28);
+    --ui-shadow-lg: 0 34px 90px rgba(0, 0, 0, 0.42);
+
+    --hltools-bg: #111827;
+    --hlscrollbar-bg: #263449;
+    --hlexpand-bg: linear-gradient(180deg, rgba(15, 23, 42, 0), #0f172a 82%);
+
+    /* Butterfly theme variables */
+    --global-bg: #08111f;
+    --font-color: var(--ui-text);
+    --text-highlight-color: var(--ui-heading);
+    --card-bg: var(--ui-surface);
+    --card-meta: var(--ui-text-muted);
+    --card-box-shadow: var(--ui-shadow-sm);
+    --card-hover-box-shadow: var(--ui-shadow-md);
+    --btn-bg: #2563eb;
+    --btn-hover-color: #3b82f6;
+    --text-bg-hover: #2563eb;
+    --toc-link-color: #94a3b8;
+    --blockquote-bg: rgba(96, 165, 250, 0.08);
+    --blockquote-color: var(--ui-accent);
 }

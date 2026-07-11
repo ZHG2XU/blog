@@ -1,8 +1,21 @@
-/* Theme-aware site background */
-html:not([data-theme="dark"]) #web_bg {
-    background-image: url('/img/light-bg.png') !important;
+/* Quiet page background; personal photography is reserved for the homepage hero. */
+#web_bg {
+    background-color: var(--global-bg) !important;
+    background-image:
+        radial-gradient(circle at 12% 12%, rgba(37, 99, 235, 0.1), transparent 30%),
+        radial-gradient(circle at 88% 22%, rgba(8, 145, 178, 0.09), transparent 28%),
+        linear-gradient(180deg, #f8fafc 0%, #eef3f9 48%, #f8fafc 100%) !important;
+    background-attachment: fixed !important;
 }
 
 html[data-theme="dark"] #web_bg {
-    background-image: url('/img/dark-bg.png') !important;
+    background-color: var(--global-bg) !important;
+    background-image:
+        radial-gradient(circle at 12% 10%, rgba(37, 99, 235, 0.16), transparent 32%),
+        radial-gradient(circle at 88% 18%, rgba(8, 145, 178, 0.12), transparent 28%),
+        linear-gradient(180deg, #08111f 0%, #0b1424 54%, #08111f 100%) !important;
+}
+
+html[data-theme="dark"] img:not([src*="avatar"]):not([src*="icon"]) {
+    filter: brightness(0.9);
 }
