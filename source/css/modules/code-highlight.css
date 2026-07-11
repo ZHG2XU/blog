@@ -1,163 +1,189 @@
-/* =====================================
- * Light Theme — GitHub Primer 风格
- * ===================================== */
-
-html:not([data-theme="dark"]) figure.highlight,
-html:not([data-theme="dark"]) figure.highlight pre,
-html:not([data-theme="dark"]) figure.highlight table,
-html:not([data-theme="dark"]) figure.highlight td {
-    background: #f6f8fa !important;
-    color: #24292f !important;
+/* Code blocks and inline code */
+#article-container figure.highlight,
+#article-container pre {
+    margin: 1.55em 0;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
 }
 
-/* 默认文字 */
-html:not([data-theme="dark"]) figure.highlight pre {
-    color: #24292f !important;
+#article-container figure.highlight {
+    overflow: hidden;
+    background: #f7f9fc !important;
 }
 
-/* 关键字 */
-html:not([data-theme="dark"]) figure.highlight .keyword {
+#article-container figure.highlight table,
+#article-container figure.highlight td,
+#article-container figure.highlight pre {
+    background: #f7f9fc !important;
+}
+
+#article-container figure.highlight .highlight-tools {
+    min-height: 42px;
+    border-bottom: 1px solid rgba(100, 116, 139, 0.16);
+    background: #eef2f7 !important;
+    color: #64748b;
+    line-height: 42px;
+}
+
+#article-container figure.highlight .highlight-tools::before {
+    box-shadow: 20px 0 #fbbf24, 40px 0 #34d399;
+}
+
+#article-container figure.highlight .code-lang {
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 680;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#article-container figure.highlight .copy-button:hover {
+    color: var(--ui-accent);
+}
+
+#article-container figure.highlight pre,
+#article-container figure.highlight code {
+    color: #273244 !important;
+    font-family: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    font-size: 0.87rem;
+    line-height: 1.72;
+    tab-size: 4;
+}
+
+#article-container figure.highlight .gutter pre {
+    border-right: 1px solid rgba(100, 116, 139, 0.14);
+    color: #94a3b8 !important;
+}
+
+#article-container figure.highlight .keyword,
+#article-container figure.highlight .selector-tag,
+#article-container figure.highlight .deletion {
     color: #cf222e !important;
 }
 
-/* 函数名 */
-html:not([data-theme="dark"]) figure.highlight .title {
+#article-container figure.highlight .title,
+#article-container figure.highlight .section,
+#article-container figure.highlight .function {
     color: #8250df !important;
 }
 
-/* 字符串 */
-html:not([data-theme="dark"]) figure.highlight .string {
-    color: #0a3069 !important;
+#article-container figure.highlight .string,
+#article-container figure.highlight .attr,
+#article-container figure.highlight .addition {
+    color: #0a5b2d !important;
 }
 
-/* 注释 */
-html:not([data-theme="dark"]) figure.highlight .comment {
-    color: #656d76 !important;
+#article-container figure.highlight .comment,
+#article-container figure.highlight .quote {
+    color: #6e7781 !important;
     font-style: italic;
 }
 
-/* 数字 */
-html:not([data-theme="dark"]) figure.highlight .number {
+#article-container figure.highlight .number,
+#article-container figure.highlight .literal,
+#article-container figure.highlight .variable,
+#article-container figure.highlight .template-variable {
     color: #0550ae !important;
 }
 
-/* 类型 */
-html:not([data-theme="dark"]) figure.highlight .type {
+#article-container figure.highlight .type,
+#article-container figure.highlight .built_in,
+#article-container figure.highlight .params {
     color: #953800 !important;
 }
 
-/* 变量 */
-html:not([data-theme="dark"]) figure.highlight .variable {
-    color: #cf222e !important;
+#article-container :not(pre) > code {
+    margin: 0 0.12em;
+    padding: 0.16em 0.4em;
+    border: 1px solid rgba(37, 99, 235, 0.12);
+    border-radius: 6px;
+    background: rgba(37, 99, 235, 0.08);
+    color: #be123c;
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 0.88em;
+    word-break: break-word;
 }
 
-/* 内建函数 */
-html:not([data-theme="dark"]) figure.highlight .built_in {
-    color: #8250df !important;
+html[data-theme="dark"] #article-container figure.highlight,
+html[data-theme="dark"] #article-container figure.highlight table,
+html[data-theme="dark"] #article-container figure.highlight td,
+html[data-theme="dark"] #article-container figure.highlight pre {
+    background: #0d1524 !important;
 }
 
-/* 宏 */
-html:not([data-theme="dark"]) figure.highlight .meta {
-    color: #bf3989 !important;
+html[data-theme="dark"] #article-container figure.highlight {
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.26);
 }
 
-/* 预处理 / 常量 / 参数 */
-html:not([data-theme="dark"]) figure.highlight .preprocessor,
-html:not([data-theme="dark"]) figure.highlight .literal,
-html:not([data-theme="dark"]) figure.highlight .params,
-html:not([data-theme="dark"]) figure.highlight .constant,
-html:not([data-theme="dark"]) figure.highlight .command {
-    color: #cf222e !important;
+html[data-theme="dark"] #article-container figure.highlight .highlight-tools {
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+    background: #111c2d !important;
+    color: #94a3b8;
 }
 
-/* =====================================
- * Dark Theme — VSCode Dark+ Modern
- * ===================================== */
-
-html[data-theme="dark"] figure.highlight,
-html[data-theme="dark"] figure.highlight pre,
-html[data-theme="dark"] figure.highlight table,
-html[data-theme="dark"] figure.highlight td {
-    background: #1e1e1e !important;
-    color: #d4d4d4 !important;
+html[data-theme="dark"] #article-container figure.highlight pre,
+html[data-theme="dark"] #article-container figure.highlight code {
+    color: #d6deeb !important;
 }
 
-/* 默认文字 */
-html[data-theme="dark"] figure.highlight pre {
-    color: #d4d4d4 !important;
+html[data-theme="dark"] #article-container figure.highlight .gutter pre {
+    border-right-color: rgba(148, 163, 184, 0.13);
+    color: #53657d !important;
 }
 
-/* 关键字 */
-html[data-theme="dark"] figure.highlight .keyword {
-    color: #569cd6 !important;
+html[data-theme="dark"] #article-container figure.highlight .keyword,
+html[data-theme="dark"] #article-container figure.highlight .selector-tag,
+html[data-theme="dark"] #article-container figure.highlight .deletion {
+    color: #c792ea !important;
 }
 
-/* 函数名 */
-html[data-theme="dark"] figure.highlight .title {
-    color: #dcdcaa !important;
+html[data-theme="dark"] #article-container figure.highlight .title,
+html[data-theme="dark"] #article-container figure.highlight .section,
+html[data-theme="dark"] #article-container figure.highlight .function {
+    color: #82aaff !important;
 }
 
-/* 字符串 */
-html[data-theme="dark"] figure.highlight .string {
-    color: #ce9178 !important;
+html[data-theme="dark"] #article-container figure.highlight .string,
+html[data-theme="dark"] #article-container figure.highlight .attr,
+html[data-theme="dark"] #article-container figure.highlight .addition {
+    color: #c3e88d !important;
 }
 
-/* 注释 */
-html[data-theme="dark"] figure.highlight .comment {
-    color: #6a9955 !important;
-    font-style: italic;
+html[data-theme="dark"] #article-container figure.highlight .comment,
+html[data-theme="dark"] #article-container figure.highlight .quote {
+    color: #637777 !important;
 }
 
-/* 数字 */
-html[data-theme="dark"] figure.highlight .number {
-    color: #b5cea8 !important;
-}
-
-/* 类型 */
-html[data-theme="dark"] figure.highlight .type {
-    color: #4ec9b0 !important;
-}
-
-/* 变量 */
-html[data-theme="dark"] figure.highlight .variable {
-    color: #9cdcfe !important;
-}
-
-/* 内建函数 */
-html[data-theme="dark"] figure.highlight .built_in {
-    color: #4ec9b0 !important;
-}
-
-/* 宏 */
-html[data-theme="dark"] figure.highlight .meta {
-    color: #c586c0 !important;
-}
-
-/* 预处理 / 常量 / 参数 */
-html[data-theme="dark"] figure.highlight .preprocessor,
-html[data-theme="dark"] figure.highlight .literal,
-html[data-theme="dark"] figure.highlight .params,
-html[data-theme="dark"] figure.highlight .constant,
-html[data-theme="dark"] figure.highlight .command {
+html[data-theme="dark"] #article-container figure.highlight .number,
+html[data-theme="dark"] #article-container figure.highlight .literal,
+html[data-theme="dark"] #article-container figure.highlight .variable,
+html[data-theme="dark"] #article-container figure.highlight .template-variable {
     color: #f78c6c !important;
 }
 
-/* =====================================
- * 行内代码 (inline code)
- * ===================================== */
-
-html:not([data-theme="dark"]) .container code {
-    padding: 2px 5px;
-    background: rgba(175, 184, 193, 0.2);
-    color: #cf222e;
-    border-radius: 3px;
-    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+html[data-theme="dark"] #article-container figure.highlight .type,
+html[data-theme="dark"] #article-container figure.highlight .built_in,
+html[data-theme="dark"] #article-container figure.highlight .params {
+    color: #ffcb6b !important;
 }
 
-html[data-theme="dark"] .container code {
-    padding: 2px 5px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #ce9178;
-    border-radius: 3px;
-    font-family: "Cascadia Code", "Fira Code", "JetBrains Mono", Consolas, monospace;
+html[data-theme="dark"] #article-container :not(pre) > code {
+    border-color: rgba(96, 165, 250, 0.16);
+    background: rgba(96, 165, 250, 0.11);
+    color: #fda4af;
+}
+
+@media screen and (max-width: 768px) {
+    #article-container figure.highlight {
+        margin-right: -8px;
+        margin-left: -8px;
+        border-radius: 12px;
+    }
+
+    #article-container figure.highlight pre,
+    #article-container figure.highlight code {
+        font-size: 0.8rem;
+    }
 }
