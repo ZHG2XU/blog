@@ -123,8 +123,8 @@ source/css/
 - **标签**: `#background` `#light-mode` `#dark-mode`
 - **功能**: 根据主题切换网站背景图片。
 - **规则**:
-  - 明亮模式 (`html:not([data-theme="dark"])`) → `/img/light-bg.png`
-  - 暗黑模式 (`html[data-theme="dark"]`) → `/img/dark-bg.png`
+  - 明亮模式 Hero → `/img/light-bg.webp`
+  - 暗黑模式 Hero → `/img/dark-bg.webp`
 - **目标元素**: `#web_bg`
 
 #### `base.css` &mdash; 基础调整

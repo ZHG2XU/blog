@@ -54,11 +54,11 @@ social:
 # Image Settings
 # --------------------------------------
 
-favicon: /img/avatar.jpeg
+favicon: /img/avatar.webp
 
 avatar:
   # img: /img/butterfly-icon.png
-  img: /img/avatar.jpeg
+  img: /img/avatar.webp
   effect: false
 
 # Disable all banner images
@@ -91,7 +91,7 @@ footer_img: transparent
 # Website Background
 # Can set it to color, image URL or an array containing colors and/or image URLs
 # If an array is provided, a random background will be selected from the array on each load
-background: /img/light-bg.png
+background: "#f5f7fb"
 
 cover:
   # Disable the cover or not

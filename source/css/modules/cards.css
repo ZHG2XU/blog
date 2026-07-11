@@ -41,7 +41,7 @@
     position: absolute;
     top: 16px;
     right: 22px;
-    z-index: -1;
+    z-index: 0;
     color: var(--ui-accent-soft);
     content: counter(post-index, decimal-leading-zero);
     font-size: clamp(3.6rem, 8vw, 6rem);

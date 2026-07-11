@@ -8,13 +8,13 @@
     background-attachment: scroll;
     background-image:
         linear-gradient(115deg, rgba(5, 12, 28, 0.8) 0%, rgba(8, 17, 35, 0.58) 48%, rgba(8, 17, 35, 0.38) 100%),
-        url('/img/light-bg.png') !important;
+        url('/img/light-bg.webp') !important;
 }
 
 html[data-theme="dark"] #page-header.full_page {
     background-image:
         linear-gradient(115deg, rgba(2, 6, 23, 0.78) 0%, rgba(8, 17, 35, 0.62) 52%, rgba(2, 6, 23, 0.5) 100%),
-        url('/img/dark-bg.png') !important;
+        url('/img/dark-bg.webp') !important;
 }
 
 #page-header.full_page::after {
@@ -30,15 +30,16 @@ html[data-theme="dark"] #page-header.full_page {
 
 #page-header.full_page #site-info {
     top: 50%;
+    left: 50%;
     z-index: 2;
     width: min(92%, 760px);
-    margin: 0 auto;
+    margin: 0;
     padding: 30px 34px 32px;
     border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 26px;
     background: rgba(8, 15, 30, 0.2);
     box-shadow: 0 26px 70px rgba(0, 0, 0, 0.18);
-    transform: translateY(-50%);
+    transform: translate(-50%, -50%);
     backdrop-filter: blur(12px) saturate(125%);
 }
 
