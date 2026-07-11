@@ -513,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!($article && (isToc || isAnchor))) return
 
     let $tocLink, $cardToc, autoScrollToc, $tocPercentage, isExpand
+    const tocLinkById = new Map()
 
     // Keep anchor detection aligned with the real fixed navigation height.
     const getTocOffset = () => {
@@ -527,13 +528,30 @@ document.addEventListener('DOMContentLoaded', () => {
       $tocPercentage = $cardTocLayout.querySelector('.toc-percentage')
       isExpand = $cardToc.classList.contains('is-expand')
 
+      $tocLink.forEach(link => {
+        const href = link.getAttribute('href') || ''
+        let id = href.replace(/^#/, '')
+        try {
+          id = decodeURIComponent(id)
+        } catch (error) {
+          // Keep the original id when it is not URI encoded.
+        }
+        tocLinkById.set(id, link)
+      })
+
       // toc元素點擊
       const tocItemClickFn = e => {
         const target = e.target.closest('.toc-link')
         if (!target) return
 
         e.preventDefault()
-        const targetId = decodeURI(target.getAttribute('href')).replace('#', '')
+        const href = target.getAttribute('href') || ''
+        let targetId = href.replace(/^#/, '')
+        try {
+          targetId = decodeURIComponent(targetId)
+        } catch (error) {
+          // Keep the original id when it is not URI encoded.
+        }
         const targetEle = document.getElementById(targetId)
         if (targetEle) {
           const targetTop = Math.max(0, btf.getEleTop(targetEle) - getTocOffset())
@@ -563,58 +581,52 @@ document.addEventListener('DOMContentLoaded', () => {
       $cardToc.style.display = 'block'
     }
 
-    // find head position & add active class
-    const $articleList = $article.querySelectorAll('h1,h2,h3,h4,h5,h6')
+    // Match TOC links to live heading elements instead of cached coordinates.
+    const $articleList = Array.from($article.querySelectorAll('h1,h2,h3,h4,h5,h6'))
+      .filter(ele => ele.id && (!isToc || tocLinkById.has(ele.id)))
     let detectItem = ''
 
-    // Optimization: Cache header positions
-    let headerList = []
-    const updateHeaderPositions = () => {
-      headerList = Array.from($articleList).map(ele => ({
-        ele,
-        top: btf.getEleTop(ele),
-        id: ele.id
-      }))
-    }
-
-    updateHeaderPositions()
-    btf.addEventListenerPjax(window, 'resize', btf.throttle(updateHeaderPositions, 200))
-    btf.addEventListenerPjax(window, 'load', updateHeaderPositions)
-
     const findHeadPosition = top => {
-      if (top === 0) return false
+      const offset = getTocOffset()
+      let currentHeading = null
 
-      let currentId = ''
-      let currentIndex = ''
-
-      for (let i = 0; i < headerList.length; i++) {
-        const item = headerList[i]
-        if (top + getTocOffset() >= item.top) {
-          currentId = item.id ? '#' + encodeURI(item.id) : ''
-          currentIndex = i
-        } else {
-          break
+      if (top > 0) {
+        for (const heading of $articleList) {
+          if (heading.getBoundingClientRect().top <= offset + 1) {
+            currentHeading = heading
+          } else {
+            break
+          }
         }
       }
 
-      if (detectItem === currentIndex) return
+      // The final heading cannot always reach the top because scrolling is capped.
+      const documentHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
+      const isAtBottom = Math.ceil(top + window.innerHeight) >= documentHeight - 2
+      if (isAtBottom && $articleList.length) {
+        currentHeading = $articleList[$articleList.length - 1]
+      }
 
-      if (isAnchor) btf.updateAnchor(currentId)
+      const currentId = currentHeading ? currentHeading.id : ''
+      if (detectItem === currentId) return
 
-      detectItem = currentIndex
+      if (isAnchor) btf.updateAnchor(currentId ? '#' + encodeURI(currentId) : '')
+
+      detectItem = currentId
 
       if (isToc) {
         $cardToc.querySelectorAll('.active').forEach(i => i.classList.remove('active'))
 
         if (currentId) {
-          const currentActive = $tocLink[currentIndex]
+          const currentActive = tocLinkById.get(currentId)
+          if (!currentActive) return
           currentActive.classList.add('active')
 
           setTimeout(() => autoScrollToc(currentActive), 0)
 
           if (!isExpand) {
             let parent = currentActive.parentNode
-            while (!parent.matches('.toc')) {
+            while (parent && !parent.matches('.toc')) {
               if (parent.matches('li')) parent.classList.add('active')
               parent = parent.parentNode
             }
