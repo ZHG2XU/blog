@@ -1,178 +1,205 @@
-/* Code blocks and inline code */
+/*
+ * Code blocks matched to the local VS Code configuration:
+ * - Theme: Dark+
+ * - Editor font size: 16px
+ * - Installed font: Cascadia Code
+ */
 #article-container figure.highlight,
 #article-container pre {
-    margin: 1.55em 0;
-    border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-md);
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+    margin: 1.6em 0;
+    border: 1px solid #303031;
+    border-radius: 14px;
+    background: #1e1e1e !important;
+    box-shadow: 0 16px 38px rgba(2, 6, 23, 0.2);
 }
 
 #article-container figure.highlight {
     overflow: hidden;
-    background: #f7f9fc !important;
 }
 
 #article-container figure.highlight table,
+#article-container figure.highlight tbody,
+#article-container figure.highlight tr,
 #article-container figure.highlight td,
 #article-container figure.highlight pre {
-    background: #f7f9fc !important;
+    border: 0;
+    background: #1e1e1e !important;
+}
+
+#article-container figure.highlight table {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    border-spacing: 0;
+    box-shadow: none;
+}
+
+#article-container figure.highlight td {
+    padding: 0;
 }
 
 #article-container figure.highlight .highlight-tools {
-    min-height: 42px;
-    border-bottom: 1px solid rgba(100, 116, 139, 0.16);
-    background: #eef2f7 !important;
-    color: #64748b;
-    line-height: 42px;
+    min-height: 44px;
+    border-bottom: 1px solid #303031;
+    background: #252526 !important;
+    color: #cccccc;
+    line-height: 44px;
 }
 
 #article-container figure.highlight .highlight-tools::before {
-    box-shadow: 20px 0 #fbbf24, 40px 0 #34d399;
+    background: #f44747;
+    box-shadow: 20px 0 #cca700, 40px 0 #4ec9b0;
 }
 
 #article-container figure.highlight .code-lang {
-    color: #64748b;
-    font-size: 0.75rem;
-    font-weight: 680;
+    color: #bbbbbb;
+    font-size: 12px;
+    font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
+#article-container figure.highlight .copy-button {
+    color: #a6a6a6;
+}
+
 #article-container figure.highlight .copy-button:hover {
-    color: var(--ui-accent);
+    color: #ffffff;
 }
 
 #article-container figure.highlight pre,
 #article-container figure.highlight code {
-    color: #273244 !important;
-    font-family: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-    font-size: 0.87rem;
+    color: #d4d4d4 !important;
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-size: 16px;
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+    font-weight: 400;
     line-height: 1.72;
     tab-size: 4;
 }
 
 #article-container figure.highlight .gutter pre {
-    border-right: 1px solid rgba(100, 116, 139, 0.14);
-    color: #94a3b8 !important;
+    border-right: 1px solid #303031;
+    color: #858585 !important;
+    text-align: right;
+    user-select: none;
+}
+
+#article-container figure.highlight .line:hover {
+    background: rgba(255, 255, 255, 0.035);
+}
+
+/* VS Code Dark+ token palette */
+#article-container figure.highlight .comment,
+#article-container figure.highlight .quote {
+    color: #6a9955 !important;
+    font-style: normal;
 }
 
 #article-container figure.highlight .keyword,
-#article-container figure.highlight .selector-tag,
-#article-container figure.highlight .deletion {
-    color: #cf222e !important;
+#article-container figure.highlight .doctag,
+#article-container figure.highlight .formula {
+    color: #569cd6 !important;
 }
 
-#article-container figure.highlight .title,
-#article-container figure.highlight .section,
-#article-container figure.highlight .function {
-    color: #8250df !important;
+#article-container figure.highlight .literal {
+    color: #569cd6 !important;
 }
 
-#article-container figure.highlight .string,
-#article-container figure.highlight .attr,
-#article-container figure.highlight .addition {
-    color: #0a5b2d !important;
+#article-container figure.highlight .number {
+    color: #b5cea8 !important;
 }
 
-#article-container figure.highlight .comment,
-#article-container figure.highlight .quote {
-    color: #6e7781 !important;
-    font-style: italic;
+#article-container figure.highlight .string {
+    color: #ce9178 !important;
 }
 
-#article-container figure.highlight .number,
-#article-container figure.highlight .literal,
-#article-container figure.highlight .variable,
-#article-container figure.highlight .template-variable {
-    color: #0550ae !important;
+#article-container figure.highlight .regexp {
+    color: #d16969 !important;
+}
+
+#article-container figure.highlight .title.function_,
+#article-container figure.highlight .function > .title,
+#article-container figure.highlight .section {
+    color: #dcdcaa !important;
 }
 
 #article-container figure.highlight .type,
 #article-container figure.highlight .built_in,
-#article-container figure.highlight .params {
-    color: #953800 !important;
+#article-container figure.highlight .class > .title {
+    color: #4ec9b0 !important;
+}
+
+#article-container figure.highlight .variable,
+#article-container figure.highlight .template-variable,
+#article-container figure.highlight .params,
+#article-container figure.highlight .property,
+#article-container figure.highlight .attr {
+    color: #9cdcfe !important;
+}
+
+#article-container figure.highlight .symbol,
+#article-container figure.highlight .bullet,
+#article-container figure.highlight .constant {
+    color: #4fc1ff !important;
+}
+
+#article-container figure.highlight .meta,
+#article-container figure.highlight .meta .keyword {
+    color: #c586c0 !important;
+}
+
+#article-container figure.highlight .meta .string {
+    color: #ce9178 !important;
+}
+
+#article-container figure.highlight .tag,
+#article-container figure.highlight .name,
+#article-container figure.highlight .selector-tag {
+    color: #569cd6 !important;
+}
+
+#article-container figure.highlight .selector-class,
+#article-container figure.highlight .selector-id,
+#article-container figure.highlight .selector-attr,
+#article-container figure.highlight .selector-pseudo {
+    color: #d7ba7d !important;
+}
+
+#article-container figure.highlight .attribute {
+    color: #9cdcfe !important;
+}
+
+#article-container figure.highlight .addition {
+    background: rgba(181, 206, 168, 0.1);
+    color: #b5cea8 !important;
+}
+
+#article-container figure.highlight .deletion {
+    background: rgba(206, 145, 120, 0.1);
+    color: #ce9178 !important;
+}
+
+#article-container figure.highlight .emphasis {
+    font-style: italic;
+}
+
+#article-container figure.highlight .strong {
+    font-weight: 700;
 }
 
 #article-container :not(pre) > code {
     margin: 0 0.12em;
-    padding: 0.16em 0.4em;
-    border: 1px solid rgba(37, 99, 235, 0.12);
+    padding: 0.16em 0.42em;
+    border: 1px solid rgba(86, 156, 214, 0.24);
     border-radius: 6px;
-    background: rgba(37, 99, 235, 0.08);
-    color: #be123c;
-    font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
-    font-size: 0.88em;
+    background: rgba(30, 30, 30, 0.96);
+    color: #ce9178;
+    font-family: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+    font-size: 0.9em;
+    font-variant-ligatures: none;
     word-break: break-word;
-}
-
-html[data-theme="dark"] #article-container figure.highlight,
-html[data-theme="dark"] #article-container figure.highlight table,
-html[data-theme="dark"] #article-container figure.highlight td,
-html[data-theme="dark"] #article-container figure.highlight pre {
-    background: #0d1524 !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight {
-    border-color: rgba(148, 163, 184, 0.18);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.26);
-}
-
-html[data-theme="dark"] #article-container figure.highlight .highlight-tools {
-    border-bottom-color: rgba(148, 163, 184, 0.14);
-    background: #111c2d !important;
-    color: #94a3b8;
-}
-
-html[data-theme="dark"] #article-container figure.highlight pre,
-html[data-theme="dark"] #article-container figure.highlight code {
-    color: #d6deeb !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .gutter pre {
-    border-right-color: rgba(148, 163, 184, 0.13);
-    color: #53657d !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .keyword,
-html[data-theme="dark"] #article-container figure.highlight .selector-tag,
-html[data-theme="dark"] #article-container figure.highlight .deletion {
-    color: #c792ea !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .title,
-html[data-theme="dark"] #article-container figure.highlight .section,
-html[data-theme="dark"] #article-container figure.highlight .function {
-    color: #82aaff !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .string,
-html[data-theme="dark"] #article-container figure.highlight .attr,
-html[data-theme="dark"] #article-container figure.highlight .addition {
-    color: #c3e88d !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .comment,
-html[data-theme="dark"] #article-container figure.highlight .quote {
-    color: #637777 !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .number,
-html[data-theme="dark"] #article-container figure.highlight .literal,
-html[data-theme="dark"] #article-container figure.highlight .variable,
-html[data-theme="dark"] #article-container figure.highlight .template-variable {
-    color: #f78c6c !important;
-}
-
-html[data-theme="dark"] #article-container figure.highlight .type,
-html[data-theme="dark"] #article-container figure.highlight .built_in,
-html[data-theme="dark"] #article-container figure.highlight .params {
-    color: #ffcb6b !important;
-}
-
-html[data-theme="dark"] #article-container :not(pre) > code {
-    border-color: rgba(96, 165, 250, 0.16);
-    background: rgba(96, 165, 250, 0.11);
-    color: #fda4af;
 }
 
 @media screen and (max-width: 768px) {
@@ -184,6 +211,7 @@ html[data-theme="dark"] #article-container :not(pre) > code {
 
     #article-container figure.highlight pre,
     #article-container figure.highlight code {
-        font-size: 0.8rem;
+        font-size: 14px;
+        line-height: 1.68;
     }
 }
