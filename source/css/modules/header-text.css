@@ -1,11 +1,153 @@
-/* ================== Header Text ================== */
-
-html:not([data-theme="dark"]) #page-header .page-title {
-    color: #2c3e50 !important;
-    text-shadow: none !important;
+/* Homepage hero and compact inner-page headers */
+#page-header.full_page {
+    min-height: 560px;
+    max-height: 820px;
+    height: 76vh;
+    background-position: center 42% !important;
+    background-size: cover !important;
+    background-attachment: scroll;
+    background-image:
+        linear-gradient(115deg, rgba(5, 12, 28, 0.8) 0%, rgba(8, 17, 35, 0.58) 48%, rgba(8, 17, 35, 0.38) 100%),
+        url('/img/light-bg.png') !important;
 }
 
-html[data-theme="dark"] #page-header .page-title {
-    color: var(--text-color) !important;
-    text-shadow: none !important;
+html[data-theme="dark"] #page-header.full_page {
+    background-image:
+        linear-gradient(115deg, rgba(2, 6, 23, 0.78) 0%, rgba(8, 17, 35, 0.62) 52%, rgba(2, 6, 23, 0.5) 100%),
+        url('/img/dark-bg.png') !important;
+}
+
+#page-header.full_page::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 150px;
+    background: linear-gradient(180deg, transparent, rgba(8, 17, 31, 0.16));
+    content: "";
+    pointer-events: none;
+}
+
+#page-header.full_page #site-info {
+    top: 50%;
+    z-index: 2;
+    width: min(92%, 760px);
+    margin: 0 auto;
+    padding: 30px 34px 32px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 26px;
+    background: rgba(8, 15, 30, 0.2);
+    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.18);
+    transform: translateY(-50%);
+    backdrop-filter: blur(12px) saturate(125%);
+}
+
+#page-header #site-title {
+    color: #ffffff !important;
+    font-size: clamp(3rem, 7vw, 5.5rem);
+    font-weight: 850;
+    letter-spacing: 0.08em;
+    line-height: 1.05;
+    text-shadow: 0 10px 38px rgba(0, 0, 0, 0.34) !important;
+}
+
+#page-header #site-subtitle {
+    min-height: 2.1em;
+    margin-top: 18px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    font-weight: 450;
+    letter-spacing: 0.03em;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+}
+
+#page-header #site_social_icons {
+    margin-top: 18px;
+}
+
+#page-header #site_social_icons .social-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    margin: 0 4px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#page-header #site_social_icons .social-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    transform: translateY(-2px);
+}
+
+#page-header #scroll-down {
+    z-index: 2;
+    bottom: 20px;
+}
+
+#page-header #scroll-down .scroll-down-effects {
+    display: inline-grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.22);
+    color: #ffffff;
+    backdrop-filter: blur(10px);
+}
+
+#page-header.not-home-page:not(.post-bg) {
+    height: 260px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #0f7490 100%) !important;
+}
+
+#page-header.not-home-page:not(.post-bg) #page-site-info {
+    top: 132px;
+}
+
+#page-header.not-home-page .page-title {
+    color: #ffffff !important;
+    font-weight: 780;
+    letter-spacing: 0.04em;
+    text-shadow: 0 4px 22px rgba(15, 23, 42, 0.25) !important;
+}
+
+#page-header.post-bg {
+    height: 350px;
+    background:
+        radial-gradient(circle at 78% 24%, rgba(34, 211, 238, 0.22), transparent 30%),
+        linear-gradient(135deg, #0f172a 0%, #17365d 52%, #0e7490 100%) !important;
+}
+
+@media screen and (max-width: 768px) {
+    #page-header.full_page {
+        min-height: 520px;
+        height: 72vh;
+        background-position: 54% center !important;
+    }
+
+    #page-header.full_page #site-info {
+        width: calc(100% - 32px);
+        padding: 24px 18px 26px;
+        border-radius: 20px;
+    }
+
+    #page-header #site-title {
+        font-size: clamp(2.5rem, 15vw, 4rem);
+    }
+
+    #page-header.not-home-page:not(.post-bg) {
+        height: 220px;
+    }
+
+    #page-header.not-home-page:not(.post-bg) #page-site-info {
+        top: 112px;
+    }
+
+    #page-header.post-bg {
+        height: 310px;
+    }
 }
