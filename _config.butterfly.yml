@@ -18,9 +18,9 @@ nav:
   fixed: true
 
 menu:
-  首页: / || fas fa-building
-  文章: /archives/ || fas fa-chart-line
-  关于: /about/ || fas fa-user-tie
+  首页: / || fas fa-house
+  归档: /archives/ || fas fa-box-archive
+  关于: /about/ || fas fa-user
 
 # --------------------------------------
 # Code Blocks Settings
@@ -141,9 +141,9 @@ post_meta:
 # The top_img settings of home page
 # default: top img - full screen, site info - middle
 # The position of site info, eg: 300px/300em/300rem/10%
-index_site_info_top: 40%
+index_site_info_top: 50%
 # The height of top_img, eg: 300px/300em/300rem
-index_top_img_height: 100vh
+index_top_img_height: 76vh
 
 # The subtitle on homepage
 subtitle:
@@ -163,9 +163,9 @@ subtitle:
   source: false
   # If you close the typewriter effect, the subtitle will only show the first line of sub
   sub:
-    - Making complex things easier to understand
-    - Writing about tech, life, and ideas worth keeping
-    - For the person I am now, and the one who will return later
+    - 把复杂的问题，写成清晰的答案
+    - 记录嵌入式开发、系统设计与工程实践
+    - 在代码与生活之间，保留值得回看的思考
 
 
 # Article layout on the homepage
@@ -186,7 +186,7 @@ index_layout: 3
 index_post_content:
   method: 3
   # If you set method to 2 or 3, the length need to config
-  length: 500
+  length: 260
 
 # --------------------------------------
 # Post Settings
@@ -195,8 +195,8 @@ index_post_content:
 toc:
   post: true
   page: false
-  number: true
-  expand: false
+  number: false
+  expand: true
   # Only for post
   style_simple: false
   scroll_percent: true
@@ -286,7 +286,7 @@ aside:
     category: true
   card_author:
     enable: true
-    description:  #作者简介
+    description: 记录嵌入式开发、系统设计与问题解决
     button:
       enable: true
       icon: fab fa-github
@@ -294,7 +294,7 @@ aside:
       link: https://github.com/ZHG2XU
   card_announcement:
     enable: true
-    content: Building scalable systems & digital infrastructure.
+    content: 保持好奇，持续构建，把复杂的事情讲清楚。
   card_recent_post:
     enable: true
     # If set 0 will show all
@@ -760,21 +760,21 @@ site_verification:
 
 theme_color:
   enable: true
-  main: "#050816"            
-  paginator: "#00D4FF"       
-  button_hover: "#22D3EE"
-  text_selection: "#1A1A2E"
-  link_color: "#38BDF8"
+  main: "#2563EB"
+  paginator: "#2563EB"
+  button_hover: "#1D4ED8"
+  text_selection: "#BFDBFE"
+  link_color: "#2563EB"
   meta_color: "#64748B"
-  hr_color: "#1E293B"
-  code_foreground: "#34D399"  
-  code_background: "rgba(10,10,26,0.95)"
-  toc_color: "#00D4FF"
-  blockquote_padding_color: "#00D4FF"
-  blockquote_background_color: "rgba(0,212,255,0.06)"
-  scrollbar_color: "#00D4FF"
+  hr_color: "#CBD5E1"
+  code_foreground: "#D6DEEB"
+  code_background: "#0D1524"
+  toc_color: "#2563EB"
+  blockquote_padding_color: "#2563EB"
+  blockquote_background_color: "rgba(37,99,235,0.06)"
+  scrollbar_color: "#2563EB"
   meta_theme_color_light: "#ffffff"
-  meta_theme_color_dark: "#0A0A1A"
+  meta_theme_color_dark: "#08111F"
 
 # The user interface setting of category and tag page
 # Choose: index - same as Homepage UI / default - same as archives UI
@@ -807,7 +807,7 @@ preloader:
 enter_transitions: true
 
 # Default display mode - light (default) / dark
-display_mode: dark
+display_mode: light
 
 # Configuration for beautifying the content of the article
 beautify:
