@@ -65,7 +65,7 @@ avatar:
 disable_top_img: false
 
 # If the banner of page not setting, it will show the default_top_img
-default_top_img: transparent
+default_top_img: "#13213A"
 
 # The banner image of index page
 index_img:  transparent
@@ -143,7 +143,7 @@ post_meta:
 # The position of site info, eg: 300px/300em/300rem/10%
 index_site_info_top: 50%
 # The height of top_img, eg: 300px/300em/300rem
-index_top_img_height: 76vh
+index_top_img_height: 100vh
 
 # The subtitle on homepage
 subtitle:
