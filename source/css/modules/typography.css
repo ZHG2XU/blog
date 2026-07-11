@@ -26,7 +26,6 @@
 #article-container h5,
 #article-container h6 {
     position: relative;
-    scroll-margin-top: 90px;
     color: var(--ui-heading);
     font-weight: 760;
     letter-spacing: -0.015em;

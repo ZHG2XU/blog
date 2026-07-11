@@ -514,6 +514,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let $tocLink, $cardToc, autoScrollToc, $tocPercentage, isExpand
 
+    // Keep anchor detection aligned with the real fixed navigation height.
+    const getTocOffset = () => {
+      const nav = document.getElementById('nav')
+      return (nav ? nav.offsetHeight : 60) + 16
+    }
+
     if (isToc) {
       const $cardTocLayout = document.getElementById('card-toc')
       $cardToc = $cardTocLayout.querySelector('.toc-content')
@@ -530,7 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetId = decodeURI(target.getAttribute('href')).replace('#', '')
         const targetEle = document.getElementById(targetId)
         if (targetEle) {
-          targetEle.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          const targetTop = Math.max(0, btf.getEleTop(targetEle) - getTocOffset())
+          window.scrollTo({ top: targetTop, behavior: 'smooth' })
         }
         if (window.innerWidth < 900) {
           $cardTocLayout.classList.remove('open')
@@ -572,6 +579,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateHeaderPositions()
     btf.addEventListenerPjax(window, 'resize', btf.throttle(updateHeaderPositions, 200))
+    btf.addEventListenerPjax(window, 'load', updateHeaderPositions)
 
     const findHeadPosition = top => {
       if (top === 0) return false
@@ -581,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       for (let i = 0; i < headerList.length; i++) {
         const item = headerList[i]
-        if (top >= item.top - 80) {
+        if (top + getTocOffset() >= item.top) {
           currentId = item.id ? '#' + encodeURI(item.id) : ''
           currentIndex = i
         } else {
