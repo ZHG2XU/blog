@@ -8,7 +8,7 @@
     font-size: 1rem;
     line-height: 1.92;
     text-align: left;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 #article-container > :first-child {
@@ -28,13 +28,18 @@
     position: relative;
     color: var(--ui-heading);
     font-weight: 760;
-    letter-spacing: -0.015em;
+    letter-spacing: 0;
     line-height: 1.4;
 }
 
 #article-container h1 {
-    margin: 1.8em 0 0.8em;
-    font-size: clamp(1.9rem, 4vw, 2.35rem);
+    margin: 1.45em 0 0.7em;
+    font-size: clamp(1.65rem, 3.4vw, 2.05rem);
+}
+
+#article-container > h1:first-child {
+    margin-top: 0;
+    font-size: clamp(1.55rem, 3vw, 1.95rem);
 }
 
 #article-container h2 {

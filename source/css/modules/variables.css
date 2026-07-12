@@ -24,7 +24,7 @@ html:not([data-theme="dark"]) {
 
     --ui-radius-sm: 10px;
     --ui-radius-md: 16px;
-    --ui-radius-lg: 24px;
+    --ui-radius-lg: 18px;
     --ui-content-width: 1280px;
     --ui-reading-width: 860px;
 

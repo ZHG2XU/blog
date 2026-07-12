@@ -74,7 +74,7 @@
 
     #nav #blog-info .site-name {
         font-size: 0.95rem;
-        letter-spacing: 0.08em;
+        letter-spacing: 0;
     }
 
     #page-header #post-info #post-meta > .meta-firstline > span:not(.post-meta-date-created),
@@ -91,6 +91,13 @@
         line-height: 1.84;
     }
 
+    #article-container :not(pre) > code {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
     #article-container h2 {
         margin-top: 1.9em;
     }
@@ -100,9 +107,50 @@
     }
 
     #local-search .search-dialog {
-        top: 7%;
-        width: calc(100% - 24px);
-        border-radius: 18px;
+        top: 0;
+        right: 0 !important;
+        left: 0 !important;
+        width: 100vw;
+        max-height: none;
+        height: 100%;
+        margin-right: 0 !important;
+        margin-left: 0 !important;
+        border-radius: 0;
+        transform: none;
+    }
+
+    #local-search .search-nav {
+        min-height: 60px;
+        padding: 0 16px;
+    }
+
+    #local-search .local-search-input {
+        padding: 18px 16px 0;
+    }
+
+    #local-search .local-search-input::before {
+        top: 33px;
+        left: 34px;
+    }
+
+    #local-search .search-dialog hr {
+        width: calc(100% - 32px);
+    }
+
+    #local-search .search-result-list {
+        padding: 12px 16px 4px;
+        max-height: calc(var(--search-height) - 228px) !important;
+    }
+
+    #local-search .search-result-list .local-search-hit-item {
+        padding: 13px;
+        border-radius: 13px;
+    }
+
+    #local-search #local-search-stats,
+    #local-search #local-search-pagination {
+        padding-right: 16px;
+        padding-left: 16px;
     }
 
     #rightside {
@@ -130,7 +178,7 @@
     }
 
     #post {
-        padding: 24px 17px;
+        padding: 26px 20px;
     }
 
     #article-container figure.highlight {

@@ -163,9 +163,9 @@ subtitle:
   source: false
   # If you close the typewriter effect, the subtitle will only show the first line of sub
   sub:
-    - 把复杂的问题，写成清晰的答案
-    - 记录嵌入式开发、系统设计与工程实践
-    - 在代码与生活之间，保留值得回看的思考
+    - Turn complex systems into clear notes
+    - Embedded development, system design, and engineering practice
+    - Build carefully, document honestly, improve continuously
 
 
 # Article layout on the homepage

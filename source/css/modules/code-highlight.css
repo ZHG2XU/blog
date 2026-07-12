@@ -1,20 +1,83 @@
-/*
- * Code blocks matched to the local VS Code configuration:
- * - Theme: Dark+
- * - Editor font size: 16px
- * - Installed font: Cascadia Code
- */
+/* Theme-aware code blocks with a GitHub Light / VS Code Dark palette. */
+:root,
+html:not([data-theme="dark"]) {
+    --ui-code-bg: #f6f8fa;
+    --ui-code-toolbar: #eef2f6;
+    --ui-code-gutter: #f0f3f6;
+    --ui-code-border: #d0d7de;
+    --ui-code-fg: #24292f;
+    --ui-code-muted: #6e7781;
+    --ui-code-shadow: 0 14px 36px rgba(31, 35, 40, 0.1);
+    --ui-code-line-hover: rgba(9, 105, 218, 0.06);
+    --ui-code-line-marked: rgba(9, 105, 218, 0.14);
+    --ui-code-line-accent: #0969da;
+    --ui-code-selection-bg: #0969da;
+    --ui-code-selection-fg: #ffffff;
+    --ui-inline-code-bg: rgba(175, 184, 193, 0.2);
+    --ui-inline-code-border: rgba(84, 174, 255, 0.28);
+    --ui-inline-code-fg: #cf222e;
+
+    --ui-code-comment: #6e7781;
+    --ui-code-keyword: #cf222e;
+    --ui-code-literal: #0550ae;
+    --ui-code-number: #0550ae;
+    --ui-code-string: #0a3069;
+    --ui-code-regexp: #116329;
+    --ui-code-function: #8250df;
+    --ui-code-type: #953800;
+    --ui-code-variable: #953800;
+    --ui-code-constant: #0550ae;
+    --ui-code-meta: #8250df;
+    --ui-code-tag: #116329;
+    --ui-code-selector: #8250df;
+    --ui-code-attribute: #0550ae;
+}
+
+html[data-theme="dark"] {
+    --ui-code-bg: #0d1117;
+    --ui-code-toolbar: #161b22;
+    --ui-code-gutter: #10151c;
+    --ui-code-border: #30363d;
+    --ui-code-fg: #d4d4d4;
+    --ui-code-muted: #858585;
+    --ui-code-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+    --ui-code-line-hover: rgba(255, 255, 255, 0.04);
+    --ui-code-line-marked: rgba(38, 79, 120, 0.72);
+    --ui-code-line-accent: #569cd6;
+    --ui-code-selection-bg: #264f78;
+    --ui-code-selection-fg: #ffffff;
+    --ui-inline-code-bg: rgba(110, 118, 129, 0.18);
+    --ui-inline-code-border: rgba(240, 246, 252, 0.14);
+    --ui-inline-code-fg: #fca5a5;
+
+    --ui-code-comment: #6a9955;
+    --ui-code-keyword: #569cd6;
+    --ui-code-literal: #569cd6;
+    --ui-code-number: #b5cea8;
+    --ui-code-string: #ce9178;
+    --ui-code-regexp: #d16969;
+    --ui-code-function: #dcdcaa;
+    --ui-code-type: #4ec9b0;
+    --ui-code-variable: #9cdcfe;
+    --ui-code-constant: #4fc1ff;
+    --ui-code-meta: #c586c0;
+    --ui-code-tag: #569cd6;
+    --ui-code-selector: #d7ba7d;
+    --ui-code-attribute: #9cdcfe;
+}
+
 #article-container figure.highlight,
 #article-container pre {
     margin: 1.6em 0;
-    border: 1px solid #303031;
-    border-radius: 14px;
-    background: #1e1e1e !important;
-    box-shadow: 0 16px 38px rgba(2, 6, 23, 0.2);
+    border: 1px solid var(--ui-code-border);
+    border-radius: 16px;
+    background: var(--ui-code-bg) !important;
+    box-shadow: var(--ui-code-shadow);
 }
 
 #article-container figure.highlight {
     overflow: hidden;
+    isolation: isolate;
 }
 
 #article-container figure.highlight table,
@@ -23,7 +86,13 @@
 #article-container figure.highlight td,
 #article-container figure.highlight pre {
     border: 0;
-    background: #1e1e1e !important;
+    background: var(--ui-code-bg) !important;
+    box-shadow: none;
+}
+
+#article-container figure.highlight pre {
+    margin: 0;
+    border-radius: 0;
 }
 
 #article-container figure.highlight table {
@@ -40,95 +109,168 @@
 
 #article-container figure.highlight .highlight-tools {
     min-height: 44px;
-    border-bottom: 1px solid #303031;
-    background: #252526 !important;
-    color: #cccccc;
-    line-height: 44px;
+    height: 44px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--ui-code-border);
+    background: var(--ui-code-toolbar) !important;
+    color: var(--ui-code-muted);
+    line-height: normal;
 }
 
-#article-container figure.highlight .highlight-tools::before {
-    background: #f44747;
-    box-shadow: 20px 0 #cca700, 40px 0 #4ec9b0;
+#article-container figure.highlight .highlight-tools .macStyle {
+    gap: 8px;
+    margin-right: 10px;
+    padding: 0 3px;
+}
+
+#article-container figure.highlight .highlight-tools .macStyle > * {
+    width: 12px;
+    height: 12px;
+    margin: 0;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    box-shadow: inset 0 -1px 1px rgba(15, 23, 42, 0.12);
+}
+
+#article-container figure.highlight .highlight-tools .mac-close {
+    background: #ff5f57 !important;
+}
+
+#article-container figure.highlight .highlight-tools .mac-minimize {
+    background: #febc2e !important;
+}
+
+#article-container figure.highlight .highlight-tools .mac-maximize {
+    background: #28c840 !important;
 }
 
 #article-container figure.highlight .code-lang {
-    color: #bbbbbb;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
+    color: var(--ui-code-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
 }
 
-#article-container figure.highlight .copy-button {
-    color: #a6a6a6;
+#article-container figure.highlight .highlight-tools > i {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 8px;
+    color: var(--ui-code-muted);
 }
 
-#article-container figure.highlight .copy-button:hover {
-    color: #ffffff;
+#article-container figure.highlight .highlight-tools > i:hover {
+    background: var(--ui-code-line-hover);
+    color: var(--ui-code-line-accent);
 }
 
 #article-container figure.highlight pre,
 #article-container figure.highlight code {
-    color: #d4d4d4 !important;
+    color: var(--ui-code-fg) !important;
     font-family: "Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace;
-    font-size: 16px;
+    font-size: 15px;
     font-variant-ligatures: none;
     font-feature-settings: "liga" 0, "calt" 0;
     font-weight: 400;
-    line-height: 1.72;
+    line-height: 1.75;
     tab-size: 4;
 }
 
+#article-container figure.highlight .gutter {
+    background: var(--ui-code-gutter) !important;
+}
+
 #article-container figure.highlight .gutter pre {
-    border-right: 1px solid #303031;
-    color: #858585 !important;
+    min-width: 48px;
+    padding: 16px 12px !important;
+    border-right: 1px solid var(--ui-code-border);
+    background: var(--ui-code-gutter) !important;
+    color: var(--ui-code-muted) !important;
     text-align: right;
     user-select: none;
 }
 
-#article-container figure.highlight .line:hover {
-    background: rgba(255, 255, 255, 0.035);
+#article-container figure.highlight .code pre {
+    padding: 16px 0 !important;
 }
 
-/* VS Code Dark+ token palette */
+#article-container figure.highlight .code .line {
+    display: inline-block;
+    box-sizing: border-box;
+    min-width: 100%;
+    padding: 0 18px;
+}
+
+#article-container figure.highlight .code .line:hover {
+    background: var(--ui-code-line-hover);
+}
+
+#article-container figure.highlight .code .line.marked,
+#article-container figure.highlight .code .line.marked:hover {
+    background: var(--ui-code-line-marked) !important;
+    box-shadow: inset 3px 0 var(--ui-code-line-accent);
+}
+
+/* Keep selected code readable even when the page theme uses dark selection text. */
+#article-container figure.highlight ::selection,
+#article-container figure.highlight *::selection,
+#article-container pre::selection,
+#article-container pre *::selection {
+    background: var(--ui-code-selection-bg);
+    color: var(--ui-code-selection-fg) !important;
+    text-shadow: none;
+}
+
+#article-container figure.highlight ::-moz-selection,
+#article-container figure.highlight *::-moz-selection,
+#article-container pre::-moz-selection,
+#article-container pre *::-moz-selection {
+    background: var(--ui-code-selection-bg);
+    color: var(--ui-code-selection-fg) !important;
+    text-shadow: none;
+}
+
+/* Syntax token palette */
 #article-container figure.highlight .comment,
 #article-container figure.highlight .quote {
-    color: #6a9955 !important;
-    font-style: normal;
+    color: var(--ui-code-comment) !important;
+    font-style: italic;
 }
 
 #article-container figure.highlight .keyword,
 #article-container figure.highlight .doctag,
 #article-container figure.highlight .formula {
-    color: #569cd6 !important;
+    color: var(--ui-code-keyword) !important;
 }
 
 #article-container figure.highlight .literal {
-    color: #569cd6 !important;
+    color: var(--ui-code-literal) !important;
 }
 
 #article-container figure.highlight .number {
-    color: #b5cea8 !important;
+    color: var(--ui-code-number) !important;
 }
 
 #article-container figure.highlight .string {
-    color: #ce9178 !important;
+    color: var(--ui-code-string) !important;
 }
 
 #article-container figure.highlight .regexp {
-    color: #d16969 !important;
+    color: var(--ui-code-regexp) !important;
 }
 
 #article-container figure.highlight .title.function_,
 #article-container figure.highlight .function > .title,
 #article-container figure.highlight .section {
-    color: #dcdcaa !important;
+    color: var(--ui-code-function) !important;
 }
 
 #article-container figure.highlight .type,
 #article-container figure.highlight .built_in,
 #article-container figure.highlight .class > .title {
-    color: #4ec9b0 !important;
+    color: var(--ui-code-type) !important;
 }
 
 #article-container figure.highlight .variable,
@@ -136,49 +278,57 @@
 #article-container figure.highlight .params,
 #article-container figure.highlight .property,
 #article-container figure.highlight .attr {
-    color: #9cdcfe !important;
+    color: var(--ui-code-variable) !important;
 }
 
 #article-container figure.highlight .symbol,
 #article-container figure.highlight .bullet,
 #article-container figure.highlight .constant {
-    color: #4fc1ff !important;
+    color: var(--ui-code-constant) !important;
 }
 
 #article-container figure.highlight .meta,
 #article-container figure.highlight .meta .keyword {
-    color: #c586c0 !important;
+    color: var(--ui-code-meta) !important;
 }
 
 #article-container figure.highlight .meta .string {
-    color: #ce9178 !important;
+    color: var(--ui-code-string) !important;
 }
 
 #article-container figure.highlight .tag,
 #article-container figure.highlight .name,
 #article-container figure.highlight .selector-tag {
-    color: #569cd6 !important;
+    color: var(--ui-code-tag) !important;
 }
 
 #article-container figure.highlight .selector-class,
 #article-container figure.highlight .selector-id,
 #article-container figure.highlight .selector-attr,
 #article-container figure.highlight .selector-pseudo {
-    color: #d7ba7d !important;
+    color: var(--ui-code-selector) !important;
 }
 
 #article-container figure.highlight .attribute {
-    color: #9cdcfe !important;
+    color: var(--ui-code-attribute) !important;
 }
 
 #article-container figure.highlight .addition {
-    background: rgba(181, 206, 168, 0.1);
-    color: #b5cea8 !important;
+    background: rgba(46, 160, 67, 0.12);
+    color: #1a7f37 !important;
 }
 
 #article-container figure.highlight .deletion {
-    background: rgba(206, 145, 120, 0.1);
-    color: #ce9178 !important;
+    background: rgba(248, 81, 73, 0.12);
+    color: #cf222e !important;
+}
+
+html[data-theme="dark"] #article-container figure.highlight .addition {
+    color: #aff5b4 !important;
+}
+
+html[data-theme="dark"] #article-container figure.highlight .deletion {
+    color: #ffdcd7 !important;
 }
 
 #article-container figure.highlight .emphasis {
@@ -189,17 +339,32 @@
     font-weight: 700;
 }
 
+/* Inline code stays subtle in light mode and gains contrast in dark mode. */
 #article-container :not(pre) > code {
-    margin: 0 0.12em;
-    padding: 0.16em 0.42em;
-    border: 1px solid rgba(86, 156, 214, 0.24);
+    margin: 0 0.1em;
+    padding: 0.14em 0.42em 0.18em;
+    border: 1px solid var(--ui-inline-code-border);
     border-radius: 6px;
-    background: rgba(30, 30, 30, 0.96);
-    color: #ce9178;
+    background: var(--ui-inline-code-bg);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    color: var(--ui-inline-code-fg);
     font-family: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
-    font-size: 0.9em;
+    font-size: 0.88em;
     font-variant-ligatures: none;
+    font-weight: 600;
     word-break: break-word;
+    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease,
+        box-shadow 0.18s ease;
+}
+
+#article-container :not(pre) > code:hover {
+    border-color: var(--ui-border-strong);
+    box-shadow: 0 0 0 3px var(--ui-accent-soft);
+}
+
+#article-container figure.highlight.code-fullpage {
+    border-radius: 0;
 }
 
 @media screen and (max-width: 768px) {
@@ -211,7 +376,20 @@
 
     #article-container figure.highlight pre,
     #article-container figure.highlight code {
-        font-size: 14px;
-        line-height: 1.68;
+        font-size: 13.5px;
+        line-height: 1.7;
+    }
+
+    #article-container figure.highlight .gutter pre {
+        min-width: 42px;
+        padding: 14px 9px !important;
+    }
+
+    #article-container figure.highlight .code pre {
+        padding: 14px 0 !important;
+    }
+
+    #article-container figure.highlight .code .line {
+        padding: 0 14px;
     }
 }

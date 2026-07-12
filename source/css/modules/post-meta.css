@@ -13,7 +13,7 @@
     color: #ffffff !important;
     font-size: clamp(2rem, 4.4vw, 3.25rem);
     font-weight: 780;
-    letter-spacing: -0.025em;
+    letter-spacing: 0;
     line-height: 1.25;
     text-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
 }
@@ -30,7 +30,15 @@
 }
 
 #card-toc .toc-content {
+    position: relative;
+    overflow-y: auto;
+    max-height: calc(100vh - 180px);
     margin-top: 4px;
+    padding-right: 4px;
+    background: var(--ui-surface-solid) !important;
+    scrollbar-width: thin;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 #card-toc .toc-link {
@@ -40,17 +48,21 @@
     color: var(--ui-text-muted);
     font-size: 0.84rem;
     line-height: 1.5;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+        transform 0.2s ease;
 }
 
 #card-toc .toc-link:hover {
     background: var(--ui-accent-soft);
     color: var(--ui-accent);
+    transform: translateX(2px);
 }
 
 #card-toc .toc-link.active {
     background: linear-gradient(135deg, #2563eb, #0891b2);
     color: #ffffff;
     box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+    transform: translateX(3px);
 }
 
 #card-toc .toc-percentage {
