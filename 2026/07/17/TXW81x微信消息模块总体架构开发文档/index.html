@@ -1,0 +1,400 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW81x 微信消息模块总体架构开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="梳理 TXW81x 可视对讲项目中微信式消息模块的 UI、服务、UDP、音频与 Opus 编解码分层，以及语音和表情消息的完整运行链路。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW81x 微信消息模块总体架构开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="梳理 TXW81x 可视对讲项目中微信式消息模块的 UI、服务、UDP、音频与 Opus 编解码分层，以及语音和表情消息的完整运行链路。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-07-17T12:00:00.000Z">
+<meta property="article:modified_time" content="2026-07-17T12:27:55.827Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="UDP">
+<meta property="article:tag" content="TXW81x">
+<meta property="article:tag" content="微信消息">
+<meta property="article:tag" content="可视对讲">
+<meta property="article:tag" content="Opus">
+<meta property="article:tag" content="RTOS">
+<meta property="article:tag" content="软件架构">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW81x 微信消息模块总体架构开发文档",
+  "url": "https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-07-17T12:00:00.000Z",
+  "dateModified": "2026-07-17T12:27:55.827Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW81x 微信消息模块总体架构开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW81x 微信消息模块总体架构开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW81x 微信消息模块总体架构开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-17T12:27:55.827Z" title="更新于 2026-07-17 20:27:55">2026-07-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/TXW81x-%E5%8F%AF%E8%A7%86%E5%AF%B9%E8%AE%B2/">TXW81x 可视对讲</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>项目: TXW81x 可视对讲 UI<br>模块: 微信式语音与表情消息<br>阶段: UI、业务服务、UDP 与 Opus 链路整合<br>提交范围: <code>e9a2fb5</code> 至 <code>2440a8e</code><br>分析基线: <code>2440a8e</code>（2026-07-17）</p>
+</blockquote>
+<hr>
+<h2 id="1-文档目标"><a href="#1-文档目标" class="headerlink" title="1. 文档目标"></a>1. 文档目标</h2><p>本文给后续开发者建立模块级心智模型，重点说明以下问题：</p>
+<ul>
+<li>微信入口从哪里创建，页面由谁管理；</li>
+<li>按键事件如何转换为录音、发送、播放等业务动作；</li>
+<li>UDP 收发线程、服务线程和音频线程如何协作；</li>
+<li>Opus 在本项目中承担什么职责；</li>
+<li>哪些路径已经实现，哪些仍是预留能力；</li>
+<li>维护时需要优先关注哪些并发、队列和协议风险。</li>
+</ul>
+<p>配套文档：</p>
+<ul>
+<li><code>TXW81x微信消息UDP-v2协议开发文档.md</code>：UDP v2 包格式与语音文件传输协议；</li>
+<li><code>TXW81x微信语音Opus与WCA音频链路开发文档.md</code>：Opus 参数、WCA 文件和录放音任务；</li>
+<li><code>TXW81x微信UI控制层与业务服务开发文档.md</code>：LVGL 页面、控制层、服务状态与消息队列。</li>
+</ul>
+<h2 id="2-代码范围"><a href="#2-代码范围" class="headerlink" title="2. 代码范围"></a>2. 代码范围</h2><table>
+<thead>
+<tr>
+<th>层级</th>
+<th>主要文件</th>
+<th>职责</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>应用入口</td>
+<td><code>sdk/app/ui/main_ui.c</code></td>
+<td>调用 <code>wechat_service_create_ui()</code> 创建微信入口</td>
+</tr>
+<tr>
+<td>UI 展示</td>
+<td><code>sdk/lib/gui/intercom_ui/wechat_ui.c</code></td>
+<td>创建聊天页面、气泡、表情面板和 30 ms 消息轮询定时器</td>
+</tr>
+<tr>
+<td>输入控制</td>
+<td><code>sdk/lib/gui/intercom_ui/wechat_ui_control.c</code></td>
+<td>将 LVGL 键值转换为语音按下&#x2F;松开、表情选择等动作</td>
+</tr>
+<tr>
+<td>业务服务</td>
+<td><code>sdk/lib/gui/intercom_ui/wechat_service.c</code></td>
+<td>初始化资源、串行化业务事件、调度录音&#x2F;播放、桥接 UI 与网络</td>
+</tr>
+<tr>
+<td>音频适配</td>
+<td><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c</code></td>
+<td>音频流、Opus 编解码、WCA 文件和异步作业状态机</td>
+</tr>
+<tr>
+<td>UDP 传输</td>
+<td><code>sdk/app/wechat_udp/wechat_udp.c</code></td>
+<td>UDP socket、协议封包、接收解析、文件分片发送</td>
+</tr>
+<tr>
+<td>Opus 库</td>
+<td><code>sdk/lib/opus/</code></td>
+<td>Opus 1.5.1 编解码实现，固定点配置</td>
+</tr>
+</tbody></table>
+<p><code>sdk/app/intercom/intercom_opus.c</code> 是项目原有的实时对讲链路。微信语音模块没有直接复用它的实时网络抖动缓冲和重传逻辑，而是复用了底层音频 stream 与 Opus API，形成“先录制为文件，再通过 UDP 发送”的异步语音消息链路。</p>
+<p>基线版本的关键入口：</p>
+<ul>
+<li><code>sdk/app/ui/main_ui.c:85</code>：创建微信服务 UI；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_ui.c:818</code>：通用 UI 创建接口；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_service.c:642</code>：业务服务初始化；</li>
+<li><code>sdk/app/wechat_udp/wechat_udp.c:365</code>：UDP 初始化；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:925</code>：音频与 Opus 初始化。</li>
+</ul>
+<h2 id="3-总体分层"><a href="#3-总体分层" class="headerlink" title="3. 总体分层"></a>3. 总体分层</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">main_ui.c</span><br><span class="line">    |</span><br><span class="line">    v</span><br><span class="line">wechat_ui.c  &lt;---- 30 ms 拉取 UI 消息 ----  wechat_service.c</span><br><span class="line">    |                                          |       |</span><br><span class="line">    | 按键动作                                 |       +--&gt; wechat_udp.c</span><br><span class="line">    v                                          |              |</span><br><span class="line">wechat_ui_control.c                            |              +--&gt; 对端 UDP 5010</span><br><span class="line">                                               |</span><br><span class="line">                                               +--&gt; wechat_audio.c</span><br><span class="line">                                                       |</span><br><span class="line">                                                       +--&gt; sdk/lib/opus/</span><br><span class="line">                                                       +--&gt; 音频 stream / DAC</span><br><span class="line">                                                       +--&gt; FLASH:/OPUS/*.WCA</span><br></pre></td></tr></table></figure>
+
+<p>设计上的核心边界如下：</p>
+<ol>
+<li>UI 层不直接操作 socket、文件或 Opus。</li>
+<li>UDP 接收任务不操作 LVGL 对象，只回调服务层。</li>
+<li>音频工作任务不操作 LVGL，只向服务队列投递完成事件。</li>
+<li>服务任务负责把跨线程事件串行化，并保证录音和播放互斥。</li>
+<li>UI 通过独立 UI 队列获取可显示的消息，不直接读取服务内部状态。</li>
+</ol>
+<h2 id="4-运行实体与资源"><a href="#4-运行实体与资源" class="headerlink" title="4. 运行实体与资源"></a>4. 运行实体与资源</h2><table>
+<thead>
+<tr>
+<th>运行实体</th>
+<th>创建位置</th>
+<th>优先级</th>
+<th>栈&#x2F;队列</th>
+<th>主要工作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LVGL 线程&#x2F;定时器</td>
+<td>GUI 框架</td>
+<td>GUI 上下文</td>
+<td>30 ms timer</td>
+<td>页面操作、消息气泡渲染</td>
+</tr>
+<tr>
+<td><code>wechat_service</code></td>
+<td><code>wechat_service_init()</code></td>
+<td>Normal</td>
+<td>栈 2048 B；事件队列 16</td>
+<td>业务状态编排</td>
+</tr>
+<tr>
+<td><code>wechat_udp_tx</code></td>
+<td><code>wechat_udp_init()</code></td>
+<td>Normal</td>
+<td>栈 1024 B；发送队列 16</td>
+<td>异步发送表情</td>
+</tr>
+<tr>
+<td><code>wechat_udp_rx</code></td>
+<td><code>wechat_udp_init()</code></td>
+<td>Normal</td>
+<td>栈 1024 B</td>
+<td>收包、校验、回调服务层</td>
+</tr>
+<tr>
+<td><code>wechat_audio</code></td>
+<td><code>wechat_audio_init()</code></td>
+<td>Normal</td>
+<td>PSRAM 栈 30 KiB；作业队列 4</td>
+<td>录音、编码、解码、播放</td>
+</tr>
+</tbody></table>
+<p>重要静态&#x2F;动态资源：</p>
+<ul>
+<li>UDP 上下文包含 1209 B 接收缓冲区和 1208 B 发送缓冲区；</li>
+<li>音频播放时从 PSRAM 申请 <code>4 × 1024 B</code> 节点数据区；</li>
+<li>音频任务栈从 PSRAM 申请 30 KiB；</li>
+<li>Opus encoder、decoder 在服务打开时创建，在页面关闭时释放；</li>
+<li>语音文件统一保存在 <code>FLASH:/OPUS</code>。</li>
+</ul>
+<h2 id="5-初始化与退出顺序"><a href="#5-初始化与退出顺序" class="headerlink" title="5. 初始化与退出顺序"></a>5. 初始化与退出顺序</h2><h3 id="5-1-打开页面"><a href="#5-1-打开页面" class="headerlink" title="5.1 打开页面"></a>5.1 打开页面</h3><ol>
+<li><code>main_ui.c</code> 创建微信菜单入口。</li>
+<li>用户短按入口，<code>wechat_ui_open()</code> 调用服务层 <code>open</code> 回调。</li>
+<li><code>wechat_service_init()</code> 依次创建互斥锁、停止信号量、UI 队列和服务队列。</li>
+<li>初始化 <code>wechat_audio</code>，创建 Opus encoder、decoder 和音频工作任务。</li>
+<li>初始化 <code>wechat_udp</code>，绑定本地 UDP 端口 <code>5010</code>，创建收发任务。</li>
+<li>根据 Wi-Fi 模式配置固定对端：<ul>
+<li>AP 模式：<code>192.168.1.100:5010</code>；</li>
+<li>STA 模式：<code>192.168.1.1:5010</code>。</li>
+</ul>
+</li>
+<li>创建 <code>wechat_service</code> 任务。</li>
+<li>服务初始化成功后，UI 才隐藏主页面并创建聊天页面、焦点组和消息 timer。</li>
+</ol>
+<h3 id="5-2-关闭页面"><a href="#5-2-关闭页面" class="headerlink" title="5.2 关闭页面"></a>5.2 关闭页面</h3><ol>
+<li>删除 UI 消息 timer，停用输入控制。</li>
+<li>调用服务层 <code>close</code> 回调。</li>
+<li>服务任务收到 STOP 消息后发出停止信号。</li>
+<li>停止 UDP 收发任务。</li>
+<li>中止并销毁音频任务，释放 Opus 和 PSRAM 资源。</li>
+<li>清理未完成的接收文件、队列、锁和信号量。</li>
+<li>删除聊天页面，恢复原 LVGL group 和主页面。</li>
+</ol>
+<h2 id="6-本地语音消息链路"><a href="#6-本地语音消息链路" class="headerlink" title="6. 本地语音消息链路"></a>6. 本地语音消息链路</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">按住语音键</span><br><span class="line">  -&gt; UI action: VOICE_PRESS</span><br><span class="line">  -&gt; service queue: VOICE_START</span><br><span class="line">  -&gt; 创建 record job_id</span><br><span class="line">  -&gt; audio worker 打开 R_WECHAT_AUDIO</span><br><span class="line">  -&gt; 每 160 个采样点编码一个 20 ms Opus 帧</span><br><span class="line">  -&gt; 写入 FLASH:/OPUS/MSG&lt;n&gt;.WCA</span><br><span class="line"></span><br><span class="line">松开语音键</span><br><span class="line">  -&gt; UI action: VOICE_RELEASE</span><br><span class="line">  -&gt; service queue: VOICE_STOP</span><br><span class="line">  -&gt; audio worker 协作停止并回报 RECORD_FINISHED</span><br><span class="line">  -&gt; service 读取真实录音结果</span><br><span class="line">  -&gt; UDP BEGIN + DATA... + END 发送整个 WCA 文件</span><br><span class="line">  -&gt; 发送成功后通知 UI 添加本地语音气泡</span><br></pre></td></tr></table></figure>
+
+<p>注意：UI 在松键时计算的秒数被放入 <code>VOICE_STOP</code> 事件，但当前服务逻辑只把它当作附带数据，并不用于最终发送。最终语音时长来自 WCA 文件的实际 Opus 帧数，即 <code>wechat_audio_result_t.duration_sec</code>。</p>
+<h2 id="7-远端语音消息链路"><a href="#7-远端语音消息链路" class="headerlink" title="7. 远端语音消息链路"></a>7. 远端语音消息链路</h2><ol>
+<li>UDP RX 任务收到 <code>WECHAT_UDP_MSG_VOICE</code>。</li>
+<li>服务回调按 <code>BEGIN / DATA / END</code> 子类型处理。</li>
+<li>BEGIN 创建 <code>FLASH:/OPUS/RX&lt;transfer_id&gt;.TMP</code>。</li>
+<li>DATA 要求 <code>offset</code> 严格等于当前已接收长度，并边写文件边计算 CRC32。</li>
+<li>END 校验 transfer ID、文件长度和 CRC32。</li>
+<li>校验通过后将临时文件重命名为 <code>.WCA</code>。</li>
+<li>服务任务把它转为待播放语音并通知 UI 添加远端气泡。</li>
+<li>若当前没有录音或播放任务，立即创建播放 job。</li>
+<li>音频任务逐帧 Opus 解码，将 PCM 节点送往 speaker stream。</li>
+</ol>
+<p>录音优先级高于远端播放：用户在播放期间按下语音键时，服务先停止当前播放，待播放完成事件返回后再开始录音。</p>
+<h2 id="8-表情消息链路"><a href="#8-表情消息链路" class="headerlink" title="8. 表情消息链路"></a>8. 表情消息链路</h2><h3 id="8-1-本地发送"><a href="#8-1-本地发送" class="headerlink" title="8.1 本地发送"></a>8.1 本地发送</h3><ol>
+<li>用户打开表情面板并选择索引 <code>0..7</code>。</li>
+<li>UI 调用 <code>emoji_selected</code> 回调。</li>
+<li>服务把 SEND_EMOJI 投递到服务队列。</li>
+<li>UI 在投递成功后立即显示本地表情气泡。</li>
+<li>服务任务调用 <code>wechat_udp_send_emoji()</code>。</li>
+<li>UDP TX 任务异步发送一个 1 B payload 的表情包。</li>
+</ol>
+<p>这里采用乐观 UI：本地气泡表示业务事件成功入队，不表示 UDP 已确认送达。</p>
+<h3 id="8-2-远端接收"><a href="#8-2-远端接收" class="headerlink" title="8.2 远端接收"></a>8.2 远端接收</h3><ol>
+<li>UDP RX 校验协议头和表情索引。</li>
+<li>服务回调投递 REMOTE_EMOJI 事件。</li>
+<li>服务任务写入 UI 队列。</li>
+<li>LVGL timer 拉取消息并显示远端表情气泡。</li>
+</ol>
+<h2 id="9-当前功能边界"><a href="#9-当前功能边界" class="headerlink" title="9. 当前功能边界"></a>9. 当前功能边界</h2><p>已实现：</p>
+<ul>
+<li>8 个固定表情的双向 UDP 消息；</li>
+<li>8 kHz、单声道、20 ms 帧的 Opus 语音录制；</li>
+<li>WCA 文件保存、UDP 分片发送、CRC32 校验；</li>
+<li>远端语音自动播放；</li>
+<li>录音优先于播放的半双工业务调度；</li>
+<li>UI 与业务服务解耦；</li>
+<li>语音、表情编译期开关。</li>
+</ul>
+<p>尚未实现或仅预留：</p>
+<ul>
+<li>拍照按钮动作为空；</li>
+<li>UDP 的 PHOTO_BEGIN、PHOTO_DATA、PHOTO_END 只有消息类型定义；</li>
+<li>ACK 类型尚未形成确认与重传机制；</li>
+<li>UI 语音气泡可点击但没有绑定重播事件；</li>
+<li>聊天记录未持久化，重开页面不会恢复历史消息；</li>
+<li>对端 IP 为固定配置，不支持发现、配对或动态切换。</li>
+</ul>
+<h2 id="10-维护风险摘要"><a href="#10-维护风险摘要" class="headerlink" title="10. 维护风险摘要"></a>10. 维护风险摘要</h2><h3 id="高优先级"><a href="#高优先级" class="headerlink" title="高优先级"></a>高优先级</h3><ol>
+<li>音频完成回调使用非阻塞方式投递服务队列，且当前忽略投递失败。若 16 深度的服务队列已满，服务层可能收不到完成事件，导致 <code>record_job_id</code> 或 <code>play_job_id</code> 无法清零。</li>
+<li>UDP 协议没有 ACK、重传或乱序重组。任意一个语音 DATA 包丢失或乱序都会使接收端中止整个文件。</li>
+</ol>
+<h3 id="中优先级"><a href="#中优先级" class="headerlink" title="中优先级"></a>中优先级</h3><ol>
+<li>UDP RX 回调内直接执行 Flash 文件创建、写入、重命名和 CRC 计算。Flash 延迟过高时可能拖慢后续收包。</li>
+<li>语音接收超时只在收到下一次 BEGIN 时检查。单次传输中途停止后，临时文件可能一直保持打开，直到新 BEGIN 或模块退出。</li>
+<li>UI 队列深度为 8，写入采用非阻塞方式；突发远端消息可能被丢弃。</li>
+<li>接收端只校验来源 IP，没有校验来源 UDP 端口。</li>
+</ol>
+<h3 id="兼容性注意"><a href="#兼容性注意" class="headerlink" title="兼容性注意"></a>兼容性注意</h3><ol>
+<li>UDP 多字节字段使用大端序，跨平台可解析。</li>
+<li>WCA 文件头和每帧 <code>packet_len</code> 使用目标机本地字节序。当前文件以整体二进制形式传输并在同类设备上播放没有问题，但不应直接假定其跨端序兼容。</li>
+<li>Opus 库配置为 fixed-point，且启用了 C99 VLA；音频工作任务的大栈需求需要持续关注。</li>
+</ol>
+<h2 id="11-建议的后续演进顺序"><a href="#11-建议的后续演进顺序" class="headerlink" title="11. 建议的后续演进顺序"></a>11. 建议的后续演进顺序</h2><ol>
+<li>为服务队列完成事件增加可靠投递或兜底状态恢复。</li>
+<li>给语音协议增加 ACK、超时清理和重传策略。</li>
+<li>将 UDP RX 的文件写入移到专用接收任务或缓存队列。</li>
+<li>为消息增加 message ID、发送状态和失败提示，替代完全乐观的 UI。</li>
+<li>实现语音气泡重播与聊天记录索引。</li>
+<li>再扩展照片分片协议，复用 transfer ID、offset、size、CRC 的通用文件传输模型。</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/UDP/">UDP</a><a class="post-meta__tags" href="/tags/TXW81x/">TXW81x</a><a class="post-meta__tags" href="/tags/%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF/">微信消息</a><a class="post-meta__tags" href="/tags/%E5%8F%AF%E8%A7%86%E5%AF%B9%E8%AE%B2/">可视对讲</a><a class="post-meta__tags" href="/tags/Opus/">Opus</a><a class="post-meta__tags" href="/tags/RTOS/">RTOS</a><a class="post-meta__tags" href="/tags/%E8%BD%AF%E4%BB%B6%E6%9E%B6%E6%9E%84/">软件架构</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TXW81x 微信消息 UDP v2 协议开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：  创建并绑定 UDP socket； 管理固定对端地址； 生成和解析统一 v2 包头； 异步发送表情消息； 同步分片发送 WCA 语音文件； 在 RX 任务中校验数据包并回调上层服务。  模块不负责 UI、Op...</div></div></div></a><a class="pagination-related" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">Blog 视觉与阅读体验追加优化开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)阶段: 工作区追加优化基准提交: 10e4a3a 之后优化周期: 2026-07-11 至 2026-07-12样式入口: source/css/custom.css模块目录: source/css/modules/主要目标: 提升首页视觉表现、文章阅读体验、长文目录可用性与移动端可读性。   目录 优化目标 文件分类 优化总览 模块详解 首页 Hero 与头图 导航栏 首页文章卡片 侧栏与目录 文章正文排版 代码块与行内代码 移动端适配 主题变量...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信 UI、控制层与业务服务开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UIUI: wechat_ui.c控制层: wechat_ui_control.c服务层: wechat_service.c提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 三层职责wechat_ui.c 创建入口按钮和聊天页面； 管理 LVGL 对象、group、焦点和 timer； 绘制本地&#x2F;远端语音与表情气泡； 把控制动作转交 callbacks； 从 callback 拉取可显示消息。  wechat...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息 UDP v2 协议开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：  创建并绑定 UDP socket； 管理固定对端地址； 生成和解析统一 v2 包头； 异步发送表情消息； 同步分片发送 WCA 语音文件； 在 RX 任务中校验数据包并回调上层服务。  模块不负责 UI、Op...</div></div></div></a><a class="pagination-related" href="/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-10</div><div class="info-item-2">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</div></div><div class="info-2"><div class="info-item-1">1. 项目概述本文面向 81x_intercom_ui 工程，重点说明以下两个模块：  sdk/app/video_intercom/：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。 sdk/lib/gui/81x_demo_ui/：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。  当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI音频适配: sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c编解码库: sdk/lib/opus/Opus 版本: 1.5.1提交范围: 6c55dda 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_audio 将项目音频 stream、Flash 文件和 Opus API 封装为单任务异步作业接口：  wechat_audio_record_start()：开始录音...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） �...</div></div></div></a><a class="pagination-related" href="/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%96%87%E6%A1%A3%E7%9B%AE%E6%A0%87"><span class="toc-text">1. 文档目标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%BB%A3%E7%A0%81%E8%8C%83%E5%9B%B4"><span class="toc-text">2. 代码范围</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E6%80%BB%E4%BD%93%E5%88%86%E5%B1%82"><span class="toc-text">3. 总体分层</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E8%BF%90%E8%A1%8C%E5%AE%9E%E4%BD%93%E4%B8%8E%E8%B5%84%E6%BA%90"><span class="toc-text">4. 运行实体与资源</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%88%9D%E5%A7%8B%E5%8C%96%E4%B8%8E%E9%80%80%E5%87%BA%E9%A1%BA%E5%BA%8F"><span class="toc-text">5. 初始化与退出顺序</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#5-1-%E6%89%93%E5%BC%80%E9%A1%B5%E9%9D%A2"><span class="toc-text">5.1 打开页面</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#5-2-%E5%85%B3%E9%97%AD%E9%A1%B5%E9%9D%A2"><span class="toc-text">5.2 关闭页面</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%9C%AC%E5%9C%B0%E8%AF%AD%E9%9F%B3%E6%B6%88%E6%81%AF%E9%93%BE%E8%B7%AF"><span class="toc-text">6. 本地语音消息链路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E8%BF%9C%E7%AB%AF%E8%AF%AD%E9%9F%B3%E6%B6%88%E6%81%AF%E9%93%BE%E8%B7%AF"><span class="toc-text">7. 远端语音消息链路</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E8%A1%A8%E6%83%85%E6%B6%88%E6%81%AF%E9%93%BE%E8%B7%AF"><span class="toc-text">8. 表情消息链路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#8-1-%E6%9C%AC%E5%9C%B0%E5%8F%91%E9%80%81"><span class="toc-text">8.1 本地发送</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#8-2-%E8%BF%9C%E7%AB%AF%E6%8E%A5%E6%94%B6"><span class="toc-text">8.2 远端接收</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E5%BD%93%E5%89%8D%E5%8A%9F%E8%83%BD%E8%BE%B9%E7%95%8C"><span class="toc-text">9. 当前功能边界</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E7%BB%B4%E6%8A%A4%E9%A3%8E%E9%99%A9%E6%91%98%E8%A6%81"><span class="toc-text">10. 维护风险摘要</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AB%98%E4%BC%98%E5%85%88%E7%BA%A7"><span class="toc-text">高优先级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%AD%E4%BC%98%E5%85%88%E7%BA%A7"><span class="toc-text">中优先级</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%BC%E5%AE%B9%E6%80%A7%E6%B3%A8%E6%84%8F"><span class="toc-text">兼容性注意</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E5%BB%BA%E8%AE%AE%E7%9A%84%E5%90%8E%E7%BB%AD%E6%BC%94%E8%BF%9B%E9%A1%BA%E5%BA%8F"><span class="toc-text">11. 建议的后续演进顺序</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档">TXW81x 微信消息模块总体架构开发文档</a><time datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档">Blog 视觉与阅读体验追加优化开发文档</a><time datetime="2026-07-12T06:30:00.000Z" title="发表于 2026-07-12 14:30:00">2026-07-12</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

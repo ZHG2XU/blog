@@ -1,0 +1,507 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW81x 微信语音 Opus 与 WCA 音频链路开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="梳理微信语音模块的 8 kHz Opus 参数、WCA 文件格式、录音编码、播放解码、音频 stream、任务状态与资源生命周期。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="梳理微信语音模块的 8 kHz Opus 参数、WCA 文件格式、录音编码、播放解码、音频 stream、任务状态与资源生命周期。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-07-17T12:20:00.000Z">
+<meta property="article:modified_time" content="2026-07-17T12:27:55.829Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="TXW81x">
+<meta property="article:tag" content="Opus">
+<meta property="article:tag" content="RTOS">
+<meta property="article:tag" content="微信语音">
+<meta property="article:tag" content="WCA">
+<meta property="article:tag" content="音频编解码">
+<meta property="article:tag" content="PSRAM">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW81x 微信语音 Opus 与 WCA 音频链路开发文档",
+  "url": "https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-07-17T12:20:00.000Z",
+  "dateModified": "2026-07-17T12:27:55.829Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW81x 微信语音 Opus 与 WCA 音频链路开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-17T12:27:55.829Z" title="更新于 2026-07-17 20:27:55">2026-07-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/TXW81x-%E5%8F%AF%E8%A7%86%E5%AF%B9%E8%AE%B2/">TXW81x 可视对讲</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>项目: TXW81x 可视对讲 UI<br>音频适配: <code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c</code><br>编解码库: <code>sdk/lib/opus/</code><br>Opus 版本: <code>1.5.1</code><br>提交范围: <code>6c55dda</code> 至 <code>2440a8e</code><br>分析基线: <code>2440a8e</code>（2026-07-17）</p>
+</blockquote>
+<hr>
+<h2 id="1-模块定位"><a href="#1-模块定位" class="headerlink" title="1. 模块定位"></a>1. 模块定位</h2><p><code>wechat_audio</code> 将项目音频 stream、Flash 文件和 Opus API 封装为单任务异步作业接口：</p>
+<ul>
+<li><code>wechat_audio_record_start()</code>：开始录音并写入 WCA 文件；</li>
+<li><code>wechat_audio_record_stop()</code>：协作停止录音；</li>
+<li><code>wechat_audio_play_start()</code>：播放一个 WCA 文件；</li>
+<li><code>wechat_audio_play_stop()</code>：协作停止播放；</li>
+<li><code>wechat_audio_get_result()</code>：读取最近完成作业的结果。</li>
+</ul>
+<p>同一时刻只允许一个录音或播放作业。业务服务持有 job ID，用它匹配命令、完成回调和结果。</p>
+<p>基线版本的关键源码定位：</p>
+<ul>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:58</code>：WCA 文件头；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:375</code>：单帧 Opus 编码；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:401</code>：录音作业；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:653</code>：播放作业；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:902</code>：encoder 参数；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:925</code>：模块初始化；</li>
+<li><code>sdk/lib/opus/opus_config.h:50</code>：fixed-point 配置；</li>
+<li><code>sdk/lib/opus/opus_config.h:203</code>：Opus 版本。</li>
+</ul>
+<h2 id="2-Opus-编译配置"><a href="#2-Opus-编译配置" class="headerlink" title="2. Opus 编译配置"></a>2. Opus 编译配置</h2><p><code>sdk/lib/opus/opus_config.h</code> 的关键配置：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>PACKAGE_VERSION</code></td>
+<td><code>1.5.1</code></td>
+<td>Opus 源码版本</td>
+</tr>
+<tr>
+<td><code>FIXED_POINT</code></td>
+<td><code>1</code></td>
+<td>使用固定点实现</td>
+</tr>
+<tr>
+<td><code>VAR_ARRAYS</code></td>
+<td><code>1</code></td>
+<td>允许 C99 变长数组</td>
+</tr>
+<tr>
+<td><code>OPUS_BUILD</code></td>
+<td>enabled</td>
+<td>编译 Opus 库本体</td>
+</tr>
+<tr>
+<td>ARM&#x2F;NEON 优化</td>
+<td>未启用</td>
+<td>当前以通用 C 路径为主</td>
+</tr>
+<tr>
+<td><code>ENABLE_HARDENING</code></td>
+<td>未启用</td>
+<td>未开启额外 hardening</td>
+</tr>
+<tr>
+<td>Deep PLC &#x2F; DRED &#x2F; OSCE</td>
+<td>未启用</td>
+<td>新增增强能力未启用</td>
+</tr>
+</tbody></table>
+<p>固定点配置适合无高性能 FPU 的 MCU&#x2F;SoC，但 Opus 内部调用深度和 VLA 会增加栈压力。本模块为音频任务单独分配了 30 KiB PSRAM 栈。</p>
+<h2 id="3-微信语音编码参数"><a href="#3-微信语音编码参数" class="headerlink" title="3. 微信语音编码参数"></a>3. 微信语音编码参数</h2><table>
+<thead>
+<tr>
+<th>参数</th>
+<th align="right">当前值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>采样率</td>
+<td align="right">8000 Hz</td>
+</tr>
+<tr>
+<td>声道</td>
+<td align="right">单声道</td>
+</tr>
+<tr>
+<td>PCM 位深</td>
+<td align="right">16 bit</td>
+</tr>
+<tr>
+<td>每帧采样点</td>
+<td align="right">160</td>
+</tr>
+<tr>
+<td>每帧时长</td>
+<td align="right">20 ms</td>
+</tr>
+<tr>
+<td>每帧 PCM 大小</td>
+<td align="right">320 B</td>
+</tr>
+<tr>
+<td>目标码率</td>
+<td align="right">8000 bit&#x2F;s</td>
+</tr>
+<tr>
+<td>应用模式</td>
+<td align="right"><code>OPUS_APPLICATION_VOIP</code></td>
+</tr>
+<tr>
+<td>带宽</td>
+<td align="right"><code>OPUS_BANDWIDTH_NARROWBAND</code></td>
+</tr>
+<tr>
+<td>VBR</td>
+<td align="right">关闭，CBR</td>
+</tr>
+<tr>
+<td>Complexity</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>In-band FEC</td>
+<td align="right">关闭</td>
+</tr>
+<tr>
+<td>DTX</td>
+<td align="right">关闭</td>
+</tr>
+<tr>
+<td>Packet loss percent</td>
+<td align="right">0</td>
+</tr>
+<tr>
+<td>最大 Opus 包缓存</td>
+<td align="right">256 B</td>
+</tr>
+<tr>
+<td>最大录音时长</td>
+<td align="right">60 s</td>
+</tr>
+</tbody></table>
+<p>这是一套偏低算力、窄带语音的参数，目标是降低 CPU、存储和网络开销，而不是追求宽带语音质量。</p>
+<p>理论上 8 kbit&#x2F;s 的 20 ms CBR 帧约为 20 B 编码数据；WCA 每帧额外保存 2 B 长度字段。</p>
+<h2 id="4-WCA-文件格式"><a href="#4-WCA-文件格式" class="headerlink" title="4. WCA 文件格式"></a>4. WCA 文件格式</h2><p>文件扩展名为 <code>.WCA</code>，magic 为 <code>WCA1</code>。文件由固定头和连续 Opus 帧组成。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">+-----------------------------+</span><br><span class="line">| WCA header                  |</span><br><span class="line">+-----------------------------+</span><br><span class="line">| uint16 packet_len           |</span><br><span class="line">| packet_len bytes Opus data  |</span><br><span class="line">+-----------------------------+</span><br><span class="line">| uint16 packet_len           |</span><br><span class="line">| packet_len bytes Opus data  |</span><br><span class="line">+-----------------------------+</span><br><span class="line">| ...                         |</span><br><span class="line">+-----------------------------+</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-1-文件头"><a href="#4-1-文件头" class="headerlink" title="4.1 文件头"></a>4.1 文件头</h3><p><code>wechat_audio_file_header_s</code> 使用 packed 布局，共 28 B。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>当前值&#x2F;含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>magic</code></td>
+<td>uint32</td>
+<td><code>0x31414357</code>，在当前小端目标上对应字节串 <code>WCA1</code></td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td>uint16</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>header_size</code></td>
+<td>uint16</td>
+<td><code>sizeof(header)</code></td>
+</tr>
+<tr>
+<td><code>sample_rate</code></td>
+<td>uint32</td>
+<td>8000</td>
+</tr>
+<tr>
+<td><code>channels</code></td>
+<td>uint16</td>
+<td>1</td>
+</tr>
+<tr>
+<td><code>frame_samples</code></td>
+<td>uint16</td>
+<td>160</td>
+</tr>
+<tr>
+<td><code>frame_count</code></td>
+<td>uint32</td>
+<td>Opus 帧数</td>
+</tr>
+<tr>
+<td><code>duration_ms</code></td>
+<td>uint32</td>
+<td><code>frame_count × 20</code></td>
+</tr>
+<tr>
+<td><code>payload_size</code></td>
+<td>uint32</td>
+<td>所有长度字段和 Opus 包的总字节数</td>
+</tr>
+</tbody></table>
+<p>录音开始时先写一个全零占位头；结束后回到文件起点写入最终元数据。</p>
+<h3 id="4-2-字节序"><a href="#4-2-字节序" class="headerlink" title="4.2 字节序"></a>4.2 字节序</h3><p>WCA 头和 <code>packet_len</code> 直接写入目标机本地二进制表示，没有转换为网络字节序。当前 UDP 层发送的是整个 WCA 文件原始字节，因此同构 TXW81x 设备之间可以使用；若未来由 PC、手机或不同端序芯片解析，应先明确并固定 WCA 的标准字节序。</p>
+<h2 id="5-录音编码流程"><a href="#5-录音编码流程" class="headerlink" title="5. 录音编码流程"></a>5. 录音编码流程</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">R_WECHAT_AUDIO stream</span><br><span class="line">  -&gt; recv_real_data()</span><br><span class="line">  -&gt; 聚合为 320 B / 160 samples</span><br><span class="line">  -&gt; opus_encode(..., 160, ..., 256)</span><br><span class="line">  -&gt; 写 uint16 packet_len</span><br><span class="line">  -&gt; 写 Opus packet</span><br><span class="line">  -&gt; 重复直到 STOP / ABORT / 60 s timeout</span><br><span class="line">  -&gt; 回写 WCA header</span><br></pre></td></tr></table></figure>
+
+<p>关键行为：</p>
+<ol>
+<li>录音 stream 名为 <code>R_WECHAT_AUDIO</code>，定义值为 <code>wechat-record-audio</code>。</li>
+<li>输入节点长度向下对齐到偶数，避免半个 16 bit 采样。</li>
+<li>输入节点可以大于或小于一帧，模块使用 320 B 栈内 PCM 帧进行聚合。</li>
+<li>STOP、ABORT 和最大录音时长在循环顶部检查。</li>
+<li>少于一帧的尾部 PCM 不编码；至少要成功编码一帧，文件才有效。</li>
+<li>成功文件命名为 <code>FLASH:/OPUS/MSG&lt;n&gt;.WCA</code>。</li>
+<li><code>&lt;n&gt;</code> 通过扫描现有文件的最大索引再加一得到。</li>
+</ol>
+<p>录音结果时长来自实际写入帧数，而不是按键按住时间：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">duration_ms  = frame_count * 20</span><br><span class="line">duration_sec = ceil(duration_ms / 1000)</span><br></pre></td></tr></table></figure>
+
+<h2 id="6-播放解码流程"><a href="#6-播放解码流程" class="headerlink" title="6. 播放解码流程"></a>6. 播放解码流程</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">打开 WCA</span><br><span class="line">  -&gt; 校验 header</span><br><span class="line">  -&gt; reset Opus decoder</span><br><span class="line">  -&gt; 创建 4 个播放节点，每个 1024 B</span><br><span class="line">  -&gt; 绑定 speaker stream</span><br><span class="line">  -&gt; DAC 切换到 8 kHz / SOUND_FILE</span><br><span class="line">  -&gt; 逐帧读取 packet_len 和 packet</span><br><span class="line">  -&gt; opus_decode(..., max 160 samples, FEC=0)</span><br><span class="line">  -&gt; 标记 16 bit PCM 长度并送入 stream</span><br><span class="line">  -&gt; 关闭 stream，恢复 DAC 配置</span><br></pre></td></tr></table></figure>
+
+<p>播放缓冲总大小为 4 KiB，分配在 PSRAM。单帧解码 PCM 为 320 B，小于单节点 1024 B。</p>
+<p>播放前会检查：</p>
+<ul>
+<li>magic、version 和 header size；</li>
+<li>采样率、声道和 frame samples 必须与当前固件一致；</li>
+<li>frame count 非零；</li>
+<li>payload size 不越过文件大小；</li>
+<li>frame count 与 payload 最小长度关系合理；</li>
+<li>每帧 packet length 为 <code>1..256</code>。</li>
+</ul>
+<h2 id="7-作业状态机"><a href="#7-作业状态机" class="headerlink" title="7. 作业状态机"></a>7. 作业状态机</h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">UNINITIALIZED</span><br><span class="line">    |</span><br><span class="line">    v</span><br><span class="line">IDLE</span><br><span class="line">  | record_start          | play_start</span><br><span class="line">  v                       v</span><br><span class="line">RECORD_STARTING         PLAY_STARTING</span><br><span class="line">  | stream ready           | stream ready</span><br><span class="line">  v                       v</span><br><span class="line">RECORDING               PLAYING</span><br><span class="line">  | record_stop            | play_stop</span><br><span class="line">  v                       v</span><br><span class="line">RECORD_STOPPING         PLAY_STOPPING</span><br><span class="line">  | finished               | finished</span><br><span class="line">  +-----------+-----------+</span><br><span class="line">              v</span><br><span class="line">             IDLE</span><br></pre></td></tr></table></figure>
+
+<p>状态、当前 job ID、播放路径和最近结果由 <code>wechat_audio.lock</code> 保护。STOP&#x2F;ABORT 使用 event flags，使停止 API 不必等待整个音频循环结束。</p>
+<h2 id="8-完成原因与错误码"><a href="#8-完成原因与错误码" class="headerlink" title="8. 完成原因与错误码"></a>8. 完成原因与错误码</h2><p>完成原因用于描述正常结束方式：</p>
+<ul>
+<li>completed；</li>
+<li>user stopped；</li>
+<li>timeout；</li>
+<li>aborted；</li>
+<li>error。</li>
+</ul>
+<p>错误码用于描述具体失败点，例如：</p>
+<ul>
+<li>文件打开或文件 I&#x2F;O；</li>
+<li>stream 打开失败；</li>
+<li>encoder&#x2F;decoder 初始化失败；</li>
+<li>Opus 编码&#x2F;解码失败；</li>
+<li>文件格式非法；</li>
+<li>内存不足；</li>
+<li>内部错误。</li>
+</ul>
+<p>完成回调在音频工作任务上下文执行。回调不得操作 LVGL，也不应执行阻塞工作；当前服务回调只把 <code>(event, job_id)</code> 投递到服务队列。</p>
+<h2 id="9-初始化与资源生命周期"><a href="#9-初始化与资源生命周期" class="headerlink" title="9. 初始化与资源生命周期"></a>9. 初始化与资源生命周期</h2><p>初始化顺序：</p>
+<ol>
+<li>初始化 mutex；</li>
+<li>初始化 control event；</li>
+<li>初始化深度为 4 的 job queue；</li>
+<li>创建并配置 Opus encoder；</li>
+<li>创建 Opus decoder；</li>
+<li>从 PSRAM 申请 30 KiB task stack；</li>
+<li>创建常驻音频 worker；</li>
+<li>状态切换为 IDLE。</li>
+</ol>
+<p>退出顺序：</p>
+<ol>
+<li>设置 STOP 与 ABORT；</li>
+<li>反复尝试投递 EXIT，直到 job queue 接受；</li>
+<li>等待 worker 设置 WORKER_STOPPED；</li>
+<li>销毁任务并释放 PSRAM 栈；</li>
+<li>销毁 decoder、encoder；</li>
+<li>删除 queue、event、mutex。</li>
+</ol>
+<p>禁止在音频回调自身调用 deinit，否则会形成任务等待自身退出的问题；代码已显式拒绝这种调用。</p>
+<h2 id="10-与实时对讲-Opus-链路的区别"><a href="#10-与实时对讲-Opus-链路的区别" class="headerlink" title="10. 与实时对讲 Opus 链路的区别"></a>10. 与实时对讲 Opus 链路的区别</h2><table>
+<thead>
+<tr>
+<th>维度</th>
+<th>微信语音</th>
+<th><code>intercom_opus.c</code> 实时对讲</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>业务形态</td>
+<td>录完后发送文件</td>
+<td>边采集边发送、边收边播</td>
+</tr>
+<tr>
+<td>网络对象</td>
+<td>WCA 文件分片</td>
+<td>实时编码帧&#x2F;环形缓冲</td>
+</tr>
+<tr>
+<td>抖动处理</td>
+<td>无</td>
+<td>有缓存、丢包检查等逻辑</td>
+</tr>
+<tr>
+<td>PLC&#x2F;FEC</td>
+<td>FEC 关闭，不做丢包补偿</td>
+<td>原链路包含 PLC 相关逻辑</td>
+</tr>
+<tr>
+<td>存储</td>
+<td>Flash 持久文件</td>
+<td>以内存流为主</td>
+</tr>
+<tr>
+<td>调度</td>
+<td>单 worker，录放互斥</td>
+<td>多任务并发实时处理</td>
+</tr>
+</tbody></table>
+<p>因此，实时对讲中的丢包补偿、重传和同步策略不会自动作用于微信语音文件传输。</p>
+<h2 id="11-风险与待确认项"><a href="#11-风险与待确认项" class="headerlink" title="11. 风险与待确认项"></a>11. 风险与待确认项</h2><h3 id="11-1-完成事件可靠性"><a href="#11-1-完成事件可靠性" class="headerlink" title="11.1 完成事件可靠性"></a>11.1 完成事件可靠性</h3><p>音频模块只保存最近一个完成结果。当前服务严格串行启动作业，因此正常情况下不会被覆盖；但如果 AUDIO_*_FINISHED 事件因服务队列已满而丢失，服务状态可能与音频模块的 IDLE 状态脱节。</p>
+<h3 id="11-2-播放尾部是否完全排空"><a href="#11-2-播放尾部是否完全排空" class="headerlink" title="11.2 播放尾部是否完全排空"></a>11.2 播放尾部是否完全排空</h3><p>最后一帧送入 stream 后代码立即进入 cleanup 并关闭 stream。是否会等待 speaker 端消费所有已排队节点，取决于 <code>close_stream()</code> 的底层语义，需要结合 stream 框架验证。若关闭不带 drain，可能截断尾部音频。</p>
+<h3 id="11-3-WCA-完整性"><a href="#11-3-WCA-完整性" class="headerlink" title="11.3 WCA 完整性"></a>11.3 WCA 完整性</h3><p>WCA 自身没有 CRC。网络接收时由外层语音传输 CRC32 保证整个文件完整，但本地 Flash 文件损坏只能通过头字段和逐帧长度发现，不能检测所有静默位翻转。</p>
+<h3 id="11-4-文件索引与容量管理"><a href="#11-4-文件索引与容量管理" class="headerlink" title="11.4 文件索引与容量管理"></a>11.4 文件索引与容量管理</h3><p>每次录音扫描目录并使用最大序号加一，没有回收策略、容量上限处理和序号溢出处理。长期运行时需要增加消息索引与存储清理策略。</p>
+<h3 id="11-5-Opus-栈与性能"><a href="#11-5-Opus-栈与性能" class="headerlink" title="11.5 Opus 栈与性能"></a>11.5 Opus 栈与性能</h3><p>当前使用通用 fixed-point C 路径、complexity 0 和 30 KiB PSRAM 栈。修改 Opus complexity、启用新算法、切换 frame size 或打开额外增强功能后，应重新测量：</p>
+<ul>
+<li>worker 最大栈深；</li>
+<li>单帧 encode&#x2F;decode 耗时；</li>
+<li>PSRAM 访问对实时性的影响；</li>
+<li>录音 stream 是否出现积压；</li>
+<li>播放节点是否出现欠载。</li>
+</ul>
+<h2 id="12-参数修改检查表"><a href="#12-参数修改检查表" class="headerlink" title="12. 参数修改检查表"></a>12. 参数修改检查表</h2><p>如果修改采样率或 frame size，必须同步检查：</p>
+<ul>
+<li>encoder&#x2F;decoder create 参数；</li>
+<li><code>WECHAT_AUDIO_FRAME_SAMPLES</code>；</li>
+<li><code>WECHAT_AUDIO_FRAME_BYTES</code>；</li>
+<li>Opus expert frame duration；</li>
+<li>WCA header 校验规则；</li>
+<li><code>duration_ms</code> 计算，当前写死为每帧 20 ms；</li>
+<li>DAC 采样率切换；</li>
+<li>record stream 实际 PCM 格式；</li>
+<li>play node 容量；</li>
+<li>对端固件兼容性。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/TXW81x/">TXW81x</a><a class="post-meta__tags" href="/tags/Opus/">Opus</a><a class="post-meta__tags" href="/tags/RTOS/">RTOS</a><a class="post-meta__tags" href="/tags/%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3/">微信语音</a><a class="post-meta__tags" href="/tags/WCA/">WCA</a><a class="post-meta__tags" href="/tags/%E9%9F%B3%E9%A2%91%E7%BC%96%E8%A7%A3%E7%A0%81/">音频编解码</a><a class="post-meta__tags" href="/tags/PSRAM/">PSRAM</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">TXW81x 微信 UI、控制层与业务服务开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UIUI: wechat_ui.c控制层: wechat_ui_control.c服务层: wechat_service.c提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 三层职责wechat_ui.c 创建入口按钮和聊天页面； 管理 LVGL 对象、group、焦点和 timer； 绘制本地&#x2F;远端语音与表情气泡； 把控制动作转交 callbacks； 从 callback 拉取可显示消息。  wechat...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW81x 微信消息 UDP v2 协议开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：  创建并绑定 UDP socket； 管理固定对端地址； 生成和解析统一 v2 包头； 异步发送表情消息； 同步分片发送 WCA 语音文件； 在 RX 任务中校验数据包并回调上层服务。  模块不负责 UI、Op...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息模块总体架构开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: 微信式语音与表情消息阶段: UI、业务服务、UDP 与 Opus 链路整合提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 文档目标本文给后续开发者建立模块级心智模型，重点说明以下问题：  微信入口从哪里创建，页面由谁管理； 按键事件如何转换为录音、发送、播放等业务动作； UDP 收发线程、服务线程和音频线程如何协作； Opus 在本项目中承担什么职责； 哪些路径已经实现，哪些仍是预留能力； 维护时需要优先...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信 UI、控制层与业务服务开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UIUI: wechat_ui.c控制层: wechat_ui_control.c服务层: wechat_service.c提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 三层职责wechat_ui.c 创建入口按钮和聊天页面； 管理 LVGL 对象、group、焦点和 timer； 绘制本地&#x2F;远端语音与表情气泡； 把控制动作转交 callbacks； 从 callback 拉取可显示消息。  wechat...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息 UDP v2 协议开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：  创建并绑定 UDP socket； 管理固定对端地址； 生成和解析统一 v2 包头； 异步发送表情消息； 同步分片发送 WCA 语音文件； 在 RX 任务中校验数据包并回调上层服务。  模块不负责 UI、Op...</div></div></div></a><a class="pagination-related" href="/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-10</div><div class="info-item-2">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</div></div><div class="info-2"><div class="info-item-1">1. 项目概述本文面向 81x_intercom_ui 工程，重点说明以下两个模块：  sdk/app/video_intercom/：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。 sdk/lib/gui/81x_demo_ui/：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。  当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E6%A8%A1%E5%9D%97%E5%AE%9A%E4%BD%8D"><span class="toc-text">1. 模块定位</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-Opus-%E7%BC%96%E8%AF%91%E9%85%8D%E7%BD%AE"><span class="toc-text">2. Opus 编译配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3%E7%BC%96%E7%A0%81%E5%8F%82%E6%95%B0"><span class="toc-text">3. 微信语音编码参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-WCA-%E6%96%87%E4%BB%B6%E6%A0%BC%E5%BC%8F"><span class="toc-text">4. WCA 文件格式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E6%96%87%E4%BB%B6%E5%A4%B4"><span class="toc-text">4.1 文件头</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E5%AD%97%E8%8A%82%E5%BA%8F"><span class="toc-text">4.2 字节序</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E5%BD%95%E9%9F%B3%E7%BC%96%E7%A0%81%E6%B5%81%E7%A8%8B"><span class="toc-text">5. 录音编码流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%92%AD%E6%94%BE%E8%A7%A3%E7%A0%81%E6%B5%81%E7%A8%8B"><span class="toc-text">6. 播放解码流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E4%BD%9C%E4%B8%9A%E7%8A%B6%E6%80%81%E6%9C%BA"><span class="toc-text">7. 作业状态机</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E5%AE%8C%E6%88%90%E5%8E%9F%E5%9B%A0%E4%B8%8E%E9%94%99%E8%AF%AF%E7%A0%81"><span class="toc-text">8. 完成原因与错误码</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E5%88%9D%E5%A7%8B%E5%8C%96%E4%B8%8E%E8%B5%84%E6%BA%90%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">9. 初始化与资源生命周期</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E4%B8%8E%E5%AE%9E%E6%97%B6%E5%AF%B9%E8%AE%B2-Opus-%E9%93%BE%E8%B7%AF%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">10. 与实时对讲 Opus 链路的区别</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E9%A3%8E%E9%99%A9%E4%B8%8E%E5%BE%85%E7%A1%AE%E8%AE%A4%E9%A1%B9"><span class="toc-text">11. 风险与待确认项</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#11-1-%E5%AE%8C%E6%88%90%E4%BA%8B%E4%BB%B6%E5%8F%AF%E9%9D%A0%E6%80%A7"><span class="toc-text">11.1 完成事件可靠性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-2-%E6%92%AD%E6%94%BE%E5%B0%BE%E9%83%A8%E6%98%AF%E5%90%A6%E5%AE%8C%E5%85%A8%E6%8E%92%E7%A9%BA"><span class="toc-text">11.2 播放尾部是否完全排空</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-3-WCA-%E5%AE%8C%E6%95%B4%E6%80%A7"><span class="toc-text">11.3 WCA 完整性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-4-%E6%96%87%E4%BB%B6%E7%B4%A2%E5%BC%95%E4%B8%8E%E5%AE%B9%E9%87%8F%E7%AE%A1%E7%90%86"><span class="toc-text">11.4 文件索引与容量管理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-5-Opus-%E6%A0%88%E4%B8%8E%E6%80%A7%E8%83%BD"><span class="toc-text">11.5 Opus 栈与性能</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%8F%82%E6%95%B0%E4%BF%AE%E6%94%B9%E6%A3%80%E6%9F%A5%E8%A1%A8"><span class="toc-text">12. 参数修改检查表</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档">TXW81x 微信消息模块总体架构开发文档</a><time datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档">Blog 视觉与阅读体验追加优化开发文档</a><time datetime="2026-07-12T06:30:00.000Z" title="发表于 2026-07-12 14:30:00">2026-07-12</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

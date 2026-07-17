@@ -1,9 +1,10 @@
 <h1 id="source-css-样式文档"><a href="#source-css-样式文档" class="headerlink" title="source/css 样式文档"></a><code>source/css</code> 样式文档</h1><blockquote>
-<p><strong>项目</strong>: Blog-Hexo (Butterfly 主题定制)<br><strong>入口文件</strong>: <code>custom.css</code><br><strong>模块目录</strong>: <code>modules/</code><br><strong>最后更新</strong>: 2026-05-10</p>
+<p><strong>项目</strong>: Blog-Hexo (Butterfly 主题定制)<br><strong>入口文件</strong>: <code>custom.css</code><br><strong>模块目录</strong>: <code>modules/</code><br><strong>最后更新</strong>: 2026-07-11</p>
 </blockquote>
 <hr>
 <h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ul>
 <li><a href="#%E6%9E%B6%E6%9E%84%E6%A6%82%E8%A7%88">架构概览</a></li>
+<li><a href="#%E5%9B%BE%E7%89%87%E8%B5%84%E6%BA%90%E6%9B%BF%E6%8D%A2">图片资源替换</a></li>
 <li><a href="#%E6%96%87%E4%BB%B6%E5%88%86%E7%B1%BB">文件分类</a></li>
 <li><a href="#%E6%A8%A1%E5%9D%97%E8%AF%A6%E8%A7%A3">模块详解</a><ul>
 <li><a href="#%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F">主题系统</a></li>
@@ -21,6 +22,35 @@
 <h2 id="架构概览"><a href="#架构概览" class="headerlink" title="架构概览"></a>架构概览</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">source/css/</span><br><span class="line">├── custom.css              ← 主入口（@import 聚合所有模块）</span><br><span class="line">└── modules/</span><br><span class="line">    ├── variables.css       ← 主题变量（Light/Dark CSS 自定义属性）</span><br><span class="line">    ├── background.css      ← 网站背景图</span><br><span class="line">    ├── base.css            ← 基础全局调整</span><br><span class="line">    ├── scrollbar.css       ← 滚动条样式</span><br><span class="line">    ├── cards.css           ← 卡片表面统一风格</span><br><span class="line">    ├── navigation.css      ← 导航栏样式</span><br><span class="line">    ├── code-highlight.css  ← 代码高亮（VSCode Dark+）</span><br><span class="line">    ├── tables.css          ← 表格样式</span><br><span class="line">    ├── typography.css      ← 排版、视频、Mermaid</span><br><span class="line">    ├── about-page.css      ← 关于页面专属</span><br><span class="line">    ├── header-text.css     ← 页头文字颜色</span><br><span class="line">    ├── footer.css          ← 页脚文字颜色</span><br><span class="line">    ├── post-meta.css       ← 文章元信息色彩</span><br><span class="line">    └── responsive.css      ← 移动端适配</span><br></pre></td></tr></table></figure>
 
 <p>所有模块由 <code>custom.css</code> 通过 <code>@import url(...)</code> 统一引入，形成一条完整的样式链路。</p>
+<hr>
+<h2 id="图片资源替换"><a href="#图片资源替换" class="headerlink" title="图片资源替换"></a>图片资源替换</h2><table>
+<thead>
+<tr>
+<th>用途</th>
+<th>项目资源位置</th>
+<th>建议尺寸</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>首页浅色首屏</td>
+<td><code>source/img/light-bg.webp</code></td>
+<td>1920×1440 或更大</td>
+</tr>
+<tr>
+<td>首页深色首屏</td>
+<td><code>source/img/dark-bg.webp</code></td>
+<td>1920×1440 或更大</td>
+</tr>
+<tr>
+<td>头像</td>
+<td><code>source/img/avatar.webp</code></td>
+<td>512×512 正方形</td>
+</tr>
+</tbody></table>
+<p>文章顶部图片由每篇 Markdown 文件单独设置。把图片放入 <code>source/img/</code>，然后在文章 Front Matter 中添加：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">---</span></span><br><span class="line"><span class="attr">title:</span> <span class="string">示例文章</span></span><br><span class="line"><span class="attr">date:</span> <span class="number">2026-07-11</span></span><br><span class="line"><span class="attr">top_img:</span> <span class="string">/img/post-cover.webp</span></span><br><span class="line"><span class="meta">---</span></span><br></pre></td></tr></table></figure>
+
+<p>没有填写 <code>top_img</code> 时，文章顶部显示主题占位色 <code>#13213A</code>。新文章模板 <code>scaffolds/post.md</code> 已包含该字段。</p>
 <hr>
 <h2 id="文件分类"><a href="#文件分类" class="headerlink" title="文件分类"></a>文件分类</h2><table>
 <thead>
@@ -183,8 +213,8 @@
 <li><strong>标签</strong>: <code>#background</code> <code>#light-mode</code> <code>#dark-mode</code></li>
 <li><strong>功能</strong>: 根据主题切换网站背景图片。</li>
 <li><strong>规则</strong>:<ul>
-<li>明亮模式 (<code>html:not([data-theme=&quot;dark&quot;])</code>) → <code>/img/light-bg.png</code></li>
-<li>暗黑模式 (<code>html[data-theme=&quot;dark&quot;]</code>) → <code>/img/dark-bg.png</code></li>
+<li>明亮模式 Hero → <code>/img/light-bg.webp</code></li>
+<li>暗黑模式 Hero → <code>/img/dark-bg.webp</code></li>
 </ul>
 </li>
 <li><strong>目标元素</strong>: <code>#web_bg</code></li>

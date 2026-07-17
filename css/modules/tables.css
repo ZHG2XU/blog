@@ -1,45 +1,59 @@
-/* ================== 表格样式 ================== */
+/* Readable, horizontally scrollable data tables */
+#article-container .table-wrap {
+    overflow-x: auto;
+    margin: 1.5em 0;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    box-shadow: var(--ui-shadow-sm);
+}
 
-/* 表头居中 */
+#article-container table {
+    width: 100%;
+    min-width: 560px;
+    margin: 0;
+    border: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--ui-surface-solid);
+    font-size: 0.9rem;
+}
+
 #article-container table th,
+#article-container table td {
+    padding: 12px 15px;
+    border: 0;
+    border-right: 1px solid var(--ui-border);
+    border-bottom: 1px solid var(--ui-border);
+    text-align: left;
+    vertical-align: top;
+}
+
+#article-container table th:last-child,
+#article-container table td:last-child {
+    border-right: 0;
+}
+
+#article-container table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
 #article-container table thead th {
-    text-align: center !important;
+    background: var(--ui-accent-soft);
+    color: var(--ui-heading);
+    font-weight: 720;
+    white-space: nowrap;
 }
 
-/* ================== 明亮模式 ================== */
-/* 表格半透明 */
-html:not([data-theme="dark"]) #article-container table {
-    background-color: rgba(255, 255, 255, 0.5) !important;
+#article-container table tbody tr:nth-child(even) td {
+    background: var(--ui-surface-subtle);
 }
 
-/* 边框线条颜色 */
-html:not([data-theme="dark"]) #article-container table,
-html:not([data-theme="dark"]) #article-container table th,
-html:not([data-theme="dark"]) #article-container table td {
-    border-color: #919191da !important;
-    border-width: 1px !important;
+#article-container table tbody tr:hover td {
+    background: color-mix(in srgb, var(--ui-accent-soft) 70%, var(--ui-surface-solid));
 }
 
-/* 偶数行颜色 */
-html:not([data-theme="dark"]) #article-container table tbody tr:nth-child(even) {
-    background-color: rgba(240, 244, 248, 0.5) !important;
-}
-
-/* ================== 夜间模式 ================== */
-/* 表格半透明 */
-html[data-theme="dark"] #article-container table {
-    background-color: rgba(22, 27, 34, 0.5) !important; 
-}
-
-/* 边框线条颜色 */
-html[data-theme="dark"] #article-container table,
-html[data-theme="dark"] #article-container table th,
-html[data-theme="dark"] #article-container table td {
-    border-color: #5c6c7f !important;
-    border-width: 1px !important;
-}
-
-/* 偶数行颜色 */
-html[data-theme="dark"] #article-container table tbody tr:nth-child(even) {
-    background-color: rgba(30, 36, 44, 0.5) !important;
+@supports not (color: color-mix(in srgb, white, black)) {
+    #article-container table tbody tr:hover td {
+        background: var(--ui-accent-soft);
+    }
 }

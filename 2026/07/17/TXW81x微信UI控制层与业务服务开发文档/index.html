@@ -1,0 +1,523 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW81x 微信 UI、控制层与业务服务开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="记录 wechat_ui、wechat_ui_control 与 wechat_service 的职责边界、按键映射、队列桥接、录放音调度、页面生命周期和维护注意事项。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW81x 微信 UI、控制层与业务服务开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="记录 wechat_ui、wechat_ui_control 与 wechat_service 的职责边界、按键映射、队列桥接、录放音调度、页面生命周期和维护注意事项。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-07-17T12:30:00.000Z">
+<meta property="article:modified_time" content="2026-07-17T12:27:55.824Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="LVGL">
+<meta property="article:tag" content="UI架构">
+<meta property="article:tag" content="TXW81x">
+<meta property="article:tag" content="微信消息">
+<meta property="article:tag" content="RTOS">
+<meta property="article:tag" content="业务服务">
+<meta property="article:tag" content="状态机">
+<meta property="article:tag" content="消息队列">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW81x 微信 UI、控制层与业务服务开发文档",
+  "url": "https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-07-17T12:30:00.000Z",
+  "dateModified": "2026-07-17T12:27:55.824Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW81x 微信 UI、控制层与业务服务开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW81x 微信 UI、控制层与业务服务开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW81x 微信 UI、控制层与业务服务开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-17T12:27:55.824Z" title="更新于 2026-07-17 20:27:55">2026-07-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/TXW81x-%E5%8F%AF%E8%A7%86%E5%AF%B9%E8%AE%B2/">TXW81x 可视对讲</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>项目: TXW81x 可视对讲 UI<br>UI: <code>wechat_ui.c</code><br>控制层: <code>wechat_ui_control.c</code><br>服务层: <code>wechat_service.c</code><br>提交范围: <code>e9a2fb5</code> 至 <code>2440a8e</code><br>分析基线: <code>2440a8e</code>（2026-07-17）</p>
+</blockquote>
+<hr>
+<h2 id="1-三层职责"><a href="#1-三层职责" class="headerlink" title="1. 三层职责"></a>1. 三层职责</h2><h3 id="wechat-ui-c"><a href="#wechat-ui-c" class="headerlink" title="wechat_ui.c"></a><code>wechat_ui.c</code></h3><ul>
+<li>创建入口按钮和聊天页面；</li>
+<li>管理 LVGL 对象、group、焦点和 timer；</li>
+<li>绘制本地&#x2F;远端语音与表情气泡；</li>
+<li>把控制动作转交 callbacks；</li>
+<li>从 callback 拉取可显示消息。</li>
+</ul>
+<h3 id="wechat-ui-control-c"><a href="#wechat-ui-control-c" class="headerlink" title="wechat_ui_control.c"></a><code>wechat_ui_control.c</code></h3><ul>
+<li>识别 ESC、ENTER、语音按下和语音松开键；</li>
+<li>根据当前焦点对象生成语义化 action；</li>
+<li>记录 <code>speak_pressed</code>，过滤重复按下&#x2F;松开；</li>
+<li>不直接调用服务、网络和音频 API。</li>
+</ul>
+<h3 id="wechat-service-c"><a href="#wechat-service-c" class="headerlink" title="wechat_service.c"></a><code>wechat_service.c</code></h3><ul>
+<li>实现 UI callbacks；</li>
+<li>创建和销毁音频、UDP、服务任务；</li>
+<li>把 UDP&#x2F;音频回调转换为服务事件；</li>
+<li>串行调度录音、播放和发送；</li>
+<li>把业务结果转换为 UI 消息。</li>
+</ul>
+<p>这种拆分使 <code>wechat_ui_create()</code> 可以注入其他 callbacks，UI 本身不依赖具体网络或音频实现。</p>
+<p>基线版本的关键源码定位：</p>
+<ul>
+<li><code>sdk/lib/gui/intercom_ui/wechat_ui_control.c:73</code>：按键事件映射；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_ui.c:350</code>：UI 消息 timer；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_ui.c:519</code>：UI action 分发；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_ui.c:687</code>：聊天页面打开；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_service.c:392</code>：UDP 回调桥接；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_service.c:415</code>：音频回调桥接；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_service.c:559</code>：服务任务事件循环；</li>
+<li><code>sdk/lib/gui/intercom_ui/wechat_service.c:894</code>：服务 callbacks 绑定。</li>
+</ul>
+<h2 id="2-页面入口和生命周期"><a href="#2-页面入口和生命周期" class="headerlink" title="2. 页面入口和生命周期"></a>2. 页面入口和生命周期</h2><p><code>main_ui.c</code> 通过以下调用创建入口：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wechat_service_create_ui(group, base_ui);</span><br></pre></td></tr></table></figure>
+
+<p>服务函数构造静态 callbacks，再调用 <code>wechat_ui_create()</code>。UI 为入口分配 <code>wechat_ui_s</code> 上下文，并向主列表加入 <code>wechat</code> 按钮。</p>
+<p>用户进入页面时：</p>
+<ol>
+<li>先调用 callbacks.open，即 <code>wechat_service_init()</code>；</li>
+<li>服务成功后初始化控制层；</li>
+<li>隐藏 <code>base_ui</code>；</li>
+<li>创建全屏聊天 UI；</li>
+<li>创建独立 group 并接管 keypad；</li>
+<li>创建 30 ms UI 消息 timer。</li>
+</ol>
+<p>用户退出页面时：</p>
+<ol>
+<li>ESC 在表情面板打开时只关闭面板；</li>
+<li>ESC 在正常聊天页中触发完整退出；</li>
+<li>删除 timer 和控制状态；</li>
+<li>调用 service deinit；</li>
+<li>恢复原 group 和主页面。</li>
+</ol>
+<h2 id="3-UI-布局"><a href="#3-UI-布局" class="headerlink" title="3. UI 布局"></a>3. UI 布局</h2><p>页面使用纵向 flex：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">+----------------------------------+</span><br><span class="line">|           We Chat               | 20 px</span><br><span class="line">+----------------------------------+</span><br><span class="line">|                                  |</span><br><span class="line">|       可滚动聊天消息列表          | flex grow</span><br><span class="line">|                                  |</span><br><span class="line">+----------------------------------+</span><br><span class="line">| 隐藏/显示的 8 个表情选择按钮      | 40 px</span><br><span class="line">+----------------------------------+</span><br><span class="line">|    语音       拍照       表情     | 40 px</span><br><span class="line">+----------------------------------+</span><br></pre></td></tr></table></figure>
+
+<p>语音气泡宽度按秒数增长：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bubble_width = 65 + min(duration_sec, 30) * 3</span><br></pre></td></tr></table></figure>
+
+<p>本地消息右对齐，远端消息左对齐，并使用不同颜色的圆形 marker 区分双方。</p>
+<h2 id="4-按键映射"><a href="#4-按键映射" class="headerlink" title="4. 按键映射"></a>4. 按键映射</h2><table>
+<thead>
+<tr>
+<th>键值</th>
+<th>焦点对象</th>
+<th>Action</th>
+<th>行为</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>LV_KEY_ESC</code></td>
+<td>任意</td>
+<td>exit</td>
+<td>关闭表情面板或退出页面</td>
+</tr>
+<tr>
+<td><code>LV_KEY_ENTER</code></td>
+<td>拍照按钮</td>
+<td>PHOTO_SELECTED</td>
+<td>当前无业务实现</td>
+</tr>
+<tr>
+<td><code>LV_KEY_ENTER</code></td>
+<td>表情按钮</td>
+<td>EMOJI_PANEL_TOGGLE</td>
+<td>打开&#x2F;关闭表情面板</td>
+</tr>
+<tr>
+<td><code>LV_KEY_ENTER</code></td>
+<td>表情项</td>
+<td>EMOJI_SELECTED</td>
+<td>发送并显示表情</td>
+</tr>
+<tr>
+<td><code>INTERCOM_KEY_SPEAK_PRESS</code></td>
+<td>语音按钮</td>
+<td>VOICE_PRESS</td>
+<td>请求开始录音</td>
+</tr>
+<tr>
+<td><code>INTERCOM_KEY_SPEAK_RELEASE</code></td>
+<td>语音按钮</td>
+<td>VOICE_RELEASE</td>
+<td>请求停止录音</td>
+</tr>
+</tbody></table>
+<p>语音键只有在焦点位于语音按钮时生效。</p>
+<h2 id="5-焦点组切换"><a href="#5-焦点组切换" class="headerlink" title="5. 焦点组切换"></a>5. 焦点组切换</h2><p>正常工具栏状态下，group 包含：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">语音 -&gt; 拍照 -&gt; 表情</span><br></pre></td></tr></table></figure>
+
+<p>打开表情面板时：</p>
+<ol>
+<li>从 group 移除三个工具按钮；</li>
+<li>加入 8 个表情按钮；</li>
+<li>聚焦第一个表情。</li>
+</ol>
+<p>关闭表情面板时执行反向操作，并将焦点恢复到表情工具按钮。</p>
+<h2 id="6-UI-callback-接口"><a href="#6-UI-callback-接口" class="headerlink" title="6. UI callback 接口"></a>6. UI callback 接口</h2><table>
+<thead>
+<tr>
+<th>Callback</th>
+<th>服务实现</th>
+<th>线程上下文</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>open</code></td>
+<td><code>wechat_service_ui_open</code></td>
+<td>LVGL</td>
+<td>初始化全部业务资源</td>
+</tr>
+<tr>
+<td><code>close</code></td>
+<td><code>wechat_service_ui_close</code></td>
+<td>LVGL</td>
+<td>停止并释放全部业务资源</td>
+</tr>
+<tr>
+<td><code>voice_start</code></td>
+<td><code>wechat_service_ui_voice_start</code></td>
+<td>LVGL</td>
+<td>非阻塞投递 VOICE_START</td>
+</tr>
+<tr>
+<td><code>voice_stop</code></td>
+<td><code>wechat_service_ui_voice_stop</code></td>
+<td>LVGL</td>
+<td>非阻塞投递 VOICE_STOP</td>
+</tr>
+<tr>
+<td><code>emoji_selected</code></td>
+<td><code>wechat_service_ui_emoji_selected</code></td>
+<td>LVGL</td>
+<td>非阻塞投递 SEND_EMOJI</td>
+</tr>
+<tr>
+<td><code>get_message</code></td>
+<td><code>wechat_service_ui_get_message</code></td>
+<td>LVGL timer</td>
+<td>非阻塞读取 UI 队列</td>
+</tr>
+</tbody></table>
+<p>UI 只在 callback 返回 <code>RET_OK</code> 后更新本地交互状态。例如表情事件成功进入服务队列后，立即创建本地表情气泡。</p>
+<h2 id="7-两级消息队列"><a href="#7-两级消息队列" class="headerlink" title="7. 两级消息队列"></a>7. 两级消息队列</h2><h3 id="7-1-服务事件队列"><a href="#7-1-服务事件队列" class="headerlink" title="7.1 服务事件队列"></a>7.1 服务事件队列</h3><p>深度 16，方向为“各生产者 -&gt; 服务任务”。</p>
+<p>生产者包括：</p>
+<ul>
+<li>LVGL：VOICE_START、VOICE_STOP、SEND_EMOJI；</li>
+<li>UDP RX：REMOTE_VOICE、REMOTE_EMOJI；</li>
+<li>音频 worker：AUDIO_RECORD_FINISHED、AUDIO_PLAY_FINISHED。</li>
+</ul>
+<p>每条消息压缩为 32 bit：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">uint16 cmd + uint16 data</span><br></pre></td></tr></table></figure>
+
+<h3 id="7-2-UI-消息队列"><a href="#7-2-UI-消息队列" class="headerlink" title="7.2 UI 消息队列"></a>7.2 UI 消息队列</h3><p>深度 8，方向为“服务任务 -&gt; LVGL timer”。</p>
+<p>当前消息：</p>
+<ul>
+<li>添加远端语音；</li>
+<li>添加远端表情；</li>
+<li>添加本地语音。</li>
+</ul>
+<p>30 ms timer 每次触发时用 while 循环排空队列。</p>
+<h2 id="8-服务任务事件处理"><a href="#8-服务任务事件处理" class="headerlink" title="8. 服务任务事件处理"></a>8. 服务任务事件处理</h2><table>
+<thead>
+<tr>
+<th>服务事件</th>
+<th>核心处理</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VOICE_START</td>
+<td>标记录音请求；若正在播放则先停止播放，否则开始录音</td>
+</tr>
+<tr>
+<td>VOICE_STOP</td>
+<td>清除持续录音请求；若正在录音则发停止事件</td>
+</tr>
+<tr>
+<td>SEND_EMOJI</td>
+<td>调用 UDP 异步表情发送</td>
+</tr>
+<tr>
+<td>REMOTE_VOICE</td>
+<td>接纳已完成的接收文件，通知 UI，并尝试播放</td>
+</tr>
+<tr>
+<td>REMOTE_EMOJI</td>
+<td>写入 UI 队列</td>
+</tr>
+<tr>
+<td>AUDIO_RECORD_FINISHED</td>
+<td>读取结果、发送 WCA、通知 UI，再尝试播放待播语音</td>
+</tr>
+<tr>
+<td>AUDIO_PLAY_FINISHED</td>
+<td>清除播放 job；优先满足录音请求，否则播放下一条待播语音</td>
+</tr>
+</tbody></table>
+<h2 id="9-录音与播放仲裁"><a href="#9-录音与播放仲裁" class="headerlink" title="9. 录音与播放仲裁"></a>9. 录音与播放仲裁</h2><p>服务层使用以下字段表达业务状态：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>record_requested</code></td>
+<td>用户当前希望录音</td>
+</tr>
+<tr>
+<td><code>record_job_id</code></td>
+<td>正在启动或运行的录音作业</td>
+</tr>
+<tr>
+<td><code>play_job_id</code></td>
+<td>正在启动或运行的播放作业</td>
+</tr>
+<tr>
+<td><code>pending_voice_valid</code></td>
+<td>有一条远端语音等待播放</td>
+</tr>
+<tr>
+<td><code>pending_voice_path</code></td>
+<td>待播 WCA 路径</td>
+</tr>
+</tbody></table>
+<p>主要规则：</p>
+<ol>
+<li>录音和播放不能同时运行。</li>
+<li>用户按下语音键时，录音优先。</li>
+<li>若正在播放，先请求停止；收到 PLAY_FINISHED 后再启动录音。</li>
+<li>录音完成并发送后，才尝试播放远端待播语音。</li>
+<li>当前只保存一条 pending voice，无法积压多条远端语音。</li>
+</ol>
+<h2 id="10-语音接收文件状态"><a href="#10-语音接收文件状态" class="headerlink" title="10. 语音接收文件状态"></a>10. 语音接收文件状态</h2><p><code>wechat_service_voice_rx_s</code> 管理一个活动传输：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>file</code></td>
+<td>当前 <code>.TMP</code> 文件句柄</td>
+</tr>
+<tr>
+<td><code>transfer_id</code></td>
+<td>当前传输 ID</td>
+</tr>
+<tr>
+<td><code>expected_size</code></td>
+<td>BEGIN 声明大小</td>
+</tr>
+<tr>
+<td><code>received_size</code></td>
+<td>已按序写入大小</td>
+</tr>
+<tr>
+<td><code>crc32</code></td>
+<td>增量 CRC 状态</td>
+</tr>
+<tr>
+<td><code>last_packet_tick</code></td>
+<td>最近数据时间</td>
+</tr>
+<tr>
+<td><code>active</code></td>
+<td>正在接收</td>
+</tr>
+<tr>
+<td><code>ready</code></td>
+<td><code>.WCA</code> 已校验并等待服务接纳</td>
+</tr>
+</tbody></table>
+<p>状态简图：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">idle</span><br><span class="line">  -&gt; BEGIN 合法，创建 TMP</span><br><span class="line">active</span><br><span class="line">  -&gt; DATA 连续写入</span><br><span class="line">  -&gt; 错误：abort + 删除 TMP</span><br><span class="line">  -&gt; END 校验成功：rename</span><br><span class="line">ready</span><br><span class="line">  -&gt; REMOTE_VOICE 事件</span><br><span class="line">pending/play</span><br></pre></td></tr></table></figure>
+
+<h2 id="11-编译期开关"><a href="#11-编译期开关" class="headerlink" title="11. 编译期开关"></a>11. 编译期开关</h2><p><code>wechat_service.h</code> 提供：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">WECHAT_SERVICE_VOICE_ENABLE</span><br><span class="line">WECHAT_SERVICE_EMOJI_ENABLE</span><br></pre></td></tr></table></figure>
+
+<p>默认均为 1。关闭语音后，音频模块初始化、语音接收状态和相关 UI 消息映射会被条件编译移除；关闭表情后，表情网络事件和 callbacks 绑定会被移除。</p>
+<p>UI 视觉控件本身目前仍在 <code>wechat_ui.c</code> 中创建，因此若希望彻底裁剪资源和交互入口，还需要同步在 UI 层增加条件编译或运行时隐藏。</p>
+<h2 id="12-已确认的行为差异"><a href="#12-已确认的行为差异" class="headerlink" title="12. 已确认的行为差异"></a>12. 已确认的行为差异</h2><h3 id="12-1-本地表情是乐观显示"><a href="#12-1-本地表情是乐观显示" class="headerlink" title="12.1 本地表情是乐观显示"></a>12.1 本地表情是乐观显示</h3><p>表情在服务事件入队成功后立即显示。后续 UDP TX 队列满或 <code>sendto()</code> 失败不会回滚气泡，也没有失败标记。</p>
+<h3 id="12-2-本地语音是发送成功后显示"><a href="#12-2-本地语音是发送成功后显示" class="headerlink" title="12.2 本地语音是发送成功后显示"></a>12.2 本地语音是发送成功后显示</h3><p>语音气泡只有在录音成功且 <code>wechat_udp_send_voice_file()</code> 返回成功后才加入 UI 队列。这里的成功仍然只是本机 UDP 发送完成，不代表远端已确认接收。</p>
+<h3 id="12-3-远端语音气泡先于实际播放结果"><a href="#12-3-远端语音气泡先于实际播放结果" class="headerlink" title="12.3 远端语音气泡先于实际播放结果"></a>12.3 远端语音气泡先于实际播放结果</h3><p>接收文件通过 CRC 校验后就通知 UI 添加气泡，随后才尝试播放。播放失败不会移除气泡。</p>
+<h2 id="13-并发与队列风险"><a href="#13-并发与队列风险" class="headerlink" title="13. 并发与队列风险"></a>13. 并发与队列风险</h2><h3 id="高优先级：音频完成事件可能丢失"><a href="#高优先级：音频完成事件可能丢失" class="headerlink" title="高优先级：音频完成事件可能丢失"></a>高优先级：音频完成事件可能丢失</h3><p><code>wechat_service_audio_event()</code> 在音频 worker 中非阻塞投递完成事件，但没有处理返回失败。如果服务队列已满：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">audio 已回到 IDLE</span><br><span class="line">service 仍保留 record_job_id/play_job_id</span><br><span class="line">后续录音或播放可能一直无法启动</span><br></pre></td></tr></table></figure>
+
+<p>建议至少对完成事件采用可靠投递，或在服务任务中定期对比 <code>wechat_audio_get_state()</code> 做状态自愈。</p>
+<h3 id="中优先级：UI-消息丢失"><a href="#中优先级：UI-消息丢失" class="headerlink" title="中优先级：UI 消息丢失"></a>中优先级：UI 消息丢失</h3><p>UI 队列写入为非阻塞，队列满时消息会丢失。远端文件可能已经播放，但气泡没有显示；本地语音可能已经发送，但 UI 没有记录。</p>
+<h3 id="中优先级：只支持一个-pending-voice"><a href="#中优先级：只支持一个-pending-voice" class="headerlink" title="中优先级：只支持一个 pending voice"></a>中优先级：只支持一个 pending voice</h3><p>当 <code>pending_voice_valid</code> 已经为 1 时，新的 BEGIN 不被接受。远端连续发送多条语音时，必须等待上一条被服务接纳并开始播放后才能接收下一条。</p>
+<h3 id="低优先级：UI-上下文生命周期"><a href="#低优先级：UI-上下文生命周期" class="headerlink" title="低优先级：UI 上下文生命周期"></a>低优先级：UI 上下文生命周期</h3><p><code>wechat_ui_s</code> 在创建入口时分配，并随入口长期存在；退出聊天页只删除 <code>now_ui</code>，不释放入口上下文。这符合入口常驻的当前用法，但如果未来动态删除和重建菜单入口，需要补充入口对象删除回调来释放上下文。</p>
+<h2 id="14-扩展功能的推荐接入点"><a href="#14-扩展功能的推荐接入点" class="headerlink" title="14. 扩展功能的推荐接入点"></a>14. 扩展功能的推荐接入点</h2><h3 id="增加照片消息"><a href="#增加照片消息" class="headerlink" title="增加照片消息"></a>增加照片消息</h3><ol>
+<li>在 <code>WECHAT_UI_ACTION_PHOTO_SELECTED</code> 中调用新 callback；</li>
+<li>在 callbacks 和服务事件枚举中增加 photo 事件；</li>
+<li>复用语音的 transfer ID、offset、size、CRC 模型；</li>
+<li>文件落盘完成后再通知 UI；</li>
+<li>不要在 UDP RX 回调中做图片解码或 LVGL 操作。</li>
+</ol>
+<h3 id="增加语音气泡重播"><a href="#增加语音气泡重播" class="headerlink" title="增加语音气泡重播"></a>增加语音气泡重播</h3><ol>
+<li>UI 消息不能只携带 duration，需要增加稳定的 message ID；</li>
+<li>服务维护 message ID 到 WCA path 的映射；</li>
+<li>气泡点击事件向服务投递 PLAY_MESSAGE；</li>
+<li>服务继续使用现有录音优先仲裁规则。</li>
+</ol>
+<h3 id="增加发送状态"><a href="#增加发送状态" class="headerlink" title="增加发送状态"></a>增加发送状态</h3><p>建议引入：queued、sending、sent、delivered、failed。表情和语音统一由服务生成 message ID，UI 根据状态消息更新气泡，而不是仅在创建时决定结果。</p>
+<h2 id="15-调试入口"><a href="#15-调试入口" class="headerlink" title="15. 调试入口"></a>15. 调试入口</h2><p>优先观察以下日志：</p>
+<ul>
+<li><code>wechat udp initialized</code> &#x2F; <code>deinitialized</code>；</li>
+<li><code>wechat udp peer configured</code>；</li>
+<li><code>wechat voice receive begin</code>；</li>
+<li><code>wechat voice receive sequence error</code>；</li>
+<li><code>wechat voice receive validation failed</code>；</li>
+<li><code>wechat voice receive complete</code>；</li>
+<li><code>wechat audio record start failed</code>；</li>
+<li><code>wechat voice send failed</code>；</li>
+<li><code>wechat audio play failed</code>。</li>
+</ul>
+<p>出现“按键无反应”时，按以下顺序检查：</p>
+<ol>
+<li>焦点是否位于语音按钮；</li>
+<li>PRESS&#x2F;RELEASE 日志是否成对；</li>
+<li>服务事件队列是否成功入队；</li>
+<li>audio state 是否为 IDLE；</li>
+<li><code>R_WECHAT_AUDIO</code> stream 是否有输入；</li>
+<li>Flash 是否可创建 WCA；</li>
+<li>对端 IP、端口和 Wi-Fi 模式是否匹配。</li>
+</ol>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/LVGL/">LVGL</a><a class="post-meta__tags" href="/tags/UI%E6%9E%B6%E6%9E%84/">UI架构</a><a class="post-meta__tags" href="/tags/TXW81x/">TXW81x</a><a class="post-meta__tags" href="/tags/%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF/">微信消息</a><a class="post-meta__tags" href="/tags/RTOS/">RTOS</a><a class="post-meta__tags" href="/tags/%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1/">业务服务</a><a class="post-meta__tags" href="/tags/%E7%8A%B6%E6%80%81%E6%9C%BA/">状态机</a><a class="post-meta__tags" href="/tags/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97/">消息队列</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI音频适配: sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c编解码库: sdk/lib/opus/Opus 版本: 1.5.1提交范围: 6c55dda 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_audio 将项目音频 stream、Flash 文件和 Opus API 封装为单任务异步作业接口：  wechat_audio_record_start()：开始录音...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息模块总体架构开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: 微信式语音与表情消息阶段: UI、业务服务、UDP 与 Opus 链路整合提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 文档目标本文给后续开发者建立模块级心智模型，重点说明以下问题：  微信入口从哪里创建，页面由谁管理； 按键事件如何转换为录音、发送、播放等业务动作； UDP 收发线程、服务线程和音频线程如何协作； Opus 在本项目中承担什么职责； 哪些路径已经实现，哪些仍是预留能力； 维护时需要优先...</div></div></div></a><a class="pagination-related" href="/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/" title="嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</div></div><div class="info-2"><div class="info-item-1">嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统 项目： TXW828_C0X_AI_ALARM_CLOCK日期： 2026-05-09重构范围： project/ui/ 目录技术栈： C &#x2F; LVGL &#x2F; 嵌入式 RTOS   一、重构背景与动机1.1 原始代码问题分析通过完整审查 project/ui/ 目录下的所有源文件，发现以下主要问题：    类别 问题 严重程度    架构 5 个屏幕页面重复实现 menu→detail 切换样板代码（各约 50-80 行） �...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI音频适配: sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c编解码库: sdk/lib/opus/Opus 版本: 1.5.1提交范围: 6c55dda 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_audio 将项目音频 stream、Flash 文件和 Opus API 封装为单任务异步作业接口：  wechat_audio_record_start()：开始录音...</div></div></div></a><a class="pagination-related" href="/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-10</div><div class="info-item-2">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</div></div><div class="info-2"><div class="info-item-1">1. 项目概述本文面向 81x_intercom_ui 工程，重点说明以下两个模块：  sdk/app/video_intercom/：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。 sdk/lib/gui/81x_demo_ui/：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。  当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息 UDP v2 协议开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：  创建并绑定 UDP socket； 管理固定对端地址； 生成和解析统一 v2 包头； 异步发送表情消息； 同步分片发送 WCA 语音文件； 在 RX 任务中校验数据包并回调上层服务。  模块不负责 UI、Op...</div></div></div></a><a class="pagination-related" href="/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" title="TXW828 AI 闹钟 — UI 模块工程说明文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-09</div><div class="info-item-2">TXW828 AI 闹钟 — UI 模块工程说明文档</div></div><div class="info-2"><div class="info-item-1">TXW828 AI 闹钟 — UI 模块工程说明文档 适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）   目录 模块概览 目录结构 核心架构 各模块详细说明 数据流与刷新机制 公共 API 参考 添加新页面的步骤 依赖关系 已知限制与注意事项 编译与调试   一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%B8%89%E5%B1%82%E8%81%8C%E8%B4%A3"><span class="toc-text">1. 三层职责</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#wechat-ui-c"><span class="toc-text">wechat_ui.c</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#wechat-ui-control-c"><span class="toc-text">wechat_ui_control.c</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#wechat-service-c"><span class="toc-text">wechat_service.c</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E9%A1%B5%E9%9D%A2%E5%85%A5%E5%8F%A3%E5%92%8C%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">2. 页面入口和生命周期</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-UI-%E5%B8%83%E5%B1%80"><span class="toc-text">3. UI 布局</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E6%8C%89%E9%94%AE%E6%98%A0%E5%B0%84"><span class="toc-text">4. 按键映射</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E7%84%A6%E7%82%B9%E7%BB%84%E5%88%87%E6%8D%A2"><span class="toc-text">5. 焦点组切换</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-UI-callback-%E6%8E%A5%E5%8F%A3"><span class="toc-text">6. UI callback 接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E4%B8%A4%E7%BA%A7%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97"><span class="toc-text">7. 两级消息队列</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#7-1-%E6%9C%8D%E5%8A%A1%E4%BA%8B%E4%BB%B6%E9%98%9F%E5%88%97"><span class="toc-text">7.1 服务事件队列</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#7-2-UI-%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97"><span class="toc-text">7.2 UI 消息队列</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%9C%8D%E5%8A%A1%E4%BB%BB%E5%8A%A1%E4%BA%8B%E4%BB%B6%E5%A4%84%E7%90%86"><span class="toc-text">8. 服务任务事件处理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E5%BD%95%E9%9F%B3%E4%B8%8E%E6%92%AD%E6%94%BE%E4%BB%B2%E8%A3%81"><span class="toc-text">9. 录音与播放仲裁</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E8%AF%AD%E9%9F%B3%E6%8E%A5%E6%94%B6%E6%96%87%E4%BB%B6%E7%8A%B6%E6%80%81"><span class="toc-text">10. 语音接收文件状态</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E7%BC%96%E8%AF%91%E6%9C%9F%E5%BC%80%E5%85%B3"><span class="toc-text">11. 编译期开关</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%B7%B2%E7%A1%AE%E8%AE%A4%E7%9A%84%E8%A1%8C%E4%B8%BA%E5%B7%AE%E5%BC%82"><span class="toc-text">12. 已确认的行为差异</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-%E6%9C%AC%E5%9C%B0%E8%A1%A8%E6%83%85%E6%98%AF%E4%B9%90%E8%A7%82%E6%98%BE%E7%A4%BA"><span class="toc-text">12.1 本地表情是乐观显示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-%E6%9C%AC%E5%9C%B0%E8%AF%AD%E9%9F%B3%E6%98%AF%E5%8F%91%E9%80%81%E6%88%90%E5%8A%9F%E5%90%8E%E6%98%BE%E7%A4%BA"><span class="toc-text">12.2 本地语音是发送成功后显示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-3-%E8%BF%9C%E7%AB%AF%E8%AF%AD%E9%9F%B3%E6%B0%94%E6%B3%A1%E5%85%88%E4%BA%8E%E5%AE%9E%E9%99%85%E6%92%AD%E6%94%BE%E7%BB%93%E6%9E%9C"><span class="toc-text">12.3 远端语音气泡先于实际播放结果</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-%E5%B9%B6%E5%8F%91%E4%B8%8E%E9%98%9F%E5%88%97%E9%A3%8E%E9%99%A9"><span class="toc-text">13. 并发与队列风险</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AB%98%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%9A%E9%9F%B3%E9%A2%91%E5%AE%8C%E6%88%90%E4%BA%8B%E4%BB%B6%E5%8F%AF%E8%83%BD%E4%B8%A2%E5%A4%B1"><span class="toc-text">高优先级：音频完成事件可能丢失</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%AD%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%9AUI-%E6%B6%88%E6%81%AF%E4%B8%A2%E5%A4%B1"><span class="toc-text">中优先级：UI 消息丢失</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%B8%AD%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%9A%E5%8F%AA%E6%94%AF%E6%8C%81%E4%B8%80%E4%B8%AA-pending-voice"><span class="toc-text">中优先级：只支持一个 pending voice</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BD%8E%E4%BC%98%E5%85%88%E7%BA%A7%EF%BC%9AUI-%E4%B8%8A%E4%B8%8B%E6%96%87%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"><span class="toc-text">低优先级：UI 上下文生命周期</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-%E6%89%A9%E5%B1%95%E5%8A%9F%E8%83%BD%E7%9A%84%E6%8E%A8%E8%8D%90%E6%8E%A5%E5%85%A5%E7%82%B9"><span class="toc-text">14. 扩展功能的推荐接入点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A2%9E%E5%8A%A0%E7%85%A7%E7%89%87%E6%B6%88%E6%81%AF"><span class="toc-text">增加照片消息</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A2%9E%E5%8A%A0%E8%AF%AD%E9%9F%B3%E6%B0%94%E6%B3%A1%E9%87%8D%E6%92%AD"><span class="toc-text">增加语音气泡重播</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A2%9E%E5%8A%A0%E5%8F%91%E9%80%81%E7%8A%B6%E6%80%81"><span class="toc-text">增加发送状态</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#15-%E8%B0%83%E8%AF%95%E5%85%A5%E5%8F%A3"><span class="toc-text">15. 调试入口</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档">TXW81x 微信消息模块总体架构开发文档</a><time datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档">Blog 视觉与阅读体验追加优化开发文档</a><time datetime="2026-07-12T06:30:00.000Z" title="发表于 2026-07-12 14:30:00">2026-07-12</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

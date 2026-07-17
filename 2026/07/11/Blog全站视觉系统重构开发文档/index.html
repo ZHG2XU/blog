@@ -1,0 +1,548 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>Blog 全站视觉系统重构开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="记录 Blog-Hexo 在 Butterfly 主题上的全站视觉基础、首页导航、文章卡片、侧栏、正文排版、代码块、目录、移动端与打印样式重构。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Blog 全站视觉系统重构开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="记录 Blog-Hexo 在 Butterfly 主题上的全站视觉基础、首页导航、文章卡片、侧栏、正文排版、代码块、目录、移动端与打印样式重构。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-07-11T02:00:00.000Z">
+<meta property="article:modified_time" content="2026-07-17T12:27:55.834Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="CSS">
+<meta property="article:tag" content="样式">
+<meta property="article:tag" content="主题定制">
+<meta property="article:tag" content="Butterfly">
+<meta property="article:tag" content="Hexo">
+<meta property="article:tag" content="前端">
+<meta property="article:tag" content="文档">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "Blog 全站视觉系统重构开发文档",
+  "url": "https://zhongxu.cyou/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-07-11T02:00:00.000Z",
+  "dateModified": "2026-07-17T12:27:55.834Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'Blog 全站视觉系统重构开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">Blog 全站视觉系统重构开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">Blog 全站视觉系统重构开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-11T02:00:00.000Z" title="发表于 2026-07-11 10:00:00">2026-07-11</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-17T12:27:55.834Z" title="更新于 2026-07-17 20:27:55">2026-07-17</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E5%8D%9A%E5%AE%A2%E5%BC%80%E5%8F%91/">博客开发</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><blockquote>
+<p>项目: Blog-Hexo (Butterfly 主题定制)<br>阶段: 全站视觉系统重构<br>提交范围: <code>00973e8</code> 至 <code>26adced</code><br>样式入口: <code>source/css/custom.css</code><br>模块目录: <code>source/css/modules/</code></p>
+</blockquote>
+<hr>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ul>
+<li>提交范围</li>
+<li>重构目标</li>
+<li>文件分类</li>
+<li>主题变量与全局基础</li>
+<li>首页首屏、导航与页脚</li>
+<li>文章列表、侧栏与卡片</li>
+<li>文章正文、代码块与目录</li>
+<li>移动端与打印样式</li>
+<li>主题配置统一</li>
+<li>验证要点</li>
+</ul>
+<hr>
+<h2 id="提交范围"><a href="#提交范围" class="headerlink" title="提交范围"></a>提交范围</h2><table>
+<thead>
+<tr>
+<th>提交</th>
+<th>日期</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>00973e8</code></td>
+<td>2026-07-11</td>
+<td>重构全站视觉基础与主题变量</td>
+</tr>
+<tr>
+<td><code>40e2962</code></td>
+<td>2026-07-11</td>
+<td>优化首页首屏导航与页脚体验</td>
+</tr>
+<tr>
+<td><code>6103719</code></td>
+<td>2026-07-11</td>
+<td>重塑文章列表侧栏与内容卡片</td>
+</tr>
+<tr>
+<td><code>ad6a1bb</code></td>
+<td>2026-07-11</td>
+<td>提升文章排版代码块与目录可读性</td>
+</tr>
+<tr>
+<td><code>610d322</code></td>
+<td>2026-07-11</td>
+<td>完善移动端适配与打印体验</td>
+</tr>
+<tr>
+<td><code>26adced</code></td>
+<td>2026-07-11</td>
+<td>统一主题配色文案与内容密度</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="重构目标"><a href="#重构目标" class="headerlink" title="重构目标"></a>重构目标</h2><p>本阶段将站点从 Butterfly 默认视觉逐步调整为更适合技术博客的界面系统。</p>
+<p>主要目标：</p>
+<ul>
+<li>建立统一设计变量，减少零散颜色和阴影。</li>
+<li>优化首页 Hero、导航、页脚和列表区域。</li>
+<li>提升文章页长文阅读体验。</li>
+<li>强化代码块、表格、目录等技术内容组件。</li>
+<li>完善移动端与打印场景。</li>
+<li>用 <code>_config.butterfly.yml</code> 统一站点文案和内容密度。</li>
+</ul>
+<hr>
+<h2 id="文件分类"><a href="#文件分类" class="headerlink" title="文件分类"></a>文件分类</h2><table>
+<thead>
+<tr>
+<th>分类</th>
+<th>文件</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>主题系统</td>
+<td><code>variables.css</code></td>
+<td>明暗主题变量、颜色、阴影、圆角</td>
+</tr>
+<tr>
+<td>全局基础</td>
+<td><code>base.css</code> &#x2F; <code>background.css</code> &#x2F; <code>scrollbar.css</code></td>
+<td>基础字体、背景、滚动条</td>
+</tr>
+<tr>
+<td>布局组件</td>
+<td><code>header-text.css</code> &#x2F; <code>navigation.css</code> &#x2F; <code>footer.css</code></td>
+<td>首屏、导航、页脚</td>
+</tr>
+<tr>
+<td>卡片系统</td>
+<td><code>cards.css</code> &#x2F; <code>about-page.css</code></td>
+<td>首页卡片、侧栏、关于页</td>
+</tr>
+<tr>
+<td>内容排版</td>
+<td><code>typography.css</code> &#x2F; <code>tables.css</code></td>
+<td>正文、标题、列表、表格</td>
+</tr>
+<tr>
+<td>代码阅读</td>
+<td><code>code-highlight.css</code></td>
+<td>代码块、行内代码、语法颜色</td>
+</tr>
+<tr>
+<td>文章元信息</td>
+<td><code>post-meta.css</code></td>
+<td>文章头图、目录、版权、标签</td>
+</tr>
+<tr>
+<td>响应式</td>
+<td><code>responsive.css</code></td>
+<td>移动端、窄屏、打印</td>
+</tr>
+<tr>
+<td>主题配置</td>
+<td><code>_config.butterfly.yml</code></td>
+<td>站点文案、侧栏、文章密度、配色</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="主题变量与全局基础"><a href="#主题变量与全局基础" class="headerlink" title="主题变量与全局基础"></a>主题变量与全局基础</h2><p>涉及提交：</p>
+<ul>
+<li><code>00973e8</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>variables.css</code></li>
+<li><code>base.css</code></li>
+<li><code>background.css</code></li>
+<li><code>scrollbar.css</code></li>
+</ul>
+<h3 id="1-主题变量体系"><a href="#1-主题变量体系" class="headerlink" title="1. 主题变量体系"></a>1. 主题变量体系</h3><p><code>variables.css</code> 建立统一变量：</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">--ui-accent</span></span><br><span class="line"><span class="attr">--ui-accent-strong</span></span><br><span class="line"><span class="attr">--ui-accent-secondary</span></span><br><span class="line"><span class="attr">--ui-text</span></span><br><span class="line"><span class="attr">--ui-text-muted</span></span><br><span class="line"><span class="attr">--ui-heading</span></span><br><span class="line"><span class="attr">--ui-surface</span></span><br><span class="line"><span class="attr">--ui-border</span></span><br><span class="line"><span class="attr">--ui-shadow-sm</span></span><br><span class="line"><span class="attr">--ui-shadow-md</span></span><br><span class="line"><span class="attr">--ui-shadow-lg</span></span><br></pre></td></tr></table></figure>
+
+<p>这些变量覆盖：</p>
+<ul>
+<li>明亮模式。</li>
+<li>暗黑模式。</li>
+<li>Butterfly 主题变量。</li>
+<li>代码块、引用块、目录链接等组件颜色。</li>
+</ul>
+<h3 id="2-全局基础样式"><a href="#2-全局基础样式" class="headerlink" title="2. 全局基础样式"></a>2. 全局基础样式</h3><p><code>base.css</code> 统一了：</p>
+<ul>
+<li>字体栈。</li>
+<li>行高。</li>
+<li>选中文本颜色。</li>
+<li>焦点态。</li>
+<li>页面宽度。</li>
+<li>卡片基础背景和阴影。</li>
+<li><code>prefers-reduced-motion</code> 降级规则。</li>
+</ul>
+<h3 id="3-背景与滚动条"><a href="#3-背景与滚动条" class="headerlink" title="3. 背景与滚动条"></a>3. 背景与滚动条</h3><p><code>background.css</code> 将页面背景从装饰性背景转为安静底色。</p>
+<p><code>scrollbar.css</code> 统一滚动条：</p>
+<ul>
+<li>更细。</li>
+<li>主题感更弱。</li>
+<li>明暗模式颜色不同。</li>
+</ul>
+<p>设计原则：</p>
+<p>技术博客的背景应服务阅读，不喧宾夺主。</p>
+<hr>
+<h2 id="首页首屏、导航与页脚"><a href="#首页首屏、导航与页脚" class="headerlink" title="首页首屏、导航与页脚"></a>首页首屏、导航与页脚</h2><p>涉及提交：</p>
+<ul>
+<li><code>40e2962</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>header-text.css</code></li>
+<li><code>navigation.css</code></li>
+<li><code>footer.css</code></li>
+</ul>
+<h3 id="1-首页-Hero"><a href="#1-首页-Hero" class="headerlink" title="1. 首页 Hero"></a>1. 首页 Hero</h3><p><code>header-text.css</code> 负责：</p>
+<ul>
+<li>首页全屏头图。</li>
+<li>站点标题。</li>
+<li>副标题。</li>
+<li>社交图标。</li>
+<li>滚动按钮。</li>
+<li>文章页头图。</li>
+</ul>
+<p>优化目标：</p>
+<ul>
+<li>首页有更强个人识别。</li>
+<li>内页头图更克制。</li>
+<li>文案在图片上保持对比度。</li>
+</ul>
+<h3 id="2-导航栏"><a href="#2-导航栏" class="headerlink" title="2. 导航栏"></a>2. 导航栏</h3><p><code>navigation.css</code> 负责：</p>
+<ul>
+<li>顶部导航尺寸。</li>
+<li>白色导航在 Hero 上的显示。</li>
+<li>固定导航时的毛玻璃背景。</li>
+<li>移动端侧边栏菜单。</li>
+<li>右侧工具栏。</li>
+</ul>
+<h3 id="3-页脚"><a href="#3-页脚" class="headerlink" title="3. 页脚"></a>3. 页脚</h3><p><code>footer.css</code> 做了页脚视觉统一：</p>
+<ul>
+<li>弱化页脚装饰。</li>
+<li>统一链接悬停状态。</li>
+<li>与页面背景保持一致。</li>
+</ul>
+<hr>
+<h2 id="文章列表、侧栏与卡片"><a href="#文章列表、侧栏与卡片" class="headerlink" title="文章列表、侧栏与卡片"></a>文章列表、侧栏与卡片</h2><p>涉及提交：</p>
+<ul>
+<li><code>6103719</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>cards.css</code></li>
+<li><code>about-page.css</code></li>
+</ul>
+<h3 id="1-首页文章卡片"><a href="#1-首页文章卡片" class="headerlink" title="1. 首页文章卡片"></a>1. 首页文章卡片</h3><p><code>cards.css</code> 重塑首页文章卡片：</p>
+<ul>
+<li>增加左侧强调线。</li>
+<li>添加文章序号背景。</li>
+<li>统一圆角、边框、阴影。</li>
+<li>标题 hover 下划线动画。</li>
+<li>摘要使用多行截断。</li>
+</ul>
+<h3 id="2-侧栏卡片"><a href="#2-侧栏卡片" class="headerlink" title="2. 侧栏卡片"></a>2. 侧栏卡片</h3><p>侧栏卡片统一为同一套表面系统：</p>
+<ul>
+<li>作者卡片。</li>
+<li>公告卡片。</li>
+<li>最近文章。</li>
+<li>分类。</li>
+<li>标签云。</li>
+<li>归档。</li>
+</ul>
+<p>所有卡片共享：</p>
+<ul>
+<li><code>var(--ui-surface)</code></li>
+<li><code>var(--ui-border)</code></li>
+<li><code>var(--ui-shadow-sm)</code></li>
+</ul>
+<h3 id="3-关于页"><a href="#3-关于页" class="headerlink" title="3. 关于页"></a>3. 关于页</h3><p><code>about-page.css</code> 用于 About 页面：</p>
+<ul>
+<li>头像。</li>
+<li>Hero。</li>
+<li>信息网格。</li>
+<li>响应式布局。</li>
+</ul>
+<hr>
+<h2 id="文章正文、代码块与目录"><a href="#文章正文、代码块与目录" class="headerlink" title="文章正文、代码块与目录"></a>文章正文、代码块与目录</h2><p>涉及提交：</p>
+<ul>
+<li><code>ad6a1bb</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>typography.css</code></li>
+<li><code>code-highlight.css</code></li>
+<li><code>post-meta.css</code></li>
+<li><code>tables.css</code></li>
+</ul>
+<h3 id="1-正文排版"><a href="#1-正文排版" class="headerlink" title="1. 正文排版"></a>1. 正文排版</h3><p><code>typography.css</code> 优化：</p>
+<ul>
+<li>正文字号和行高。</li>
+<li>H1&#x2F;H2&#x2F;H3 层级。</li>
+<li>标题锚点。</li>
+<li>链接样式。</li>
+<li>引用块。</li>
+<li>列表。</li>
+<li>图片与说明文字。</li>
+<li>details&#x2F;summary。</li>
+<li>嵌入视频。</li>
+</ul>
+<p>目标是让长篇技术文档能稳定阅读。</p>
+<h3 id="2-代码块"><a href="#2-代码块" class="headerlink" title="2. 代码块"></a>2. 代码块</h3><p><code>code-highlight.css</code> 优化：</p>
+<ul>
+<li>代码块背景。</li>
+<li>工具栏。</li>
+<li>代码字体。</li>
+<li>行号。</li>
+<li>hover 行。</li>
+<li>token 颜色。</li>
+<li>行内代码。</li>
+</ul>
+<h3 id="3-目录与文章元信息"><a href="#3-目录与文章元信息" class="headerlink" title="3. 目录与文章元信息"></a>3. 目录与文章元信息</h3><p><code>post-meta.css</code> 优化：</p>
+<ul>
+<li>文章页标题。</li>
+<li>文章元信息。</li>
+<li>TOC 链接。</li>
+<li>当前目录项。</li>
+<li>标签。</li>
+<li>版权信息。</li>
+<li>上下篇导航。</li>
+</ul>
+<h3 id="4-表格"><a href="#4-表格" class="headerlink" title="4. 表格"></a>4. 表格</h3><p><code>tables.css</code> 优化：</p>
+<ul>
+<li>横向滚动。</li>
+<li>表头背景。</li>
+<li>行 hover。</li>
+<li>单元格边框。</li>
+</ul>
+<p>技术文档中表格频繁出现，因此表格需要比默认样式更清楚。</p>
+<hr>
+<h2 id="移动端与打印样式"><a href="#移动端与打印样式" class="headerlink" title="移动端与打印样式"></a>移动端与打印样式</h2><p>涉及提交：</p>
+<ul>
+<li><code>610d322</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>responsive.css</code></li>
+</ul>
+<h3 id="1-移动端布局"><a href="#1-移动端布局" class="headerlink" title="1. 移动端布局"></a>1. 移动端布局</h3><p>优化内容：</p>
+<ul>
+<li>窄屏下主布局变为单列。</li>
+<li>侧栏卡片隐藏或切换为目录抽屉。</li>
+<li>正文字号和行高调整。</li>
+<li>导航栏高度和站点名尺寸调整。</li>
+<li>代码块、表格、引用块避免撑破屏幕。</li>
+</ul>
+<h3 id="2-打印样式"><a href="#2-打印样式" class="headerlink" title="2. 打印样式"></a>2. 打印样式</h3><p>打印模式隐藏：</p>
+<ul>
+<li>头图。</li>
+<li>侧栏。</li>
+<li>右侧工具栏。</li>
+<li>页脚。</li>
+<li>分享和上下篇组件。</li>
+</ul>
+<p>打印保留：</p>
+<ul>
+<li>正文。</li>
+<li>链接。</li>
+<li>代码块。</li>
+<li>表格。</li>
+<li>引用块。</li>
+</ul>
+<p>目的：</p>
+<p>让技术文章可以被导出或打印为相对干净的文档。</p>
+<hr>
+<h2 id="主题配置统一"><a href="#主题配置统一" class="headerlink" title="主题配置统一"></a>主题配置统一</h2><p>涉及提交：</p>
+<ul>
+<li><code>26adced</code></li>
+</ul>
+<p>涉及文件：</p>
+<ul>
+<li><code>_config.butterfly.yml</code></li>
+</ul>
+<p>配置统一内容：</p>
+<ul>
+<li>主题色。</li>
+<li>首页文案。</li>
+<li>作者卡片描述。</li>
+<li>侧栏卡片显示。</li>
+<li>首页文章摘要长度。</li>
+<li>目录显示策略。</li>
+<li>分类和标签页 UI。</li>
+</ul>
+<p>这一步让视觉 CSS 与 Butterfly 配置保持一致，避免 CSS 已经优化但配置仍停留在默认状态。</p>
+<hr>
+<h2 id="验证要点"><a href="#验证要点" class="headerlink" title="验证要点"></a>验证要点</h2><h3 id="构建验证"><a href="#构建验证" class="headerlink" title="构建验证"></a>构建验证</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm run build</span><br></pre></td></tr></table></figure>
+
+<p>需要确认：</p>
+<ul>
+<li>CSS 模块正常生成。</li>
+<li>首页、文章页、分类、标签、归档页面正常生成。</li>
+<li>没有 YAML 配置错误。</li>
+</ul>
+<h3 id="视觉验证"><a href="#视觉验证" class="headerlink" title="视觉验证"></a>视觉验证</h3><p>重点检查：</p>
+<ul>
+<li>首页 Hero 是否完整。</li>
+<li>导航栏在首屏和滚动后是否清晰。</li>
+<li>首页卡片是否对齐。</li>
+<li>侧栏卡片是否统一。</li>
+<li>文章正文层级是否清楚。</li>
+<li>代码块是否可读。</li>
+<li>移动端是否无横向溢出。</li>
+</ul>
+<hr>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>本阶段是 Butterfly 主题接入后的第一次系统性视觉重构。它建立了后续所有优化的基础：</p>
+<ul>
+<li>变量统一。</li>
+<li>模块边界清楚。</li>
+<li>首页和文章页都形成明确风格。</li>
+<li>长文阅读组件得到强化。</li>
+<li>移动端和打印场景补齐。</li>
+</ul>
+<p>后续的素材压缩、全屏透明首页、代码主题对齐和目录锚点修复，都是在这个视觉系统基础上继续推进。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/CSS/">CSS</a><a class="post-meta__tags" href="/tags/%E6%A0%B7%E5%BC%8F/">样式</a><a class="post-meta__tags" href="/tags/%E4%B8%BB%E9%A2%98%E5%AE%9A%E5%88%B6/">主题定制</a><a class="post-meta__tags" href="/tags/Butterfly/">Butterfly</a><a class="post-meta__tags" href="/tags/Hexo/">Hexo</a><a class="post-meta__tags" href="/tags/%E5%89%8D%E7%AB%AF/">前端</a><a class="post-meta__tags" href="/tags/%E6%96%87%E6%A1%A3/">文档</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/07/11/Blog%E7%B4%A0%E6%9D%90%E6%80%A7%E8%83%BD%E4%B8%8E%E5%85%A8%E5%B1%8F%E5%A4%B4%E5%9B%BE%E9%85%8D%E7%BD%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 素材性能与全屏头图配置开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">Blog 素材性能与全屏头图配置开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)阶段: 素材性能与头图体验提交范围: 4b68bdb 至 3f39d93关键文件: _config.butterfly.yml &#x2F; header-text.css &#x2F; scaffolds/post.md &#x2F; source/img/   目录 提交范围 优化目标 视觉素材压缩 首页全屏透明头图 文章自定义头图 脚手架更新 文档同步 验证要点   提交范围   提交 日期 说明    4b68bdb 2026-07-11 ...</div></div></div></a><a class="pagination-related" href="/2026/07/10/TXW81x%E8%A7%86%E9%A2%91%E5%AF%B9%E8%AE%B2%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW81x 视频对讲开发实战：JPEG over UDP 传输、双通道显示与 LVGL 页面联动</div></div><div class="info-2"><div class="info-item-1">1. 项目概述本文面向 81x_intercom_ui 工程，重点说明以下两个模块：  sdk/app/video_intercom/：负责 JPEG 视频帧的获取、UDP 分片发送、网络接收、帧重组和远端 JPEG 投递。 sdk/lib/gui/81x_demo_ui/：负责启动画面、按键翻页、本地&#x2F;远端画面模式切换，以及 LCD P0&#x2F;P1 双视频通道布局。  当前方案采用双端对等结构。每台设备既是发送端，也是接收端：本地摄像头画面编码成 JPEG 后通过 UDP 发给对端，同时接收...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/" title="source&#x2F;css 样式文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-05-10</div><div class="info-item-2">source&#x2F;css 样式文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10   目录 架构概览  文件分类  模块详解  主题系统 全局样式 布局组件 内容排版 卡片与表面 页面专用 响应式设计   标签索引    架构概览1234567891011121314151617source/css/├── custom.css└── modules/    ├── variables.css    ├── backgroun...</div></div></div></a><a class="pagination-related" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-12</div><div class="info-item-2">Blog 视觉与阅读体验追加优化开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)阶段: 工作区追加优化基准提交: 10e4a3a 之后优化周期: 2026-07-11 至 2026-07-12样式入口: source/css/custom.css模块目录: source/css/modules/主要目标: 提升首页视觉表现、文章阅读体验、长文目录可用性与移动端可读性。   目录 优化目标 文件分类 优化总览 模块详解 首页 Hero 与头图 导航栏 首页文章卡片 侧栏与目录 文章正文排版 代码块与行内代码 移动端适配 主题变量...</div></div></div></a><a class="pagination-related" href="/2026/07/11/Blog%E7%B4%A0%E6%9D%90%E6%80%A7%E8%83%BD%E4%B8%8E%E5%85%A8%E5%B1%8F%E5%A4%B4%E5%9B%BE%E9%85%8D%E7%BD%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 素材性能与全屏头图配置开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-11</div><div class="info-item-2">Blog 素材性能与全屏头图配置开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)阶段: 素材性能与头图体验提交范围: 4b68bdb 至 3f39d93关键文件: _config.butterfly.yml &#x2F; header-text.css &#x2F; scaffolds/post.md &#x2F; source/img/   目录 提交范围 优化目标 视觉素材压缩 首页全屏透明头图 文章自定义头图 脚手架更新 文档同步 验证要点   提交范围   提交 日期 说明    4b68bdb 2026-07-11 ...</div></div></div></a><a class="pagination-related" href="/2026/07/03/Butterfly%E4%B8%BB%E9%A2%98%E6%8E%A5%E5%85%A5%E4%B8%8E%E4%BB%93%E5%BA%93%E6%B8%85%E7%90%86%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Butterfly 主题接入与仓库清理开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">Butterfly 主题接入与仓库清理开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo阶段: Butterfly 主题接入提交范围: 196591f 至 daedcd4核心目录: themes/butterfly/目标: 将 Butterfly 主题纳入主仓库，并清理不应进入业务仓库的主题 Git 缓存。   目录 提交范围 背景目标 主题文件接入 Git 缓存清理 目录结构说明 后续定制策略 风险与注意事项   提交范围   提交 日期 说明    196591f 2026-07-03 添加 Butterfly 主题文件   daedcd4 2026-07-03 ...</div></div></div></a><a class="pagination-related" href="/2026/07/12/Blog%E4%BB%A3%E7%A0%81%E4%B8%BB%E9%A2%98%E4%B8%8E%E7%9B%AE%E5%BD%95%E9%94%9A%E7%82%B9%E4%BF%AE%E5%A4%8D%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 代码主题与目录锚点修复开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-12</div><div class="info-item-2">Blog 代码主题与目录锚点修复开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: Blog-Hexo (Butterfly 主题定制)阶段: 代码阅读与目录跳转修复提交范围: 18d27c5 至 10e4a3a关键文件: code-highlight.css &#x2F; typography.css &#x2F; responsive.css &#x2F; themes/butterfly/source/js/main.js   目录 提交范围 优化目标 代码主题对齐 目录跳转偏移 实时目录锚点映射 影响范围 验证要点 后续建议   提交范围   提交 日期 说明    18d...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">20</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">58</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%AE%E5%BD%95"><span class="toc-text">目录</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8F%90%E4%BA%A4%E8%8C%83%E5%9B%B4"><span class="toc-text">提交范围</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%87%8D%E6%9E%84%E7%9B%AE%E6%A0%87"><span class="toc-text">重构目标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%87%E4%BB%B6%E5%88%86%E7%B1%BB"><span class="toc-text">文件分类</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BB%E9%A2%98%E5%8F%98%E9%87%8F%E4%B8%8E%E5%85%A8%E5%B1%80%E5%9F%BA%E7%A1%80"><span class="toc-text">主题变量与全局基础</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%BB%E9%A2%98%E5%8F%98%E9%87%8F%E4%BD%93%E7%B3%BB"><span class="toc-text">1. 主题变量体系</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%85%A8%E5%B1%80%E5%9F%BA%E7%A1%80%E6%A0%B7%E5%BC%8F"><span class="toc-text">2. 全局基础样式</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E8%83%8C%E6%99%AF%E4%B8%8E%E6%BB%9A%E5%8A%A8%E6%9D%A1"><span class="toc-text">3. 背景与滚动条</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%A6%96%E9%A1%B5%E9%A6%96%E5%B1%8F%E3%80%81%E5%AF%BC%E8%88%AA%E4%B8%8E%E9%A1%B5%E8%84%9A"><span class="toc-text">首页首屏、导航与页脚</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E9%A6%96%E9%A1%B5-Hero"><span class="toc-text">1. 首页 Hero</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%AF%BC%E8%88%AA%E6%A0%8F"><span class="toc-text">2. 导航栏</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E9%A1%B5%E8%84%9A"><span class="toc-text">3. 页脚</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%87%E7%AB%A0%E5%88%97%E8%A1%A8%E3%80%81%E4%BE%A7%E6%A0%8F%E4%B8%8E%E5%8D%A1%E7%89%87"><span class="toc-text">文章列表、侧栏与卡片</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E9%A6%96%E9%A1%B5%E6%96%87%E7%AB%A0%E5%8D%A1%E7%89%87"><span class="toc-text">1. 首页文章卡片</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%BE%A7%E6%A0%8F%E5%8D%A1%E7%89%87"><span class="toc-text">2. 侧栏卡片</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%85%B3%E4%BA%8E%E9%A1%B5"><span class="toc-text">3. 关于页</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%87%E7%AB%A0%E6%AD%A3%E6%96%87%E3%80%81%E4%BB%A3%E7%A0%81%E5%9D%97%E4%B8%8E%E7%9B%AE%E5%BD%95"><span class="toc-text">文章正文、代码块与目录</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E6%AD%A3%E6%96%87%E6%8E%92%E7%89%88"><span class="toc-text">1. 正文排版</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E4%BB%A3%E7%A0%81%E5%9D%97"><span class="toc-text">2. 代码块</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E7%9B%AE%E5%BD%95%E4%B8%8E%E6%96%87%E7%AB%A0%E5%85%83%E4%BF%A1%E6%81%AF"><span class="toc-text">3. 目录与文章元信息</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E8%A1%A8%E6%A0%BC"><span class="toc-text">4. 表格</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%A7%BB%E5%8A%A8%E7%AB%AF%E4%B8%8E%E6%89%93%E5%8D%B0%E6%A0%B7%E5%BC%8F"><span class="toc-text">移动端与打印样式</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E7%A7%BB%E5%8A%A8%E7%AB%AF%E5%B8%83%E5%B1%80"><span class="toc-text">1. 移动端布局</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%89%93%E5%8D%B0%E6%A0%B7%E5%BC%8F"><span class="toc-text">2. 打印样式</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BB%E9%A2%98%E9%85%8D%E7%BD%AE%E7%BB%9F%E4%B8%80"><span class="toc-text">主题配置统一</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%AA%8C%E8%AF%81%E8%A6%81%E7%82%B9"><span class="toc-text">验证要点</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9E%84%E5%BB%BA%E9%AA%8C%E8%AF%81"><span class="toc-text">构建验证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%A7%86%E8%A7%89%E9%AA%8C%E8%AF%81"><span class="toc-text">视觉验证</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AE%BA"><span class="toc-text">结论</span></a></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档">TXW81x 微信消息模块总体架构开发文档</a><time datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="Blog 视觉与阅读体验追加优化开发文档">Blog 视觉与阅读体验追加优化开发文档</a><time datetime="2026-07-12T06:30:00.000Z" title="发表于 2026-07-12 14:30:00">2026-07-12</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

@@ -1,50 +1,236 @@
-/* ================== 排版样式 ================== */
-
-/* 无顶图页面正文标题居中 */
-#body-wrap #page .page-title {
-    text-align: center !important;
+/* Long-form article typography */
+#post {
+    padding: clamp(28px, 4vw, 52px);
 }
 
-/* 文章排版改为两端对齐 */
 #article-container {
-    text-align: justify;
+    color: var(--ui-text);
+    font-size: 1rem;
+    line-height: 1.92;
+    text-align: left;
+    overflow-wrap: break-word;
 }
 
-/* ================== Full Width Code Block ================== */
-
-#article-container .highlight,
-#article-container pre {
-width: 100%;
-max-width: 100%;
-box-sizing: border-box;
+#article-container > :first-child {
+    margin-top: 0;
 }
 
-#article-container .highlight table {
-width: 100%;
+#article-container p {
+    margin: 0 0 1.15em;
 }
 
-#article-container .highlight pre {
-width: 100%;
+#article-container h1,
+#article-container h2,
+#article-container h3,
+#article-container h4,
+#article-container h5,
+#article-container h6 {
+    position: relative;
+    color: var(--ui-heading);
+    font-weight: 760;
+    letter-spacing: 0;
+    line-height: 1.4;
 }
 
+#article-container h1 {
+    margin: 1.45em 0 0.7em;
+    font-size: clamp(1.65rem, 3.4vw, 2.05rem);
+}
 
-/* 视频自适应页面尺寸 */
-iframe[src*="youtube.com"],
-iframe[src*="youtu.be"],
-iframe[src*="vimeo.com"] {
+#article-container > h1:first-child {
+    margin-top: 0;
+    font-size: clamp(1.55rem, 3vw, 1.95rem);
+}
+
+#article-container h2 {
+    margin: 2.2em 0 0.9em;
+    padding-bottom: 0.48em;
+    border-bottom: 1px solid var(--ui-border);
+    font-size: clamp(1.5rem, 3vw, 1.85rem);
+}
+
+#article-container h2::after {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 52px;
+    height: 2px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--ui-accent), var(--ui-accent-secondary));
+    content: "";
+}
+
+#article-container h3 {
+    margin: 1.8em 0 0.7em;
+    padding-left: 14px;
+    font-size: clamp(1.23rem, 2.3vw, 1.45rem);
+}
+
+#article-container h3::before {
+    position: absolute;
+    top: 0.24em;
+    bottom: 0.24em;
+    left: 0;
+    width: 4px;
+    border-radius: 99px;
+    background: linear-gradient(180deg, var(--ui-accent), var(--ui-accent-secondary));
+    content: "";
+}
+
+#article-container h4 {
+    margin: 1.55em 0 0.6em;
+    font-size: 1.1rem;
+}
+
+#article-container h5,
+#article-container h6 {
+    margin: 1.4em 0 0.55em;
+    font-size: 1rem;
+}
+
+#article-container .headerlink {
+    margin-left: 8px;
+    color: var(--ui-accent);
+    opacity: 0;
+}
+
+#article-container h1:hover .headerlink,
+#article-container h2:hover .headerlink,
+#article-container h3:hover .headerlink,
+#article-container h4:hover .headerlink,
+#article-container h5:hover .headerlink,
+#article-container h6:hover .headerlink,
+#article-container .headerlink:focus-visible {
+    opacity: 0.72;
+}
+
+#article-container a:not(.headerlink):not(.btn-beautify):not(.post-meta__tags) {
+    color: var(--ui-accent);
+    text-decoration-color: color-mix(in srgb, var(--ui-accent) 38%, transparent);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+#article-container a:not(.headerlink):hover {
+    color: var(--ui-accent-strong);
+    text-decoration-color: currentColor;
+}
+
+#article-container strong {
+    color: var(--ui-heading);
+    font-weight: 720;
+}
+
+#article-container blockquote {
+    position: relative;
+    margin: 1.5em 0;
+    padding: 18px 22px 18px 24px;
+    border: 1px solid var(--ui-border);
+    border-left: 4px solid var(--ui-accent);
+    border-radius: 0 var(--ui-radius-md) var(--ui-radius-md) 0;
+    background: var(--blockquote-bg);
+    color: var(--ui-text-muted);
+}
+
+#article-container blockquote p:last-child {
+    margin-bottom: 0;
+}
+
+#article-container ul,
+#article-container ol {
+    margin: 0 0 1.15em;
+    padding-left: 1.6em;
+}
+
+#article-container li {
+    margin: 0.35em 0;
+    padding-left: 0.14em;
+}
+
+#article-container li::marker {
+    color: var(--ui-accent);
+    font-weight: 700;
+}
+
+#article-container hr {
+    height: 1px;
+    margin: 2.3em 0;
+    border: 0;
+    background: linear-gradient(90deg, transparent, var(--ui-border-strong), transparent);
+}
+
+#article-container hr::before {
+    display: none;
+}
+
+#article-container mark {
+    padding: 0.08em 0.25em;
+    border-radius: 4px;
+    background: rgba(250, 204, 21, 0.28);
+    color: var(--ui-heading);
+}
+
+#article-container kbd {
+    border: 1px solid var(--ui-border);
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    background: var(--ui-surface-subtle);
+    box-shadow: none;
+    color: var(--ui-heading);
+}
+
+#article-container img {
+    margin: 1.6em auto;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-md);
+    box-shadow: var(--ui-shadow-sm);
+}
+
+#article-container figcaption,
+#article-container .image-caption {
+    margin-top: -0.9em;
+    color: var(--ui-text-muted);
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+#article-container details {
+    margin: 1.3em 0;
+    padding: 14px 18px;
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-sm);
+    background: var(--ui-surface-subtle);
+}
+
+#article-container summary {
+    color: var(--ui-heading);
+    font-weight: 680;
+    cursor: pointer;
+}
+
+#article-container iframe[src*="youtube.com"],
+#article-container iframe[src*="youtu.be"],
+#article-container iframe[src*="vimeo.com"] {
     display: block;
-    max-width: 100%;
     width: 100%;
-    aspect-ratio: 16 / 9;
     height: auto;
+    aspect-ratio: 16 / 9;
+    margin: 1.5em 0;
+    border: 0;
+    border-radius: var(--ui-radius-md);
+    box-shadow: var(--ui-shadow-sm);
 }
 
-/* Mermaid 图表透明背景 */
 #article-container .mermaid,
 #article-container .mermaid svg,
-.mermaid-wrap,
-#article-container .mermaid svg rect.mermaid-bg,
-#article-container .mermaid svg rect:first-child {
+.mermaid-wrap {
+    max-width: 100%;
     background: transparent !important;
-    fill: transparent !important;
+}
+
+@supports not (color: color-mix(in srgb, white, black)) {
+    #article-container a:not(.headerlink) {
+        text-decoration-color: rgba(37, 99, 235, 0.4);
+    }
 }
