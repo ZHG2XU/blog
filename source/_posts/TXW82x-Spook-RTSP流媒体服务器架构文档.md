@@ -2,8 +2,7 @@
 title: "TXW82x Spook RTSP 流媒体服务器架构文档"
 date: 2026-06-30
 categories:
-  - 嵌入式开发
-  - 项目文档
+  - [项目文档, TXW82x 图传]
 tags:
   - RTSP
   - RTP

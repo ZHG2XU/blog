@@ -2,7 +2,7 @@
 title: "Blog 全站视觉系统重构开发文档"
 date: "2026-07-11 10:00:00"
 categories:
-  - Hexo开发文档
+  - 博客开发
 tags:
   - CSS
   - 样式

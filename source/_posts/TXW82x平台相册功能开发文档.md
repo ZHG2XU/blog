@@ -2,8 +2,7 @@
 title: "TXW82x 平台相册功能开发文档"
 date: 2026-06-30
 categories:
-  - 嵌入式开发
-  - 项目文档
+  - [项目文档, TXW82x 相册]
 tags:
   - LVGL
   - C语言

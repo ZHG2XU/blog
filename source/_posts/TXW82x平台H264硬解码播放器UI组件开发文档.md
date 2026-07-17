@@ -2,8 +2,7 @@
 title: "TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"
 date: 2026-06-22
 categories:
-  - 嵌入式开发
-  - SDK开发
+  - [项目文档, TXW82x H.264 播放器]
 tags:
   - LVGL
   - C语言

@@ -2,7 +2,7 @@
 title: "Blog 代码主题与目录锚点修复开发文档"
 date: "2026-07-12 11:00:00"
 categories:
-  - Hexo开发文档
+  - 博客开发
 tags:
   - JavaScript
   - CSS

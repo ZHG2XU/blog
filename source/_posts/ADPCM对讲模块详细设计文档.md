@@ -2,8 +2,7 @@
 title: "ADPCM 对讲模块详细设计文档"
 date: 2026-07-03
 categories:
-  - 嵌入式开发
-  - 项目文档
+  - [项目文档, TXW82x ADPCM 对讲]
 tags:
   - ADPCM
   - 对讲

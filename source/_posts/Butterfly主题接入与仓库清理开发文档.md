@@ -2,7 +2,7 @@
 title: "Butterfly 主题接入与仓库清理开发文档"
 date: "2026-07-03 18:00:00"
 categories:
-  - Hexo开发文档
+  - 博客开发
 tags:
   - Hexo
   - Butterfly

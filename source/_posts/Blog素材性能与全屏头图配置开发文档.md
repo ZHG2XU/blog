@@ -2,7 +2,7 @@
 title: "Blog 素材性能与全屏头图配置开发文档"
 date: "2026-07-11 18:00:00"
 categories:
-  - Hexo开发文档
+  - 博客开发
 tags:
   - Hexo
   - Butterfly

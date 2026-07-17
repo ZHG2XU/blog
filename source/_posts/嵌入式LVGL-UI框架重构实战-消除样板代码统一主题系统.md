@@ -2,8 +2,7 @@
 title: "嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统"
 date: 2026-05-09
 categories:
-  - 嵌入式开发
-  - UI框架
+  - [项目文档, TXW828 AI 闹钟]
 tags:
   - LVGL
   - C语言

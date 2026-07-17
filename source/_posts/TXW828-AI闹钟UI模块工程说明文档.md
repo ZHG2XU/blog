@@ -2,8 +2,7 @@
 title: "TXW828 AI 闹钟 — UI 模块工程说明文档"
 date: 2026-05-09
 categories:
-  - 嵌入式开发
-  - 项目文档
+  - [项目文档, TXW828 AI 闹钟]
 tags:
   - LVGL
   - UI架构

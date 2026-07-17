@@ -2,8 +2,7 @@
 title: "H.264 硬解码播放链路 Bug 修复记录"
 date: 2026-06-22
 categories:
-  - 嵌入式开发
-  - Bug修复
+  - Bug 修复
 tags:
   - H.264
   - 硬件解码
