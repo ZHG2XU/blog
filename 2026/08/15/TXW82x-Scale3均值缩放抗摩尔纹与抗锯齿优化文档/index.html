@@ -1,0 +1,469 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="在 TXW82x Scale3 输出链路中增加 YUV420P 原地 2×2 降采样：亮度分量采用 Box Average 低通滤波后再抽取，通过先生成较高分辨率中间帧、再缩小到目标尺寸，降低细密纹理引起的摩尔纹、边缘锯齿和缩放闪烁。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿">
+<meta property="og:url" content="https://zhongxu.cyou/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="在 TXW82x Scale3 输出链路中增加 YUV420P 原地 2×2 降采样：亮度分量采用 Box Average 低通滤波后再抽取，通过先生成较高分辨率中间帧、再缩小到目标尺寸，降低细密纹理引起的摩尔纹、边缘锯齿和缩放闪烁。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-08-15T10:00:00.000Z">
+<meta property="article:modified_time" content="2026-08-15T09:23:20.869Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="C语言">
+<meta property="article:tag" content="TXW82x">
+<meta property="article:tag" content="嵌入式">
+<meta property="article:tag" content="BugFix">
+<meta property="article:tag" content="Scale3">
+<meta property="article:tag" content="YUV420P">
+<meta property="article:tag" content="图像缩放">
+<meta property="article:tag" content="摩尔纹">
+<meta property="article:tag" content="抗锯齿">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿",
+  "url": "https://zhongxu.cyou/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-08-15T10:00:00.000Z",
+  "dateModified": "2026-08-15T09:23:20.869Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">21</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">63</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-15T10:00:00.000Z" title="发表于 2026-08-15 18:00:00">2026-08-15</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-15T09:23:20.869Z" title="更新于 2026-08-15 17:23:20">2026-08-15</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/Bug-%E4%BF%AE%E5%A4%8D/">Bug 修复</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="TXW82x-Scale3-均值缩放优化：降低摩尔纹与锯齿"><a href="#TXW82x-Scale3-均值缩放优化：降低摩尔纹与锯齿" class="headerlink" title="TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿"></a>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</h1><h2 id="1-优化背景"><a href="#1-优化背景" class="headerlink" title="1. 优化背景"></a>1. 优化背景</h2><p>TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：</p>
+<ul>
+<li>细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹；</li>
+<li>斜线、文字边缘和物体轮廓出现阶梯状锯齿；</li>
+<li>细节随镜头轻微移动而闪烁或跳变；</li>
+<li>硬件一次性大比例缩小后，部分像素信息被直接跳过。</li>
+</ul>
+<p>本次优化不改变摄像头、VPP 和 Scale3 的基础结构，而是在 Scale3 生成 YUV420P 帧后增加一次固定比例的软件降采样。核心思路是：</p>
+<blockquote>
+<p>先让 Scale3 输出较高分辨率的中间图像，再对相邻 2×2 像素做均值滤波并缩小一半，从而在抽取像素前抑制容易产生混叠的高频信息。</p>
+</blockquote>
+<p>对应提交：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">6820c0d scale3均值缩放</span><br></pre></td></tr></table></figure>
+
+<p>核心修改文件：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sdk/app/scale_msi/scale3_normal_msi.c</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="2-优化目标"><a href="#2-优化目标" class="headerlink" title="2. 优化目标"></a>2. 优化目标</h2><p>本次修改的主要目标是改善缩小图像的主观质量，而不是节省 Scale3 输出缓冲区。</p>
+<p>具体目标包括：</p>
+<ol>
+<li>在最终降采样前进行简单低通滤波；</li>
+<li>降低亮度细节产生的摩尔纹和混叠；</li>
+<li>平滑斜边与轮廓，减轻阶梯锯齿；</li>
+<li>使用固定 2:1 比例降低算法复杂度；</li>
+<li>在原有 YUV420P 缓冲区内原地处理，避免额外申请整帧内存；</li>
+<li>保持原有 MSI 输出接口和 framebuff 生命周期不变。</li>
+</ol>
+<p>需要特别说明：当前实现不会降低 Scale3 帧池最初申请的 PSRAM 容量，因为缓冲区仍按照中间分辨率创建。它降低的是送往下游的有效图像尺寸和 <code>fb-&gt;len</code>。</p>
+<hr>
+<h2 id="3-修改前后的数据链路"><a href="#3-修改前后的数据链路" class="headerlink" title="3. 修改前后的数据链路"></a>3. 修改前后的数据链路</h2><h3 id="3-1-修改前"><a href="#3-1-修改前" class="headerlink" title="3.1 修改前"></a>3.1 修改前</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Camera / VPP</span><br><span class="line">     |</span><br><span class="line">     v</span><br><span class="line">Scale3 硬件缩放</span><br><span class="line">     |  直接生成最终尺寸 YUV420P</span><br><span class="line">     v</span><br><span class="line">framebuff</span><br><span class="line">     |</span><br><span class="line">     v</span><br><span class="line">MSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD</span><br></pre></td></tr></table></figure>
+
+<p>如果 Scale3 直接把高分辨率图像缩到较小尺寸，硬件缩放过程中对高频纹理的预滤波不足，就可能产生混叠。</p>
+<h3 id="3-2-修改后"><a href="#3-2-修改后" class="headerlink" title="3.2 修改后"></a>3.2 修改后</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">Camera / VPP</span><br><span class="line">     |</span><br><span class="line">     v</span><br><span class="line">Scale3 硬件缩放</span><br><span class="line">     |  生成较高分辨率中间帧，例如 800×480</span><br><span class="line">     v</span><br><span class="line">YUV420P 中间缓冲区</span><br><span class="line">     |</span><br><span class="line">     |  Y：2×2 Box Average</span><br><span class="line">     |  U/V：固定位置抽样</span><br><span class="line">     v</span><br><span class="line">原地 2:1 降采样</span><br><span class="line">     |  输出 400×240</span><br><span class="line">     v</span><br><span class="line">更新 framebuff 元数据</span><br><span class="line">     |</span><br><span class="line">     v</span><br><span class="line">MSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD</span><br></pre></td></tr></table></figure>
+
+<p>以当前配套配置为例：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th align="right">分辨率</th>
+<th align="right">YUV420P 有效数据量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Scale3 中间输出</td>
+<td align="right">800×480</td>
+<td align="right">576000 字节</td>
+</tr>
+<tr>
+<td>软件降采样输出</td>
+<td align="right">400×240</td>
+<td align="right">144000 字节</td>
+</tr>
+</tbody></table>
+<p>宽、高各缩小一半，因此最终像素数量和有效数据量均变为原来的四分之一。</p>
+<hr>
+<h2 id="4-为什么均值降采样能改善摩尔纹和锯齿"><a href="#4-为什么均值降采样能改善摩尔纹和锯齿" class="headerlink" title="4. 为什么均值降采样能改善摩尔纹和锯齿"></a>4. 为什么均值降采样能改善摩尔纹和锯齿</h2><h3 id="4-1-问题本质：缩小过程中的混叠"><a href="#4-1-问题本质：缩小过程中的混叠" class="headerlink" title="4.1 问题本质：缩小过程中的混叠"></a>4.1 问题本质：缩小过程中的混叠</h3><p>缩小图像意味着目标图像的一个像素要代表源图中的一片区域。如果直接选择区域内的某一个像素，源图中比目标分辨率更细的纹理会被错误地映射成较低频率的条纹，这就是空间采样中的混叠。</p>
+<p>摩尔纹是混叠的一种典型表现。它并不是原始场景中真实存在的大条纹，而是细密纹理与目标像素网格相互干涉后形成的伪影。</p>
+<h3 id="4-2-2×2-均值相当于简单低通滤波"><a href="#4-2-2×2-均值相当于简单低通滤波" class="headerlink" title="4.2 2×2 均值相当于简单低通滤波"></a>4.2 2×2 均值相当于简单低通滤波</h3><p>当前亮度分量的计算公式为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">Yout(x, y) = (</span><br><span class="line">    Yin(2x,     2y)     +</span><br><span class="line">    Yin(2x + 1, 2y)     +</span><br><span class="line">    Yin(2x,     2y + 1) +</span><br><span class="line">    Yin(2x + 1, 2y + 1)</span><br><span class="line">) / 4</span><br></pre></td></tr></table></figure>
+
+<p>它先把 2×2 区域内的亮度变化平均，再生成一个输出像素。这相当于使用下面的 Box Filter 卷积核：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1/4 × [ 1  1 ]</span><br><span class="line">      [ 1  1 ]</span><br></pre></td></tr></table></figure>
+
+<p>均值会削弱单像素级的明暗跳变和细密纹理，然后再执行 2:1 抽取，因此比直接隔点取样更不容易产生错误条纹。</p>
+<h3 id="4-3-对锯齿的改善"><a href="#4-3-对锯齿的改善" class="headerlink" title="4.3 对锯齿的改善"></a>4.3 对锯齿的改善</h3><p>斜线穿过像素网格时，每个 2×2 区域内通常同时包含前景与背景。均值计算会生成介于二者之间的亮度值，使边缘产生有限的灰度过渡，而不是只有完全亮或完全暗两个状态。</p>
+<p>因此，最终显示出来的斜边会更平滑。这种效果属于缩放阶段的预滤波抗锯齿，不等同于 3D 渲染中的 MSAA，但二者都利用了区域覆盖信息改善边缘质量。</p>
+<hr>
+<h2 id="5-YUV420P-内存布局"><a href="#5-YUV420P-内存布局" class="headerlink" title="5. YUV420P 内存布局"></a>5. YUV420P 内存布局</h2><p>算法处理的是三平面 YUV420P，缓冲区布局如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">buf</span><br><span class="line"> |</span><br><span class="line"> +-- Y 平面：W × H</span><br><span class="line"> |</span><br><span class="line"> +-- U 平面：(W / 2) × (H / 2)</span><br><span class="line"> |</span><br><span class="line"> +-- V 平面：(W / 2) × (H / 2)</span><br></pre></td></tr></table></figure>
+
+<p>各平面的地址计算为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">src_y_size = (<span class="type">uint32_t</span>)src_w * src_h;</span><br><span class="line">src_u = buf + src_y_size;</span><br><span class="line">src_v = src_u + src_y_size / <span class="number">4</span>;</span><br></pre></td></tr></table></figure>
+
+<p>YUV420P 的整帧数据量为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">W × H + W × H / 4 + W × H / 4</span><br><span class="line">= W × H × 3 / 2</span><br></pre></td></tr></table></figure>
+
+<p>降采样后，目标平面被紧凑地放到同一个缓冲区前部：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">dst_y_size = (<span class="type">uint32_t</span>)out_w * out_h;</span><br><span class="line">dst_u = buf + dst_y_size;</span><br><span class="line">dst_v = dst_u + dst_y_size / <span class="number">4</span>;</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="6-核心实现分析"><a href="#6-核心实现分析" class="headerlink" title="6. 核心实现分析"></a>6. 核心实现分析</h2><h3 id="6-1-函数接口"><a href="#6-1-函数接口" class="headerlink" title="6.1 函数接口"></a>6.1 函数接口</h3><p>新增函数为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">static</span> <span class="type">uint8_t</span> <span class="title function_">scale3_yuv420p_downsample_2x2</span><span class="params">(</span></span><br><span class="line"><span class="params">    <span class="type">uint8_t</span> *buf,</span></span><br><span class="line"><span class="params">    <span class="type">uint16_t</span> src_w,</span></span><br><span class="line"><span class="params">    <span class="type">uint16_t</span> src_h,</span></span><br><span class="line"><span class="params">    <span class="type">uint16_t</span> *dst_w,</span></span><br><span class="line"><span class="params">    <span class="type">uint16_t</span> *dst_h)</span>;</span><br></pre></td></tr></table></figure>
+
+<p>参数含义：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>buf</code></td>
+<td>YUV420P 源缓冲区，同时作为目标缓冲区</td>
+</tr>
+<tr>
+<td><code>src_w</code>、<code>src_h</code></td>
+<td>Scale3 中间输出宽高</td>
+</tr>
+<tr>
+<td><code>dst_w</code>、<code>dst_h</code></td>
+<td>返回实际降采样后的宽高</td>
+</tr>
+<tr>
+<td>返回值</td>
+<td><code>1</code> 表示成功，<code>0</code> 表示输入不满足处理条件</td>
+</tr>
+</tbody></table>
+<h3 id="6-2-尺寸检查与偶数约束"><a href="#6-2-尺寸检查与偶数约束" class="headerlink" title="6.2 尺寸检查与偶数约束"></a>6.2 尺寸检查与偶数约束</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (!buf || src_w &lt; <span class="number">4</span> || src_h &lt; <span class="number">4</span> ||</span><br><span class="line">    (src_w &amp; <span class="number">1</span>) || (src_h &amp; <span class="number">1</span>))</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">out_w = (src_w &gt;&gt; <span class="number">1</span>) &amp; ~<span class="number">1U</span>;</span><br><span class="line">out_h = (src_h &gt;&gt; <span class="number">1</span>) &amp; ~<span class="number">1U</span>;</span><br></pre></td></tr></table></figure>
+
+<p>YUV420P 要求宽高适合 2×2 色度采样，因此输出宽高继续保持偶数。</p>
+<p>当源尺寸除以 2 后为奇数时，代码会向下对齐到偶数。例如：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">322×242 -&gt; 160×120</span><br></pre></td></tr></table></figure>
+
+<p>这种情况下会舍弃最右侧和最下侧各一个 2 像素块。常用的 <code>800×480</code>、<code>320×240</code>、<code>168×128</code> 均不会触发额外裁边。</p>
+<h3 id="6-3-Cache-一致性"><a href="#6-3-Cache-一致性" class="headerlink" title="6.3 Cache 一致性"></a>6.3 Cache 一致性</h3><p>Scale3 通过 DMA 向缓冲区写入数据，CPU 随后读取并修改该缓冲区，因此处理前先失效 D-Cache：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sys_dcache_invalid_range((<span class="type">uint32_t</span> *)buf, src_y_size * <span class="number">3</span> / <span class="number">2</span>);</span><br></pre></td></tr></table></figure>
+
+<p>处理完成后清理目标范围，确保下游 DMA 或其他硬件模块读到 CPU 写入的新数据：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sys_dcache_clean_range((<span class="type">uint32_t</span> *)buf, dst_y_size * <span class="number">3</span> / <span class="number">2</span>);</span><br></pre></td></tr></table></figure>
+
+<p>这一对操作是硬件缩放输出与 CPU 图像处理之间的重要边界，不能省略。</p>
+<h3 id="6-4-Y-平面均值"><a href="#6-4-Y-平面均值" class="headerlink" title="6.4 Y 平面均值"></a>6.4 Y 平面均值</h3><p>Y 平面按照两行、四列源数据一组处理，每次生成两个目标像素：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint32_t</span> row0 = *(<span class="type">uint32_t</span> *)(src_y0 + (x &lt;&lt; <span class="number">1</span>));</span><br><span class="line"><span class="type">uint32_t</span> row1 = *(<span class="type">uint32_t</span> *)(src_y1 + (x &lt;&lt; <span class="number">1</span>));</span><br><span class="line"></span><br><span class="line">sum = (row0 &amp; <span class="number">0x00ff00ff</span>) +</span><br><span class="line">      ((row0 &gt;&gt; <span class="number">8</span>) &amp; <span class="number">0x00ff00ff</span>) +</span><br><span class="line">      (row1 &amp; <span class="number">0x00ff00ff</span>) +</span><br><span class="line">      ((row1 &gt;&gt; <span class="number">8</span>) &amp; <span class="number">0x00ff00ff</span>);</span><br><span class="line"></span><br><span class="line">*(<span class="type">uint16_t</span> *)(out_y + x) =</span><br><span class="line">    (<span class="type">uint16_t</span>)(((sum &gt;&gt; <span class="number">2</span>) &amp; <span class="number">0xff</span>) |</span><br><span class="line">               ((sum &gt;&gt; <span class="number">10</span>) &amp; <span class="number">0xff00</span>));</span><br></pre></td></tr></table></figure>
+
+<p>该实现使用 32 位读取和位运算同时累计两组 2×2 像素，减少逐像素循环、除法和存储次数。除以 4 通过右移 2 位完成。</p>
+<h3 id="6-5-U-V-平面处理"><a href="#6-5-U-V-平面处理" class="headerlink" title="6.5 U&#x2F;V 平面处理"></a>6.5 U&#x2F;V 平面处理</h3><p>当前色度分量没有计算 2×2 均值，而是从每个源色度块中选择左上角样本：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">dst_u[dst_row + x] = src_u[src_index];</span><br><span class="line">dst_v[dst_row + x] = src_v[src_index];</span><br></pre></td></tr></table></figure>
+
+<p>由于 YUV420P 的 U&#x2F;V 本来就只有 Y 平面四分之一的采样数，Y 再缩小 2 倍后，U&#x2F;V 也必须继续缩小 2 倍，才能形成合法的目标 YUV420P 布局。</p>
+<p>这种实现速度较快，但意味着当前的“均值缩放”主要作用于亮度：</p>
+<ul>
+<li>明暗细节造成的摩尔纹和锯齿能够得到改善；</li>
+<li>彩色细纹造成的色度摩尔纹仍可能保留；</li>
+<li>如果后续需要进一步提升质量，可将 U&#x2F;V 也改为 2×2 均值。</li>
+</ul>
+<h3 id="6-6-为什么可以原地处理"><a href="#6-6-为什么可以原地处理" class="headerlink" title="6.6 为什么可以原地处理"></a>6.6 为什么可以原地处理</h3><p>处理顺序是 Y 平面在前、U&#x2F;V 平面在后，目标图像又比源图更小。目标数据始终写入缓冲区更靠前的位置：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">源布局：[           Y           ][    U    ][    V    ]</span><br><span class="line">目标布局：[  Y  ][ U ][ V ]</span><br></pre></td></tr></table></figure>
+
+<p>Y 平面从前向后压缩时，写指针不会追上后续仍需读取的源行。完成整个 Y 平面后，再从原始 U&#x2F;V 区域读取色度数据并写到前部空出的区域，因此不需要第二块整帧缓冲区。</p>
+<hr>
+<h2 id="7-接入-Scale3-工作队列"><a href="#7-接入-Scale3-工作队列" class="headerlink" title="7. 接入 Scale3 工作队列"></a>7. 接入 Scale3 工作队列</h2><p>降采样发生在 <code>scale3_normal_msi_work()</code> 从消息队列取出普通帧之后、调用 <code>msi_output_fb()</code> 之前：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint16_t</span> output_w = scale3-&gt;ow;</span><br><span class="line"><span class="type">uint16_t</span> output_h = scale3-&gt;oh;</span><br><span class="line"></span><br><span class="line">scale3_yuv420p_downsample_2x2(</span><br><span class="line">    fb-&gt;data,</span><br><span class="line">    scale3-&gt;ow,</span><br><span class="line">    scale3-&gt;oh,</span><br><span class="line">    &amp;output_w,</span><br><span class="line">    &amp;output_h);</span><br><span class="line"></span><br><span class="line">ow = output_w;</span><br><span class="line">oh = output_h;</span><br></pre></td></tr></table></figure>
+
+<p>处理完成后同步更新 framebuff 的描述信息：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">arg-&gt;yuv_arg.y_size = ow * oh;</span><br><span class="line">arg-&gt;yuv_arg.out_w  = ow;</span><br><span class="line">arg-&gt;yuv_arg.out_h  = oh;</span><br><span class="line">fb-&gt;len             = ow * oh * <span class="number">3</span> / <span class="number">2</span>;</span><br></pre></td></tr></table></figure>
+
+<p>这一步非常关键。下游不能继续使用中间分辨率解释已经压缩后的数据，否则会发生以下问题：</p>
+<ul>
+<li>Y&#x2F;U&#x2F;V 平面地址计算错误；</li>
+<li>下游读取超出有效目标帧的数据；</li>
+<li>LCD 显示花屏、错色或图像撕裂；</li>
+<li>帧长度统计和带宽计算错误。</li>
+</ul>
+<hr>
+<h2 id="8-普通帧与额外拍照帧的区别"><a href="#8-普通帧与额外拍照帧的区别" class="headerlink" title="8. 普通帧与额外拍照帧的区别"></a>8. 普通帧与额外拍照帧的区别</h2><p>工作队列通过 <code>datatag</code> 区分普通连续帧和临时申请的额外帧：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (fb-&gt;datatag != (<span class="type">uint8_t</span>)~<span class="number">0</span>)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 普通帧：执行 2×2 降采样</span></span><br><span class="line">&#125;</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">// 额外拍照/缩略图帧：保持请求尺寸，直接输出</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因此，本次算法不会处理 <code>datatag == 0xff</code> 的额外拍照帧。这样可以避免拍照命令请求的特定分辨率被再次减半。</p>
+<p>不过，所有通过本模块帧池产生的普通帧都会进入降采样分支。该行为不仅影响 <code>scale3_normal_msi2()</code>，也可能影响调用 <code>scale3_normal_msi()</code> 的连续输出场景。后续若只希望特定 UI 使用该优化，建议增加独立使能标志，而不是仅依赖普通帧&#x2F;额外帧分类。</p>
+<hr>
+<h2 id="9-当前-UI-配套参数"><a href="#9-当前-UI-配套参数" class="headerlink" title="9. 当前 UI 配套参数"></a>9. 当前 UI 配套参数</h2><p>当前工作区中，Pocket Camera UI 在主界面预创建 Scale3 时使用：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">scale3_normal_msi2(</span><br><span class="line">    S_PREVIEW_SCALE3,</span><br><span class="line">    FSTYPE_YUV_P0,</span><br><span class="line">    <span class="number">800</span>,</span><br><span class="line">    <span class="number">480</span>);</span><br></pre></td></tr></table></figure>
+
+<p>经过固定 2×2 降采样后，下游得到：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">400×240 YUV420P</span><br></pre></td></tr></table></figure>
+
+<p>这里的 <code>800×480</code> 已不再代表最终 MSI 输出尺寸，而是“Scale3 中间尺寸”。这属于本次改动带来的接口语义变化。</p>
+<p>Pocket Camera 的各页面之后再次调用同名 <code>S_PREVIEW_SCALE3</code> 时，<code>msi_new()</code> 会复用已经创建的 MSI，因此实际尺寸由第一次创建时的 <code>800×480</code> 决定。这种行为依赖组件创建顺序，维护时需要格外注意。</p>
+<p>建议后续把两个概念显式区分：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">scale_w / scale_h：Scale3 硬件中间输出尺寸</span><br><span class="line">out_w / out_h：均值降采样后的最终输出尺寸</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="10-性能与内存分析"><a href="#10-性能与内存分析" class="headerlink" title="10. 性能与内存分析"></a>10. 性能与内存分析</h2><h3 id="10-1-CPU-运算量"><a href="#10-1-CPU-运算量" class="headerlink" title="10.1 CPU 运算量"></a>10.1 CPU 运算量</h3><p>以 <code>800×480 -&gt; 400×240</code> 为例：</p>
+<ul>
+<li>Y 平面需要生成 96000 个目标像素；</li>
+<li>U 平面需要生成 24000 个目标样本；</li>
+<li>V 平面需要生成 24000 个目标样本；</li>
+<li>每帧需额外遍历约 144000 个目标采样值。</li>
+</ul>
+<p>算法没有乘法和通用除法，亮度平均主要使用加法、掩码与移位，适合算力有限的嵌入式平台。</p>
+<h3 id="10-2-PSRAM-占用"><a href="#10-2-PSRAM-占用" class="headerlink" title="10.2 PSRAM 占用"></a>10.2 PSRAM 占用</h3><p><code>scale3_common()</code> 仍按照 <code>ow × oh × 3 / 2</code> 为每个帧池节点分配缓冲区。默认 <code>MAX_COUNT</code> 为 3，因此 <code>800×480</code> 配置下仅像素缓冲区约占：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">800 × 480 × 3 / 2 × 3</span><br><span class="line">= 1,728,000 字节</span><br></pre></td></tr></table></figure>
+
+<p>降采样完成后虽然 <code>fb-&gt;len</code> 只有 144000 字节，但底层 buffer 容量仍为 576000 字节。这是原地处理能够正常工作的前提，也是当前方案的内存代价。</p>
+<h3 id="10-3-带宽变化"><a href="#10-3-带宽变化" class="headerlink" title="10.3 带宽变化"></a>10.3 带宽变化</h3><table>
+<thead>
+<tr>
+<th>位置</th>
+<th align="right">单帧有效数据量</th>
+<th align="right">相对中间帧</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Scale3 DMA 写入 PSRAM</td>
+<td align="right">576000 字节</td>
+<td align="right">100%</td>
+</tr>
+<tr>
+<td>CPU 处理后的下游有效帧</td>
+<td align="right">144000 字节</td>
+<td align="right">25%</td>
+</tr>
+</tbody></table>
+<p>所以该方案会降低下游 MSI 传递的有效数据量，但不会降低 Scale3 写入中间帧所需的 DMA 带宽，反而增加了一次 CPU 读写与 Cache 维护。</p>
+<hr>
+<h2 id="11-当前实现的边界与风险"><a href="#11-当前实现的边界与风险" class="headerlink" title="11. 当前实现的边界与风险"></a>11. 当前实现的边界与风险</h2><h3 id="11-1-U-V-没有做均值滤波"><a href="#11-1-U-V-没有做均值滤波" class="headerlink" title="11.1 U&#x2F;V 没有做均值滤波"></a>11.1 U&#x2F;V 没有做均值滤波</h3><p>当前只对 Y 平面执行 2×2 均值。对于彩色网格、彩色织物等场景，色度混叠仍可能形成彩色摩尔纹。若实测仍有明显色彩条纹，应优先评估 U&#x2F;V 2×2 均值。</p>
+<h3 id="11-2-API-尺寸语义发生变化"><a href="#11-2-API-尺寸语义发生变化" class="headerlink" title="11.2 API 尺寸语义发生变化"></a>11.2 API 尺寸语义发生变化</h3><p>原先调用者传入 <code>ow</code>、<code>oh</code>，下游就收到相同尺寸；修改后普通帧实际输出约为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(ow / 2 对齐到偶数) × (oh / 2 对齐到偶数)</span><br></pre></td></tr></table></figure>
+
+<p>现有调用者如果仍把参数理解为最终分辨率，可能得到尺寸减半的画面。</p>
+<h3 id="11-3-优化范围较宽"><a href="#11-3-优化范围较宽" class="headerlink" title="11.3 优化范围较宽"></a>11.3 优化范围较宽</h3><p>降采样直接放在公共工作队列的普通帧输出分支中，没有独立配置开关。凡是使用该帧池的普通输出都会被处理。更稳妥的工程化方式是增加例如：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">uint8_t</span> mean_downsample_enable : <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<p>并只在明确需要抗混叠的 UI 或产品配置中开启。</p>
+<h3 id="11-4-实时性需要实机验证"><a href="#11-4-实时性需要实机验证" class="headerlink" title="11.4 实时性需要实机验证"></a>11.4 实时性需要实机验证</h3><p>该算法运行在 workqueue 中，不在 Scale3 ISR 内直接执行，这避免了在中断上下文进行整帧处理。但 800×480 连续预览时，每帧都会增加 CPU 和 PSRAM 访问开销，需要结合实际帧率确认：</p>
+<ul>
+<li>workqueue 是否出现积压；</li>
+<li>Scale3 帧池是否频繁耗尽并打印 <code>D</code>；</li>
+<li>LCD 是否掉帧或延迟增加；</li>
+<li>CPU 占用和功耗是否可接受。</li>
+</ul>
+<h3 id="11-5-视觉改善需要固定场景对比"><a href="#11-5-视觉改善需要固定场景对比" class="headerlink" title="11.5 视觉改善需要固定场景对比"></a>11.5 视觉改善需要固定场景对比</h3><p>代码原理能够解释预期改善，但最终效果与摄像头传感器、ISP 锐化、Scale3 算法、LCD 二次缩放及场景纹理有关。不能只凭实现判断“摩尔纹已经消失”，应通过同机位 A&#x2F;B 测试确认。</p>
+<hr>
+<h2 id="12-建议验证方案"><a href="#12-建议验证方案" class="headerlink" title="12. 建议验证方案"></a>12. 建议验证方案</h2><h3 id="12-1-测试场景"><a href="#12-1-测试场景" class="headerlink" title="12.1 测试场景"></a>12.1 测试场景</h3><p>建议准备以下固定测试目标：</p>
+<ol>
+<li>黑白等间距细条纹；</li>
+<li>横向、纵向及 30°&#x2F;45° 斜线；</li>
+<li>棋盘格和同心圆测试图；</li>
+<li>布料、纱窗、键盘和印刷网点；</li>
+<li>红绿或蓝黄相间的彩色细条纹；</li>
+<li>镜头缓慢平移时的动态纹理。</li>
+</ol>
+<h3 id="12-2-A-B-对照组"><a href="#12-2-A-B-对照组" class="headerlink" title="12.2 A&#x2F;B 对照组"></a>12.2 A&#x2F;B 对照组</h3><table>
+<thead>
+<tr>
+<th>组别</th>
+<th>处理链路</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A：原始方案</td>
+<td>Scale3 直接输出最终尺寸</td>
+</tr>
+<tr>
+<td>B：当前方案</td>
+<td>Scale3 输出 2 倍宽高，再做 Y 平面 2×2 均值</td>
+</tr>
+<tr>
+<td>C：完整均值方案</td>
+<td>Scale3 输出 2 倍宽高，Y&#x2F;U&#x2F;V 全部做 2×2 均值</td>
+</tr>
+</tbody></table>
+<p>应确保三组测试使用相同传感器参数、曝光、增益、锐化、LCD 显示区域和拍摄距离。</p>
+<h3 id="12-3-功能检查"><a href="#12-3-功能检查" class="headerlink" title="12.3 功能检查"></a>12.3 功能检查</h3><ul>
+<li>检查 <code>arg-&gt;yuv_arg.out_w/out_h</code> 是否为实际输出尺寸；</li>
+<li>检查 <code>arg-&gt;yuv_arg.y_size == out_w × out_h</code>；</li>
+<li>检查 <code>fb-&gt;len == out_w × out_h × 3 / 2</code>；</li>
+<li>检查 Y&#x2F;U&#x2F;V 平面地址和颜色是否正常；</li>
+<li>检查额外拍照帧是否保持请求分辨率；</li>
+<li>检查进入、退出和反复切换 UI 后 MSI 是否仍正常复用；</li>
+<li>检查连续运行时是否掉帧、花屏或出现帧池耗尽。</li>
+</ul>
+<h3 id="12-4-视觉评价"><a href="#12-4-视觉评价" class="headerlink" title="12.4 视觉评价"></a>12.4 视觉评价</h3><p>重点观察：</p>
+<ul>
+<li>高频区域是否仍出现大尺度明暗条纹；</li>
+<li>斜线边缘阶梯是否减轻；</li>
+<li>镜头移动时纹理是否闪烁；</li>
+<li>画面是否因 Box Filter 变得过于柔和；</li>
+<li>彩色条纹是否仍产生色度摩尔纹。</li>
+</ul>
+<hr>
+<h2 id="13-后续优化方向"><a href="#13-后续优化方向" class="headerlink" title="13. 后续优化方向"></a>13. 后续优化方向</h2><h3 id="13-1-对-U-V-同样执行-2×2-均值"><a href="#13-1-对-U-V-同样执行-2×2-均值" class="headerlink" title="13.1 对 U&#x2F;V 同样执行 2×2 均值"></a>13.1 对 U&#x2F;V 同样执行 2×2 均值</h3><p>这是当前实现最直接的质量增强项。色度平面可使用与 Y 相同的计算思想：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Uout = (U00 + U01 + U10 + U11) / 4</span><br><span class="line">Vout = (V00 + V01 + V10 + V11) / 4</span><br></pre></td></tr></table></figure>
+
+<p>由于 U&#x2F;V 总采样数较少，额外计算量小于 Y 平面。</p>
+<h3 id="13-2-增加显式开关"><a href="#13-2-增加显式开关" class="headerlink" title="13.2 增加显式开关"></a>13.2 增加显式开关</h3><p>把固定行为改为可配置行为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">scale3_normal_msi2(..., mean_downsample_enable)</span><br></pre></td></tr></table></figure>
+
+<p>或者通过 MSI 命令动态控制，使拍照、录像、预览和不同客户配置可以独立选择。</p>
+<h3 id="13-3-明确中间尺寸与最终尺寸"><a href="#13-3-明确中间尺寸与最终尺寸" class="headerlink" title="13.3 明确中间尺寸与最终尺寸"></a>13.3 明确中间尺寸与最终尺寸</h3><p>可把 API 改为同时传入最终输出尺寸，内部自动计算中间尺寸：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">最终需要 400×240</span><br><span class="line">-&gt; Scale3 自动配置为 800×480</span><br><span class="line">-&gt; 软件输出固定为 400×240</span><br></pre></td></tr></table></figure>
+
+<p>这样调用者不必了解“传入尺寸会被减半”的隐含规则。</p>
+<h3 id="13-4-根据画质与性能选择滤波核"><a href="#13-4-根据画质与性能选择滤波核" class="headerlink" title="13.4 根据画质与性能选择滤波核"></a>13.4 根据画质与性能选择滤波核</h3><p>2×2 Box Filter 的优势是实现简单、速度快，但频率响应并不理想。如果平台性能允许，可以比较：</p>
+<ul>
+<li>2×2 Box Average：当前方案，速度最快；</li>
+<li>3×3 Gaussian：边缘更自然，计算和边界处理更复杂；</li>
+<li>双线性缩放：适合任意比例，但抗混叠能力取决于实现；</li>
+<li>多级缩放：适合更大倍率缩小，避免一次跨越过多源像素。</li>
+</ul>
+<hr>
+<h2 id="14-总结"><a href="#14-总结" class="headerlink" title="14. 总结"></a>14. 总结</h2><p>本次修改在 TXW82x Scale3 普通 YUV420P 输出链路中加入了原地 2×2 降采样。其核心价值不是简单地把宽高减半，而是在抽取像素前对 Y 分量进行区域均值，使高频亮度信息先被平滑，从而在一定程度上降低摩尔纹、斜边锯齿和动态闪烁。</p>
+<p>当前方案的典型链路为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">VPP</span><br><span class="line">-&gt; Scale3 硬件生成 800×480 YUV420P</span><br><span class="line">-&gt; CPU 对 Y 分量执行 2×2 Box Average</span><br><span class="line">-&gt; U/V 分量固定位置抽样</span><br><span class="line">-&gt; 原地压缩为 400×240 YUV420P</span><br><span class="line">-&gt; 更新 out_w、out_h、y_size 和 fb-&gt;len</span><br><span class="line">-&gt; MSI 输出到 LCD 链路</span><br></pre></td></tr></table></figure>
+
+<p>它在不增加第二块整帧缓冲区的前提下提供了低成本的缩放预滤波，但目前仍存在 U&#x2F;V 未均值、API 尺寸语义变化、公共输出路径影响范围较宽等限制。后续应以固定测试图进行 A&#x2F;B 对比，并结合帧率、CPU 占用与 PSRAM 带宽，决定是否进一步加入色度均值和独立功能开关。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/C%E8%AF%AD%E8%A8%80/">C语言</a><a class="post-meta__tags" href="/tags/TXW82x/">TXW82x</a><a class="post-meta__tags" href="/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a><a class="post-meta__tags" href="/tags/BugFix/">BugFix</a><a class="post-meta__tags" href="/tags/Scale3/">Scale3</a><a class="post-meta__tags" href="/tags/YUV420P/">YUV420P</a><a class="post-meta__tags" href="/tags/%E5%9B%BE%E5%83%8F%E7%BC%A9%E6%94%BE/">图像缩放</a><a class="post-meta__tags" href="/tags/%E6%91%A9%E5%B0%94%E7%BA%B9/">摩尔纹</a><a class="post-meta__tags" href="/tags/%E6%8A%97%E9%94%AF%E9%BD%BF/">抗锯齿</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW81x 微信 UI、控制层与业务服务开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UIUI: wechat_ui.c控制层: wechat_ui_control.c服务层: wechat_service.c提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 三层职责wechat_ui.c 创建入口按钮和聊天页面； 管理 LVGL 对象、group、焦点和 timer； 绘制本地&#x2F;远端语音与表情气泡； 把控制动作转交 callbacks； 从 callback 拉取可显示消息。  wechat...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/03/Spook%E5%9B%BE%E4%BC%A0%E6%A8%A1%E5%9D%97%E5%88%86%E6%9E%90%E6%96%87%E6%A1%A3/" title="Spook 图传模块分析文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">Spook 图传模块分析文档</div></div><div class="info-2"><div class="info-item-1">Spook 图传模块分析文档1. 文档范围本文档分析 sdk/app/spook/ 目录中与图传直接相关的实现，重点覆盖以下内容：  spook 模块初始化 实时 RTSP 图传主流程 stream 分发机制 RTSP 会话建立与播放控制 RTP&#x2F;JPEG 实际发包流程 音频辅助链路 函数指针绑定关系  本文档主要针对实时预览链路 /webcam，同时补充 /file 文件回放链路与其复用关系。  2. 目录中与图传最相关的文件2.1 核心入口 sdk/app/spook/spook.c sdk/a...</div></div></div></a><a class="pagination-related" href="/2026/06/30/TXW82x-Spook-RTSP%E6%B5%81%E5%AA%92%E4%BD%93%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%9E%B6%E6%9E%84%E6%96%87%E6%A1%A3/" title="TXW82x Spook RTSP 流媒体服务器架构文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x Spook RTSP 流媒体服务器架构文档</div></div><div class="info-2"><div class="info-item-1">TXW82x Spook RTSP 流媒体服务器架构文档1. 概述Spook 是一个运行在 TXW82x 嵌入式芯片上的轻量级 RTSP 流媒体服务器，通过 Wi-Fi 将摄像头采集的视频以 RTSP 协议推送给手机&#x2F;电脑等客户端。最初由 Nathan Lutchansky 于 2004 年开发的开源项目，后被移植到 TXW82x 平台（CK810 CPU + lwIP 协议栈）。 1.1 核心能力   能力 说明    视频编码 MJPEG (硬件 JPEG 编码器)、H.264 (硬件 H.26...</div></div></div></a><a class="pagination-related" href="/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</div></div><div class="info-2"><div class="info-item-1">H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。 功能：  在 LCD 上创建 H.264 文件播放器的菜单入口 遍历文件系统中 H264/ 目录下的 *.h264 文件并展示文件列表 选择文件后，通过 MSI 管道完成硬件解码并在 LCD 视频层...</div></div></div></a><a class="pagination-related" href="/2026/06/30/TXW82x%E5%B9%B3%E5%8F%B0%E7%9B%B8%E5%86%8C%E5%8A%9F%E8%83%BD%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x 平台相册功能开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-30</div><div class="info-item-2">TXW82x 平台相册功能开发文档</div></div><div class="info-2"><div class="info-item-1">TXW82x 平台相册功能开发文档 项目： TXW82x 相册功能日期： 2026-06-30基于提交： 72ce4df (更新相册功能) + eab804e (添加照片选中功能)技术栈： LVGL 8.x &#x2F; FatFS (SD卡) &#x2F; MSI (Media Stream Interface) &#x2F; 硬件JPEG解码 + CSC硬件   目录 功能概述 文件变更清单 数据结构详解 MSI 流水线架构 核心函数逐分析 UI 界面布局 按键系统与焦点导航 全屏预览机制 CSC 动态格...</div></div></div></a><a class="pagination-related" href="/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/" title="ADPCM 对讲模块详细设计文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-03</div><div class="info-item-2">ADPCM 对讲模块详细设计文档</div></div><div class="info-2"><div class="info-item-1">ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：  模块整体职责 依赖的流和内存资源 初始化顺序 线程之间的分工 编码、发送、接收、解码、播放链路 函数之间的调用关系 关键回调函数和函数指针绑定关系  本文档对应的核心文件：  sdk/app/intercom/intercom_adpcm.c sdk/app/intercom/intercom.h sdk/app/audio_app/bbm...</div></div></div></a><a class="pagination-related" href="/2026/06/22/H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E9%93%BE%E8%B7%AFBug%E4%BF%AE%E5%A4%8D%E8%AE%B0%E5%BD%95/" title="H.264 硬解码播放链路 Bug 修复记录"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-06-22</div><div class="info-item-2">H.264 硬解码播放链路 Bug 修复记录</div></div><div class="info-2"><div class="info-item-1">H.264 硬解码播放链路 Bug 修复记录概述在 TXW82x 平台 H.264 硬解码播放功能开发过程中，定位并修复了 H.264 文件解复用（h264_file_msi）与硬件解码（h264_decode_msi）链路上的 3 个关键 Bug。这些 Bug 共同导致解码输出花屏、解码器崩溃或完全不输出。  涉及文件   文件 路径 角色    h264_file_msi.c sdk/app/h264_demux/ H.264 文件解复用器，从 SD 卡读取 NAL 流，封装 framebuff 发出  ...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">21</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">63</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#TXW82x-Scale3-%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E4%BC%98%E5%8C%96%EF%BC%9A%E9%99%8D%E4%BD%8E%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E9%94%AF%E9%BD%BF"><span class="toc-text">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E4%BC%98%E5%8C%96%E8%83%8C%E6%99%AF"><span class="toc-text">1. 优化背景</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E4%BC%98%E5%8C%96%E7%9B%AE%E6%A0%87"><span class="toc-text">2. 优化目标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-%E4%BF%AE%E6%94%B9%E5%89%8D%E5%90%8E%E7%9A%84%E6%95%B0%E6%8D%AE%E9%93%BE%E8%B7%AF"><span class="toc-text">3. 修改前后的数据链路</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#3-1-%E4%BF%AE%E6%94%B9%E5%89%8D"><span class="toc-text">3.1 修改前</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-2-%E4%BF%AE%E6%94%B9%E5%90%8E"><span class="toc-text">3.2 修改后</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%9D%87%E5%80%BC%E9%99%8D%E9%87%87%E6%A0%B7%E8%83%BD%E6%94%B9%E5%96%84%E6%91%A9%E5%B0%94%E7%BA%B9%E5%92%8C%E9%94%AF%E9%BD%BF"><span class="toc-text">4. 为什么均值降采样能改善摩尔纹和锯齿</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E9%97%AE%E9%A2%98%E6%9C%AC%E8%B4%A8%EF%BC%9A%E7%BC%A9%E5%B0%8F%E8%BF%87%E7%A8%8B%E4%B8%AD%E7%9A%84%E6%B7%B7%E5%8F%A0"><span class="toc-text">4.1 问题本质：缩小过程中的混叠</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-2%C3%972-%E5%9D%87%E5%80%BC%E7%9B%B8%E5%BD%93%E4%BA%8E%E7%AE%80%E5%8D%95%E4%BD%8E%E9%80%9A%E6%BB%A4%E6%B3%A2"><span class="toc-text">4.2 2×2 均值相当于简单低通滤波</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-%E5%AF%B9%E9%94%AF%E9%BD%BF%E7%9A%84%E6%94%B9%E5%96%84"><span class="toc-text">4.3 对锯齿的改善</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-YUV420P-%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80"><span class="toc-text">5. YUV420P 内存布局</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E6%A0%B8%E5%BF%83%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90"><span class="toc-text">6. 核心实现分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#6-1-%E5%87%BD%E6%95%B0%E6%8E%A5%E5%8F%A3"><span class="toc-text">6.1 函数接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-2-%E5%B0%BA%E5%AF%B8%E6%A3%80%E6%9F%A5%E4%B8%8E%E5%81%B6%E6%95%B0%E7%BA%A6%E6%9D%9F"><span class="toc-text">6.2 尺寸检查与偶数约束</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-3-Cache-%E4%B8%80%E8%87%B4%E6%80%A7"><span class="toc-text">6.3 Cache 一致性</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-4-Y-%E5%B9%B3%E9%9D%A2%E5%9D%87%E5%80%BC"><span class="toc-text">6.4 Y 平面均值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-5-U-V-%E5%B9%B3%E9%9D%A2%E5%A4%84%E7%90%86"><span class="toc-text">6.5 U&#x2F;V 平面处理</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#6-6-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%8F%AF%E4%BB%A5%E5%8E%9F%E5%9C%B0%E5%A4%84%E7%90%86"><span class="toc-text">6.6 为什么可以原地处理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E6%8E%A5%E5%85%A5-Scale3-%E5%B7%A5%E4%BD%9C%E9%98%9F%E5%88%97"><span class="toc-text">7. 接入 Scale3 工作队列</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E6%99%AE%E9%80%9A%E5%B8%A7%E4%B8%8E%E9%A2%9D%E5%A4%96%E6%8B%8D%E7%85%A7%E5%B8%A7%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="toc-text">8. 普通帧与额外拍照帧的区别</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#9-%E5%BD%93%E5%89%8D-UI-%E9%85%8D%E5%A5%97%E5%8F%82%E6%95%B0"><span class="toc-text">9. 当前 UI 配套参数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#10-%E6%80%A7%E8%83%BD%E4%B8%8E%E5%86%85%E5%AD%98%E5%88%86%E6%9E%90"><span class="toc-text">10. 性能与内存分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#10-1-CPU-%E8%BF%90%E7%AE%97%E9%87%8F"><span class="toc-text">10.1 CPU 运算量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-2-PSRAM-%E5%8D%A0%E7%94%A8"><span class="toc-text">10.2 PSRAM 占用</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#10-3-%E5%B8%A6%E5%AE%BD%E5%8F%98%E5%8C%96"><span class="toc-text">10.3 带宽变化</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#11-%E5%BD%93%E5%89%8D%E5%AE%9E%E7%8E%B0%E7%9A%84%E8%BE%B9%E7%95%8C%E4%B8%8E%E9%A3%8E%E9%99%A9"><span class="toc-text">11. 当前实现的边界与风险</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#11-1-U-V-%E6%B2%A1%E6%9C%89%E5%81%9A%E5%9D%87%E5%80%BC%E6%BB%A4%E6%B3%A2"><span class="toc-text">11.1 U&#x2F;V 没有做均值滤波</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-2-API-%E5%B0%BA%E5%AF%B8%E8%AF%AD%E4%B9%89%E5%8F%91%E7%94%9F%E5%8F%98%E5%8C%96"><span class="toc-text">11.2 API 尺寸语义发生变化</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-3-%E4%BC%98%E5%8C%96%E8%8C%83%E5%9B%B4%E8%BE%83%E5%AE%BD"><span class="toc-text">11.3 优化范围较宽</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-4-%E5%AE%9E%E6%97%B6%E6%80%A7%E9%9C%80%E8%A6%81%E5%AE%9E%E6%9C%BA%E9%AA%8C%E8%AF%81"><span class="toc-text">11.4 实时性需要实机验证</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#11-5-%E8%A7%86%E8%A7%89%E6%94%B9%E5%96%84%E9%9C%80%E8%A6%81%E5%9B%BA%E5%AE%9A%E5%9C%BA%E6%99%AF%E5%AF%B9%E6%AF%94"><span class="toc-text">11.5 视觉改善需要固定场景对比</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#12-%E5%BB%BA%E8%AE%AE%E9%AA%8C%E8%AF%81%E6%96%B9%E6%A1%88"><span class="toc-text">12. 建议验证方案</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#12-1-%E6%B5%8B%E8%AF%95%E5%9C%BA%E6%99%AF"><span class="toc-text">12.1 测试场景</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-2-A-B-%E5%AF%B9%E7%85%A7%E7%BB%84"><span class="toc-text">12.2 A&#x2F;B 对照组</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-3-%E5%8A%9F%E8%83%BD%E6%A3%80%E6%9F%A5"><span class="toc-text">12.3 功能检查</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#12-4-%E8%A7%86%E8%A7%89%E8%AF%84%E4%BB%B7"><span class="toc-text">12.4 视觉评价</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#13-%E5%90%8E%E7%BB%AD%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91"><span class="toc-text">13. 后续优化方向</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#13-1-%E5%AF%B9-U-V-%E5%90%8C%E6%A0%B7%E6%89%A7%E8%A1%8C-2%C3%972-%E5%9D%87%E5%80%BC"><span class="toc-text">13.1 对 U&#x2F;V 同样执行 2×2 均值</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-2-%E5%A2%9E%E5%8A%A0%E6%98%BE%E5%BC%8F%E5%BC%80%E5%85%B3"><span class="toc-text">13.2 增加显式开关</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-3-%E6%98%8E%E7%A1%AE%E4%B8%AD%E9%97%B4%E5%B0%BA%E5%AF%B8%E4%B8%8E%E6%9C%80%E7%BB%88%E5%B0%BA%E5%AF%B8"><span class="toc-text">13.3 明确中间尺寸与最终尺寸</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#13-4-%E6%A0%B9%E6%8D%AE%E7%94%BB%E8%B4%A8%E4%B8%8E%E6%80%A7%E8%83%BD%E9%80%89%E6%8B%A9%E6%BB%A4%E6%B3%A2%E6%A0%B8"><span class="toc-text">13.4 根据画质与性能选择滤波核</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#14-%E6%80%BB%E7%BB%93"><span class="toc-text">14. 总结</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/" title="TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</a><time datetime="2026-08-15T10:00:00.000Z" title="发表于 2026-08-15 18:00:00">2026-08-15</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档">TXW81x 微信消息模块总体架构开发文档</a><time datetime="2026-07-17T12:00:00.000Z" title="发表于 2026-07-17 20:00:00">2026-07-17</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
