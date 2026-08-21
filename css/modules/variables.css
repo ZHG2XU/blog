@@ -3,20 +3,21 @@
 html:not([data-theme="dark"]) {
     color-scheme: light;
 
-    --ui-accent: #2563eb;
-    --ui-accent-strong: #1d4ed8;
-    --ui-accent-secondary: #0891b2;
-    --ui-accent-soft: rgba(37, 99, 235, 0.1);
-    --ui-success: #059669;
+    --ui-accent: #f05a28;
+    --ui-accent-strong: #cf4317;
+    --ui-accent-secondary: #88a800;
+    --ui-accent-soft: rgba(240, 90, 40, 0.1);
+    --ui-signal: #d9f23d;
+    --ui-success: #608000;
 
-    --ui-text: #182235;
-    --ui-text-muted: #667085;
-    --ui-heading: #0f172a;
-    --ui-surface: rgba(255, 255, 255, 0.88);
-    --ui-surface-solid: #ffffff;
-    --ui-surface-subtle: rgba(248, 250, 252, 0.82);
-    --ui-border: rgba(100, 116, 139, 0.2);
-    --ui-border-strong: rgba(37, 99, 235, 0.28);
+    --ui-text: #29302f;
+    --ui-text-muted: #6d7470;
+    --ui-heading: #121816;
+    --ui-surface: rgba(253, 252, 247, 0.9);
+    --ui-surface-solid: #fffef9;
+    --ui-surface-subtle: rgba(245, 244, 236, 0.84);
+    --ui-border: rgba(35, 45, 41, 0.16);
+    --ui-border-strong: rgba(240, 90, 40, 0.32);
 
     --ui-shadow-sm: 0 8px 24px rgba(30, 41, 59, 0.07);
     --ui-shadow-md: 0 18px 45px rgba(30, 41, 59, 0.1);
@@ -33,7 +34,7 @@ html:not([data-theme="dark"]) {
     --hlexpand-bg: linear-gradient(180deg, rgba(248, 250, 252, 0), #f8fafc 82%);
 
     /* Butterfly theme variables */
-    --global-bg: #f5f7fb;
+    --global-bg: #eeede6;
     --font-color: var(--ui-text);
     --text-highlight-color: var(--ui-heading);
     --card-bg: var(--ui-surface);
@@ -44,25 +45,26 @@ html:not([data-theme="dark"]) {
     --btn-hover-color: var(--ui-accent-strong);
     --text-bg-hover: var(--ui-accent);
     --toc-link-color: #64748b;
-    --blockquote-bg: rgba(37, 99, 235, 0.06);
+    --blockquote-bg: rgba(240, 90, 40, 0.06);
     --blockquote-color: var(--ui-accent);
 }
 
 html[data-theme="dark"] {
     color-scheme: dark;
 
-    --ui-accent: #60a5fa;
-    --ui-accent-strong: #93c5fd;
-    --ui-accent-secondary: #22d3ee;
-    --ui-accent-soft: rgba(96, 165, 250, 0.13);
-    --ui-success: #34d399;
+    --ui-accent: #ff7950;
+    --ui-accent-strong: #ff9a7a;
+    --ui-accent-secondary: #d9f23d;
+    --ui-accent-soft: rgba(255, 121, 80, 0.13);
+    --ui-signal: #d9f23d;
+    --ui-success: #c7e633;
 
-    --ui-text: #d7e0ee;
-    --ui-text-muted: #94a3b8;
-    --ui-heading: #f8fafc;
-    --ui-surface: rgba(15, 23, 42, 0.88);
-    --ui-surface-solid: #111827;
-    --ui-surface-subtle: rgba(30, 41, 59, 0.72);
+    --ui-text: #d9ddd8;
+    --ui-text-muted: #929b95;
+    --ui-heading: #f7f8f3;
+    --ui-surface: rgba(20, 25, 23, 0.9);
+    --ui-surface-solid: #151b18;
+    --ui-surface-subtle: rgba(33, 40, 36, 0.76);
     --ui-border: rgba(148, 163, 184, 0.16);
     --ui-border-strong: rgba(96, 165, 250, 0.3);
 
@@ -75,7 +77,7 @@ html[data-theme="dark"] {
     --hlexpand-bg: linear-gradient(180deg, rgba(15, 23, 42, 0), #0f172a 82%);
 
     /* Butterfly theme variables */
-    --global-bg: #08111f;
+    --global-bg: #0e1311;
     --font-color: var(--ui-text);
     --text-highlight-color: var(--ui-heading);
     --card-bg: var(--ui-surface);
@@ -86,6 +88,6 @@ html[data-theme="dark"] {
     --btn-hover-color: #3b82f6;
     --text-bg-hover: #2563eb;
     --toc-link-color: #94a3b8;
-    --blockquote-bg: rgba(96, 165, 250, 0.08);
+    --blockquote-bg: rgba(255, 121, 80, 0.08);
     --blockquote-color: var(--ui-accent);
 }

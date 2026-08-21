@@ -4,6 +4,13 @@
     scrollbar-color: rgba(100, 116, 139, 0.46) transparent;
 }
 
+/* The root scrollbar owns a real viewport gutter; paint it with the theme
+   canvas so the browser's default white background never shows through. */
+html {
+    background-color: var(--global-bg);
+    scrollbar-color: rgba(100, 116, 139, 0.46) var(--global-bg);
+}
+
 ::-webkit-scrollbar {
     width: 9px;
     height: 9px;
@@ -11,6 +18,11 @@
 
 ::-webkit-scrollbar-track {
     background: transparent;
+}
+
+html::-webkit-scrollbar-track,
+html::-webkit-scrollbar-corner {
+    background: var(--global-bg);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -27,4 +39,8 @@
 
 html[data-theme="dark"] * {
     scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
+}
+
+html[data-theme="dark"] {
+    scrollbar-color: rgba(148, 163, 184, 0.38) var(--global-bg);
 }

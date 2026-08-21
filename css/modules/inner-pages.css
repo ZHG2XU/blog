@@ -1,0 +1,358 @@
+/* Taxonomy and about pages share the homepage's warm editorial language. */
+#page-header.not-home-page:not(.post-bg) {
+    height: 230px;
+    background:
+        radial-gradient(circle at 76% 18%, rgba(205, 220, 157, 0.32), transparent 26%),
+        linear-gradient(rgba(30, 42, 36, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 42, 36, 0.045) 1px, transparent 1px),
+        #f4f3ed !important;
+    background-size: auto, 34px 34px, 34px 34px, auto !important;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+#page-header.not-home-page:not(.post-bg) #page-site-info {
+    top: 126px;
+}
+
+#page-header.not-home-page:not(.post-bg) #site-title {
+    color: var(--ui-heading) !important;
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(2.35rem, 4vw, 3.25rem);
+    font-weight: 680;
+    letter-spacing: -0.04em;
+    text-shadow: none !important;
+}
+
+#page-header.not-home-page:not(.post-bg) #site-title::before {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--ui-accent);
+    content: "COLLECTION · ZHG2XU";
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.66rem;
+    font-weight: 750;
+    letter-spacing: 0.14em;
+}
+
+#page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #blog-info .site-name,
+#page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav a,
+#page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav span.site-page,
+#page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #toggle-menu {
+    color: var(--ui-text);
+    text-shadow: none;
+}
+
+#page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #search-button > .site-page {
+    border-color: var(--ui-border);
+    background: rgba(255, 255, 255, 0.48);
+    box-shadow: none;
+}
+
+#body-wrap.type-tags #page,
+#body-wrap.type-categories #page,
+#body-wrap.type-about #page {
+    padding: clamp(28px, 4vw, 46px);
+    border-radius: 16px;
+}
+
+/* Tags: remove generated random colors and use a restrained family palette. */
+#body-wrap.type-tags .tag-cloud-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 11px;
+    align-content: flex-start;
+    text-align: left !important;
+}
+
+#body-wrap.type-tags .tag-cloud-list::before {
+    flex: 0 0 100%;
+    margin-bottom: 8px;
+    color: var(--ui-text-muted);
+    content: "按主题浏览全部技术笔记";
+    font-size: 0.9rem;
+}
+
+#body-wrap.type-tags .tag-cloud-list a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    margin: 0;
+    padding: 8px 14px;
+    border: 1px solid rgba(35, 45, 41, 0.12);
+    border-radius: 10px;
+    background: #f2eee5 !important;
+    color: #4d5a53 !important;
+    font-size: 0.88rem !important;
+    font-weight: 620;
+    line-height: 1.2;
+    box-shadow: inset 0 -2px 0 rgba(35, 45, 41, 0.035);
+}
+
+#body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 1) {
+    background: #edf0df !important;
+    color: #59634c !important;
+}
+
+#body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 2) {
+    background: #f7e8df !important;
+    color: #8b4b34 !important;
+}
+
+#body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 3) {
+    background: #e8eeeb !important;
+    color: #426158 !important;
+}
+
+#body-wrap.type-tags .tag-cloud-list a:hover {
+    border-color: rgba(240, 90, 40, 0.32);
+    background: var(--ui-surface-solid) !important;
+    color: var(--ui-accent) !important;
+    box-shadow: 0 10px 24px rgba(35, 45, 41, 0.09);
+    transform: translateY(-3px);
+}
+
+/* Categories: turn the flat nested list into a readable topic directory. */
+#body-wrap.type-categories .category-lists::before {
+    display: block;
+    margin-bottom: 22px;
+    color: var(--ui-text-muted);
+    content: "从专题进入，沿着一条完整的技术脉络阅读。";
+    font-size: 0.9rem;
+}
+
+#body-wrap.type-categories .category-list,
+#body-wrap.type-categories .category-list-child {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+#body-wrap.type-categories .category-list-item::before,
+#body-wrap.type-categories .category-list-count::before,
+#body-wrap.type-categories .category-list-count::after {
+    display: none !important;
+    content: none !important;
+}
+
+#body-wrap.type-categories .category-list > .category-list-item {
+    position: relative;
+}
+
+#body-wrap.type-categories .category-list > .category-list-item > .category-list-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    color: var(--ui-heading);
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: 1.55rem;
+    font-weight: 680;
+}
+
+#body-wrap.type-categories .category-list > .category-list-item > .category-list-link::before {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    background: var(--ui-accent);
+    content: "";
+}
+
+#body-wrap.type-categories .category-list > .category-list-item > .category-list-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 34px;
+    height: 24px;
+    margin-left: 9px;
+    border-radius: 999px;
+    background: var(--ui-accent-soft);
+    color: var(--ui-accent);
+    font-size: 0.74rem;
+    font-weight: 750;
+    vertical-align: 3px;
+}
+
+#body-wrap.type-categories .category-list-child {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#body-wrap.type-categories .category-list-child .category-list-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 64px;
+    padding: 14px 52px 14px 17px;
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    background: var(--ui-surface-subtle);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+#body-wrap.type-categories .category-list-child .category-list-item:hover {
+    border-color: var(--ui-border-strong);
+    box-shadow: var(--ui-shadow-sm);
+    transform: translateY(-3px);
+}
+
+#body-wrap.type-categories .category-list-child .category-list-link {
+    color: var(--ui-text);
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+
+#body-wrap.type-categories .category-list-child .category-list-link:hover {
+    color: var(--ui-accent);
+}
+
+#body-wrap.type-categories .category-list-child .category-list-count {
+    position: absolute;
+    right: 16px;
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    border-radius: 8px;
+    background: var(--ui-surface-solid);
+    color: var(--ui-text-muted);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.7rem;
+}
+
+/* About: quieter profile cover, numbered values, and descriptive contact cards. */
+#body-wrap.type-about .about-page {
+    gap: 18px;
+}
+
+#body-wrap.type-about .about-hero {
+    grid-template-columns: 116px minmax(0, 1fr);
+    gap: 30px;
+    padding: clamp(26px, 4vw, 40px);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 92% 12%, rgba(205, 220, 157, 0.28), transparent 34%),
+        linear-gradient(135deg, rgba(240, 90, 40, 0.055), transparent 62%),
+        var(--ui-surface-subtle);
+}
+
+#body-wrap.type-about .about-avatar {
+    width: 116px;
+    height: 116px;
+    border-width: 4px;
+    border-radius: 50%;
+    transform: none;
+}
+
+#body-wrap.type-about .about-hero h1 {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(1.9rem, 3vw, 2.45rem);
+    font-weight: 680;
+}
+
+#body-wrap.type-about .about-grid {
+    counter-reset: about-card;
+}
+
+#body-wrap.type-about .about-grid .about-section {
+    position: relative;
+    min-height: 230px;
+    padding: 28px 24px;
+    border-radius: 14px;
+    counter-increment: about-card;
+}
+
+#body-wrap.type-about .about-grid .about-section::after {
+    position: absolute;
+    top: 17px;
+    right: 19px;
+    color: color-mix(in srgb, var(--ui-heading) 8%, transparent);
+    content: "0" counter(about-card);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 2.2rem;
+    font-weight: 800;
+}
+
+#body-wrap.type-about .about-section h2 {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--ui-border);
+    font-size: 1rem;
+}
+
+#body-wrap.type-about .about-section h2::after {
+    display: block;
+    width: 30px;
+    height: 2px;
+    margin-top: 12px;
+    background: var(--ui-accent);
+    content: "";
+}
+
+#body-wrap.type-about .about-links a {
+    display: grid;
+    justify-content: start;
+    min-height: 78px;
+    padding: 15px 17px;
+    border-radius: 12px;
+    text-align: left;
+}
+
+#body-wrap.type-about .about-links a span {
+    color: var(--ui-heading);
+    font-weight: 720;
+}
+
+#body-wrap.type-about .about-links a small {
+    color: var(--ui-text-muted);
+    font-size: 0.72rem;
+}
+
+/* Dark variants retain the same hierarchy without leaking into light mode. */
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg) {
+    background:
+        radial-gradient(circle at 76% 18%, rgba(217, 242, 61, 0.08), transparent 26%),
+        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+        #131b17 !important;
+    background-size: auto, 34px 34px, 34px 34px, auto !important;
+}
+
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg) #site-title {
+    color: #f3f5f0 !important;
+}
+
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #blog-info .site-name,
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav a,
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav span.site-page,
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #toggle-menu {
+    color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-theme="dark"] #page-header.not-home-page:not(.post-bg):not(.nav-fixed) #nav #search-button > .site-page {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a {
+    border-color: rgba(255, 255, 255, 0.09);
+    background: #222a25 !important;
+    color: #c6cec8 !important;
+}
+
+html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 1) { background: #273025 !important; color: #cbd9b2 !important; }
+html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 2) { background: #33261f !important; color: #e6b6a3 !important; }
+html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 3) { background: #202d29 !important; color: #b6d4ca !important; }
+
+@media screen and (max-width: 768px) {
+    #page-header.not-home-page:not(.post-bg) { height: 190px; }
+    #page-header.not-home-page:not(.post-bg) #page-site-info { top: 104px; }
+    #body-wrap.type-categories .category-list-child { grid-template-columns: 1fr; }
+    #body-wrap.type-about .about-grid { grid-template-columns: 1fr; }
+}
+
+@media screen and (max-width: 560px) {
+    #body-wrap.type-tags #page,
+    #body-wrap.type-categories #page,
+    #body-wrap.type-about #page { padding: 22px 18px; }
+    #body-wrap.type-about .about-hero { grid-template-columns: 1fr; }
+}

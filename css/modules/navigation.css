@@ -40,6 +40,35 @@
     border-radius: 999px;
 }
 
+/* Keep every desktop navigation underline centered on its own label. */
+#nav .menus_items .menus_item > .site-page::after,
+#nav #search-button > .site-page::after {
+    position: absolute;
+    right: 12px;
+    bottom: 3px;
+    left: 12px;
+    z-index: 0;
+    width: auto;
+    height: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: currentColor;
+    content: "";
+    opacity: 0;
+    transform: scaleX(0.45);
+    transform-origin: center;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#nav .menus_items .menus_item:hover > .site-page::after,
+#nav #search-button > .site-page:hover::after {
+    width: auto;
+    opacity: 0.42;
+    transform: scaleX(1);
+}
+
 #nav #search-button > .site-page {
     border: 1px solid rgba(255, 255, 255, 0.22);
     background: rgba(255, 255, 255, 0.1);
