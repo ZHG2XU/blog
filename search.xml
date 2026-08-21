@@ -1,6 +1,250 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>Blog 代码主题与目录锚点修复开发文档</title>
+    <url>/2026/07/12/Blog%E4%BB%A3%E7%A0%81%E4%B8%BB%E9%A2%98%E4%B8%8E%E7%9B%AE%E5%BD%95%E9%94%9A%E7%82%B9%E4%BF%AE%E5%A4%8D%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)阶段: 代码阅读与目录跳转修复提交范围: 18d27c5 至 10e4a3a关键文件: code-highlight.css &#x2F; typography.css &#x2F; responsive.css &#x2F; themes/butterfly/source/js/main.js
+
+
+目录
+提交范围
+优化目标
+代码主题对齐
+目录跳转偏移
+实时目录锚点映射
+影响范围
+验证要点
+后续建议
+
+
+提交范围
+
+
+提交
+日期
+说明
+
+
+
+18d27c5
+2026-07-12
+对齐 VS Code Dark+ 代码主题与字体
+
+
+4f77f3c
+2026-07-12
+统一目录跳转与标题定位偏移
+
+
+10e4a3a
+2026-07-12
+改用实时目录锚点映射机制
+
+
+
+优化目标技术博客的核心阅读对象不是普通段落，而是：
+
+代码块。
+文件路径。
+函数名。
+表格。
+长文目录。
+
+本阶段主要解决：
+
+代码块颜色和本地 VS Code 阅读习惯不一致。
+目录点击后标题定位被固定导航遮挡。
+Butterfly 目录锚点在页面结构变化后映射不稳定。
+
+
+代码主题对齐涉及提交：
+
+18d27c5
+
+涉及文件：
+
+_config.butterfly.yml
+source/css/modules/code-highlight.css
+
+1. 目标风格暗色代码块对齐本地常用编辑器体验：
+
+VS Code Dark+
+Cascadia Code
+16px 左右阅读字号
+清晰 token 色彩
+
+2. 关键调整code-highlight.css 调整内容：
+
+代码块背景。
+工具栏背景。
+行号颜色。
+token 颜色。
+字体族。
+行高。
+行内代码样式。
+
+核心字体栈：
+font-family: &quot;Cascadia Code&quot;, &quot;Cascadia Mono&quot;, Consolas, &quot;Courier New&quot;, monospace;
+
+3. 设计原因博客文章包含大量：
+
+C 语言代码。
+SDK 路径。
+宏定义。
+函数名。
+架构片段。
+
+代码块越接近本地 IDE 阅读体验，迁移到网页后的认知成本越低。
+
+目录跳转偏移涉及提交：
+
+4f77f3c
+
+涉及文件：
+
+source/css/modules/responsive.css
+source/css/modules/typography.css
+themes/butterfly/source/js/main.js
+
+1. 问题表现点击文章目录后，标题定位容易被固定导航遮住。
+原因：
+
+页面存在固定导航栏。
+标题锚点默认滚动到视口顶部。
+移动端和桌面端导航高度不同。
+
+2. CSS 侧调整通过 scroll-padding-top 和标题定位策略，让跳转位置预留导航高度。
+相关文件：
+source/css/modules/typography.csssource/css/modules/responsive.css
+
+3. JS 侧调整Butterfly 的目录点击逻辑位于：
+themes/butterfly/source/js/main.js
+
+提交 4f77f3c 对目录跳转逻辑做了第一次统一，避免不同入口计算偏移不一致。
+
+实时目录锚点映射涉及提交：
+
+10e4a3a
+
+涉及文件：
+
+themes/butterfly/source/js/main.js
+
+1. 为什么需要实时映射文章内容较长，且标题结构可能包含：
+
+H1&#x2F;H2&#x2F;H3 多级标题。
+自动生成的 anchor。
+中文标题。
+代码、表格、长段落导致的滚动高度变化。
+
+如果目录只在初始化时缓存锚点映射，页面后续变化可能导致：
+
+当前目录高亮不准确。
+点击目录跳到错误位置。
+标题偏移和实际 DOM 不一致。
+
+2. 实时映射机制提交 10e4a3a 将目录锚点逻辑改为实时查询：
+
+点击时根据当前 DOM 查找目标标题。
+滚动时根据当前标题位置更新目录状态。
+避免依赖过早缓存的锚点映射。
+
+3. 改动收益
+长文目录稳定性更好。
+中文标题锚点更可靠。
+页面加载后发生布局变化时，目录仍能工作。
+与固定导航偏移策略配合更自然。
+
+
+影响范围
+
+
+页面
+影响
+
+
+
+文章页
+代码块主题、目录跳转、标题定位
+
+
+移动端文章页
+目录抽屉与标题定位
+
+
+长文页面
+当前目录高亮和滚动定位
+
+
+技术文档
+代码可读性提升
+
+
+
+验证要点1. 代码块检查：
+
+暗黑模式代码块是否接近 VS Code Dark+。
+字体是否为 Cascadia Code 优先。
+行号是否清晰。
+选中文本是否可读。
+行内代码是否和正文区分明显。
+
+2. 目录点击检查：
+
+点击目录一级标题。
+点击目录二级标题。
+点击目录三级标题。
+标题是否被导航遮挡。
+URL hash 是否更新正常。
+
+3. 滚动高亮检查：
+
+手动滚动文章。
+当前目录项是否跟随变化。
+长文中段和末尾是否仍准确。
+
+
+后续建议1. 减少主题源码改动themes/butterfly/source/js/main.js 已被本地修改，后续升级 Butterfly 时需要重点合并。
+建议后续记录：
+themes/butterfly/source/js/main.js
+
+中的本地补丁点。
+2. 增加目录视觉层级目录功能已稳定，视觉上还可以继续：
+
+当前项左侧加细线。
+H2&#x2F;H3 缩进更明显。
+长标题截断更平滑。
+
+3. 优化代码块复制反馈后续可以增加：
+
+复制成功提示。
+复制按钮 hover 状态。
+移动端复制按钮更大点击区域。
+
+
+结论本阶段把技术博客最关键的两个阅读组件继续打磨：
+
+代码块更接近本地开发体验。
+长文目录跳转和高亮更可靠。
+
+这类优化不一定第一眼显眼，但会显著影响读者阅读长篇工程文档时的稳定感。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>Blog-Hexo</category>
+      </categories>
+      <tags>
+        <tag>JavaScript</tag>
+        <tag>CSS</tag>
+        <tag>代码高亮</tag>
+        <tag>目录</tag>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>文档</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>ADPCM 对讲模块详细设计文档</title>
     <url>/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：
@@ -580,444 +824,6 @@ intercom_init()-&gt; intercom_handle_init()-&gt; intercom_encoded_handle() / int
       </tags>
   </entry>
   <entry>
-    <title>Blog 代码主题与目录锚点修复开发文档</title>
-    <url>/2026/07/12/Blog%E4%BB%A3%E7%A0%81%E4%B8%BB%E9%A2%98%E4%B8%8E%E7%9B%AE%E5%BD%95%E9%94%9A%E7%82%B9%E4%BF%AE%E5%A4%8D%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)阶段: 代码阅读与目录跳转修复提交范围: 18d27c5 至 10e4a3a关键文件: code-highlight.css &#x2F; typography.css &#x2F; responsive.css &#x2F; themes/butterfly/source/js/main.js
-
-
-目录
-提交范围
-优化目标
-代码主题对齐
-目录跳转偏移
-实时目录锚点映射
-影响范围
-验证要点
-后续建议
-
-
-提交范围
-
-
-提交
-日期
-说明
-
-
-
-18d27c5
-2026-07-12
-对齐 VS Code Dark+ 代码主题与字体
-
-
-4f77f3c
-2026-07-12
-统一目录跳转与标题定位偏移
-
-
-10e4a3a
-2026-07-12
-改用实时目录锚点映射机制
-
-
-
-优化目标技术博客的核心阅读对象不是普通段落，而是：
-
-代码块。
-文件路径。
-函数名。
-表格。
-长文目录。
-
-本阶段主要解决：
-
-代码块颜色和本地 VS Code 阅读习惯不一致。
-目录点击后标题定位被固定导航遮挡。
-Butterfly 目录锚点在页面结构变化后映射不稳定。
-
-
-代码主题对齐涉及提交：
-
-18d27c5
-
-涉及文件：
-
-_config.butterfly.yml
-source/css/modules/code-highlight.css
-
-1. 目标风格暗色代码块对齐本地常用编辑器体验：
-
-VS Code Dark+
-Cascadia Code
-16px 左右阅读字号
-清晰 token 色彩
-
-2. 关键调整code-highlight.css 调整内容：
-
-代码块背景。
-工具栏背景。
-行号颜色。
-token 颜色。
-字体族。
-行高。
-行内代码样式。
-
-核心字体栈：
-font-family: &quot;Cascadia Code&quot;, &quot;Cascadia Mono&quot;, Consolas, &quot;Courier New&quot;, monospace;
-
-3. 设计原因博客文章包含大量：
-
-C 语言代码。
-SDK 路径。
-宏定义。
-函数名。
-架构片段。
-
-代码块越接近本地 IDE 阅读体验，迁移到网页后的认知成本越低。
-
-目录跳转偏移涉及提交：
-
-4f77f3c
-
-涉及文件：
-
-source/css/modules/responsive.css
-source/css/modules/typography.css
-themes/butterfly/source/js/main.js
-
-1. 问题表现点击文章目录后，标题定位容易被固定导航遮住。
-原因：
-
-页面存在固定导航栏。
-标题锚点默认滚动到视口顶部。
-移动端和桌面端导航高度不同。
-
-2. CSS 侧调整通过 scroll-padding-top 和标题定位策略，让跳转位置预留导航高度。
-相关文件：
-source/css/modules/typography.csssource/css/modules/responsive.css
-
-3. JS 侧调整Butterfly 的目录点击逻辑位于：
-themes/butterfly/source/js/main.js
-
-提交 4f77f3c 对目录跳转逻辑做了第一次统一，避免不同入口计算偏移不一致。
-
-实时目录锚点映射涉及提交：
-
-10e4a3a
-
-涉及文件：
-
-themes/butterfly/source/js/main.js
-
-1. 为什么需要实时映射文章内容较长，且标题结构可能包含：
-
-H1&#x2F;H2&#x2F;H3 多级标题。
-自动生成的 anchor。
-中文标题。
-代码、表格、长段落导致的滚动高度变化。
-
-如果目录只在初始化时缓存锚点映射，页面后续变化可能导致：
-
-当前目录高亮不准确。
-点击目录跳到错误位置。
-标题偏移和实际 DOM 不一致。
-
-2. 实时映射机制提交 10e4a3a 将目录锚点逻辑改为实时查询：
-
-点击时根据当前 DOM 查找目标标题。
-滚动时根据当前标题位置更新目录状态。
-避免依赖过早缓存的锚点映射。
-
-3. 改动收益
-长文目录稳定性更好。
-中文标题锚点更可靠。
-页面加载后发生布局变化时，目录仍能工作。
-与固定导航偏移策略配合更自然。
-
-
-影响范围
-
-
-页面
-影响
-
-
-
-文章页
-代码块主题、目录跳转、标题定位
-
-
-移动端文章页
-目录抽屉与标题定位
-
-
-长文页面
-当前目录高亮和滚动定位
-
-
-技术文档
-代码可读性提升
-
-
-
-验证要点1. 代码块检查：
-
-暗黑模式代码块是否接近 VS Code Dark+。
-字体是否为 Cascadia Code 优先。
-行号是否清晰。
-选中文本是否可读。
-行内代码是否和正文区分明显。
-
-2. 目录点击检查：
-
-点击目录一级标题。
-点击目录二级标题。
-点击目录三级标题。
-标题是否被导航遮挡。
-URL hash 是否更新正常。
-
-3. 滚动高亮检查：
-
-手动滚动文章。
-当前目录项是否跟随变化。
-长文中段和末尾是否仍准确。
-
-
-后续建议1. 减少主题源码改动themes/butterfly/source/js/main.js 已被本地修改，后续升级 Butterfly 时需要重点合并。
-建议后续记录：
-themes/butterfly/source/js/main.js
-
-中的本地补丁点。
-2. 增加目录视觉层级目录功能已稳定，视觉上还可以继续：
-
-当前项左侧加细线。
-H2&#x2F;H3 缩进更明显。
-长标题截断更平滑。
-
-3. 优化代码块复制反馈后续可以增加：
-
-复制成功提示。
-复制按钮 hover 状态。
-移动端复制按钮更大点击区域。
-
-
-结论本阶段把技术博客最关键的两个阅读组件继续打磨：
-
-代码块更接近本地开发体验。
-长文目录跳转和高亮更可靠。
-
-这类优化不一定第一眼显眼，但会显著影响读者阅读长篇工程文档时的稳定感。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>Blog-Hexo</category>
-      </categories>
-      <tags>
-        <tag>JavaScript</tag>
-        <tag>CSS</tag>
-        <tag>代码高亮</tag>
-        <tag>目录</tag>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>文档</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>Blog 素材性能与全屏头图配置开发文档</title>
-    <url>/2026/07/11/Blog%E7%B4%A0%E6%9D%90%E6%80%A7%E8%83%BD%E4%B8%8E%E5%85%A8%E5%B1%8F%E5%A4%B4%E5%9B%BE%E9%85%8D%E7%BD%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)阶段: 素材性能与头图体验提交范围: 4b68bdb 至 3f39d93关键文件: _config.butterfly.yml &#x2F; header-text.css &#x2F; scaffolds/post.md &#x2F; source/img/
-
-
-目录
-提交范围
-优化目标
-视觉素材压缩
-首页全屏透明头图
-文章自定义头图
-脚手架更新
-文档同步
-验证要点
-
-
-提交范围
-
-
-提交
-日期
-说明
-
-
-
-4b68bdb
-2026-07-11
-压缩视觉素材并完成界面细节收尾
-
-
-3f39d93
-2026-07-12
-全屏透明首页并支持文章自定义头图
-
-
-
-优化目标本阶段主要解决两个问题：
-
-首页和侧栏使用的视觉素材体积较大，影响加载速度。
-首页头图和文章头图需要更清楚地区分，首页负责沉浸感，文章页负责阅读入口。
-
-
-视觉素材压缩涉及提交：
-
-4b68bdb
-
-涉及文件：
-
-source/img/avatar.jpeg
-source/img/avatar.webp
-source/img/dark-bg.png
-source/img/dark-bg.webp
-source/img/light-bg.png
-source/img/light-bg.webp
-
-1. 图片格式迁移原图片：
-source/img/avatar.jpegsource/img/dark-bg.pngsource/img/light-bg.png
-
-新图片：
-source/img/avatar.webpsource/img/dark-bg.webpsource/img/light-bg.webp
-
-2. 迁移原因WebP 相比 PNG&#x2F;JPEG 更适合网页场景：
-
-文件体积更小。
-视觉质量保持较好。
-浏览器支持度足够。
-首页背景图和头像加载更快。
-
-3. 配套引用更新图片格式变更后，同步更新：
-
-_config.butterfly.yml
-source/about/index.html
-source/css/modules/header-text.css
-source/css/README.md
-source/_posts/样式文档.md
-
-确保页面和文档中不再指向旧图片。
-
-首页全屏透明头图涉及提交：
-
-3f39d93
-
-涉及文件：
-
-_config.butterfly.yml
-source/css/modules/header-text.css
-
-1. 首页头图透明配置配置中将首页头图交给自定义 CSS 控制：
-index_img: transparent
-
-这样可以避免 Butterfly 默认头图干扰自定义背景图。
-2. 自定义 CSS 接管首页 Heroheader-text.css 负责首页背景：
-#page-header.full_page &#123;    background-image:        linear-gradient(...),        url(&#x27;/img/light-bg.webp&#x27;) !important;&#125;
-
-暗黑模式使用：
-html[data-theme=&quot;dark&quot;] #page-header.full_page &#123;    background-image:        linear-gradient(...),        url(&#x27;/img/dark-bg.webp&#x27;) !important;&#125;
-
-3. 首页与内页分离首页：
-
-使用个人壁纸。
-保持全屏。
-用站点名和副标题建立第一印象。
-
-文章页：
-
-使用文章头图或深色渐变。
-强化标题和文章元信息。
-不抢正文阅读注意力。
-
-
-文章自定义头图涉及提交：
-
-3f39d93
-
-1. Front Matter 支持文章可以通过 Front Matter 设置头图：
-top_img: /img/your-image.webp
-
-2. 使用场景适合：
-
-项目复盘文章。
-架构文档。
-带有明确视觉素材的专题文章。
-
-不适合：
-
-纯代码记录。
-Bug 修复短文。
-无明确视觉主题的文档。
-
-
-脚手架更新涉及文件：
-
-scaffolds/post.md
-
-新增字段：
-top_img:
-
-目的：
-
-新建文章时自动保留头图配置位。
-避免每次手动补 Front Matter。
-让文章头图能力成为标准写作流程的一部分。
-
-
-文档同步涉及文件：
-
-source/css/README.md
-source/_posts/样式文档.md
-
-同步内容：
-
-图片路径从 PNG&#x2F;JPEG 更新到 WebP。
-补充首页 Hero 图片说明。
-补充文章自定义头图说明。
-更新模块说明，避免文档落后于实现。
-
-
-验证要点1. 图片路径需要确认：
-
-/img/avatar.webp 正常显示。
-/img/light-bg.webp 正常显示。
-/img/dark-bg.webp 在暗黑模式下正常显示。
-
-2. 首页 Hero需要确认：
-
-首页保持全屏。
-背景由 CSS 控制。
-标题和副标题可读。
-
-3. 文章头图需要确认：
-
-未设置 top_img 的文章仍有默认头图表现。
-设置 top_img 的文章可以覆盖默认头图。
-
-
-结论本阶段把视觉素材从“能显示”推进到“适合网页加载”，同时建立了首页头图和文章头图的职责边界。
-首页继续承担品牌和氛围，文章页则支持按内容配置头图。后续视觉动画和阅读体验优化，都是在这套资源与头图策略上继续展开。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>Blog-Hexo</category>
-      </categories>
-      <tags>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>文档</tag>
-        <tag>性能优化</tag>
-        <tag>主题定制</tag>
-        <tag>图片</tag>
-        <tag>前端</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Blog 全站视觉系统重构开发文档</title>
     <url>/2026/07/11/Blog%E5%85%A8%E7%AB%99%E8%A7%86%E8%A7%89%E7%B3%BB%E7%BB%9F%E9%87%8D%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[
@@ -1410,9 +1216,203 @@ CSS 模块正常生成。
         <tag>Butterfly</tag>
         <tag>Hexo</tag>
         <tag>文档</tag>
+        <tag>样式</tag>
         <tag>主题定制</tag>
         <tag>前端</tag>
-        <tag>样式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Blog 素材性能与全屏头图配置开发文档</title>
+    <url>/2026/07/11/Blog%E7%B4%A0%E6%9D%90%E6%80%A7%E8%83%BD%E4%B8%8E%E5%85%A8%E5%B1%8F%E5%A4%B4%E5%9B%BE%E9%85%8D%E7%BD%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)阶段: 素材性能与头图体验提交范围: 4b68bdb 至 3f39d93关键文件: _config.butterfly.yml &#x2F; header-text.css &#x2F; scaffolds/post.md &#x2F; source/img/
+
+
+目录
+提交范围
+优化目标
+视觉素材压缩
+首页全屏透明头图
+文章自定义头图
+脚手架更新
+文档同步
+验证要点
+
+
+提交范围
+
+
+提交
+日期
+说明
+
+
+
+4b68bdb
+2026-07-11
+压缩视觉素材并完成界面细节收尾
+
+
+3f39d93
+2026-07-12
+全屏透明首页并支持文章自定义头图
+
+
+
+优化目标本阶段主要解决两个问题：
+
+首页和侧栏使用的视觉素材体积较大，影响加载速度。
+首页头图和文章头图需要更清楚地区分，首页负责沉浸感，文章页负责阅读入口。
+
+
+视觉素材压缩涉及提交：
+
+4b68bdb
+
+涉及文件：
+
+source/img/avatar.jpeg
+source/img/avatar.webp
+source/img/dark-bg.png
+source/img/dark-bg.webp
+source/img/light-bg.png
+source/img/light-bg.webp
+
+1. 图片格式迁移原图片：
+source/img/avatar.jpegsource/img/dark-bg.pngsource/img/light-bg.png
+
+新图片：
+source/img/avatar.webpsource/img/dark-bg.webpsource/img/light-bg.webp
+
+2. 迁移原因WebP 相比 PNG&#x2F;JPEG 更适合网页场景：
+
+文件体积更小。
+视觉质量保持较好。
+浏览器支持度足够。
+首页背景图和头像加载更快。
+
+3. 配套引用更新图片格式变更后，同步更新：
+
+_config.butterfly.yml
+source/about/index.html
+source/css/modules/header-text.css
+source/css/README.md
+source/_posts/样式文档.md
+
+确保页面和文档中不再指向旧图片。
+
+首页全屏透明头图涉及提交：
+
+3f39d93
+
+涉及文件：
+
+_config.butterfly.yml
+source/css/modules/header-text.css
+
+1. 首页头图透明配置配置中将首页头图交给自定义 CSS 控制：
+index_img: transparent
+
+这样可以避免 Butterfly 默认头图干扰自定义背景图。
+2. 自定义 CSS 接管首页 Heroheader-text.css 负责首页背景：
+#page-header.full_page &#123;    background-image:        linear-gradient(...),        url(&#x27;/img/light-bg.webp&#x27;) !important;&#125;
+
+暗黑模式使用：
+html[data-theme=&quot;dark&quot;] #page-header.full_page &#123;    background-image:        linear-gradient(...),        url(&#x27;/img/dark-bg.webp&#x27;) !important;&#125;
+
+3. 首页与内页分离首页：
+
+使用个人壁纸。
+保持全屏。
+用站点名和副标题建立第一印象。
+
+文章页：
+
+使用文章头图或深色渐变。
+强化标题和文章元信息。
+不抢正文阅读注意力。
+
+
+文章自定义头图涉及提交：
+
+3f39d93
+
+1. Front Matter 支持文章可以通过 Front Matter 设置头图：
+top_img: /img/your-image.webp
+
+2. 使用场景适合：
+
+项目复盘文章。
+架构文档。
+带有明确视觉素材的专题文章。
+
+不适合：
+
+纯代码记录。
+Bug 修复短文。
+无明确视觉主题的文档。
+
+
+脚手架更新涉及文件：
+
+scaffolds/post.md
+
+新增字段：
+top_img:
+
+目的：
+
+新建文章时自动保留头图配置位。
+避免每次手动补 Front Matter。
+让文章头图能力成为标准写作流程的一部分。
+
+
+文档同步涉及文件：
+
+source/css/README.md
+source/_posts/样式文档.md
+
+同步内容：
+
+图片路径从 PNG&#x2F;JPEG 更新到 WebP。
+补充首页 Hero 图片说明。
+补充文章自定义头图说明。
+更新模块说明，避免文档落后于实现。
+
+
+验证要点1. 图片路径需要确认：
+
+/img/avatar.webp 正常显示。
+/img/light-bg.webp 正常显示。
+/img/dark-bg.webp 在暗黑模式下正常显示。
+
+2. 首页 Hero需要确认：
+
+首页保持全屏。
+背景由 CSS 控制。
+标题和副标题可读。
+
+3. 文章头图需要确认：
+
+未设置 top_img 的文章仍有默认头图表现。
+设置 top_img 的文章可以覆盖默认头图。
+
+
+结论本阶段把视觉素材从“能显示”推进到“适合网页加载”，同时建立了首页头图和文章头图的职责边界。
+首页继续承担品牌和氛围，文章页则支持按内容配置头图。后续视觉动画和阅读体验优化，都是在这套资源与头图策略上继续展开。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>Blog-Hexo</category>
+      </categories>
+      <tags>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>文档</tag>
+        <tag>主题定制</tag>
+        <tag>前端</tag>
+        <tag>性能优化</tag>
+        <tag>图片</tag>
       </tags>
   </entry>
   <entry>
@@ -1805,9 +1805,9 @@ http://localhost:4000/2026/07/03/ADPCM对讲模块详细设计文档/
         <tag>Butterfly</tag>
         <tag>Hexo</tag>
         <tag>文档</tag>
+        <tag>样式</tag>
         <tag>主题定制</tag>
         <tag>前端</tag>
-        <tag>样式</tag>
       </tags>
   </entry>
   <entry>
@@ -2226,439 +2226,6 @@ H.264 Annex-B 起始码长度是动态的（3 或 4 字节）。 所有涉及 NA
         <tag>硬件解码</tag>
         <tag>framebuff</tag>
         <tag>BugFix</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>TXW81x 微信消息 UDP v2 协议开发文档</title>
-    <url>/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）
-
-
-1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：
-
-创建并绑定 UDP socket；
-管理固定对端地址；
-生成和解析统一 v2 包头；
-异步发送表情消息；
-同步分片发送 WCA 语音文件；
-在 RX 任务中校验数据包并回调上层服务。
-
-模块不负责 UI、Opus 编解码、业务状态和远端语音文件落盘。
-基线版本的关键源码定位：
-
-sdk/app/wechat_udp/wechat_udp.c:145：生成通用包头；
-sdk/app/wechat_udp/wechat_udp.c:255：解析通用包头；
-sdk/app/wechat_udp/wechat_udp.c:309：UDP RX 任务；
-sdk/app/wechat_udp/wechat_udp.c:365：socket 与任务初始化；
-sdk/app/wechat_udp/wechat_udp.c:579：语音文件分片发送；
-sdk/lib/gui/intercom_ui/wechat_service.c:206：语音 BEGIN 接收；
-sdk/lib/gui/intercom_ui/wechat_service.c:274：语音 DATA 接收；
-sdk/lib/gui/intercom_ui/wechat_service.c:308：语音 END 校验。
-
-2. 通用数据包格式固定包头长度为 8 B，最大 payload 为 1200 B，最大 UDP 应用数据长度为 1208 B。
-
-
-
-偏移
-长度
-字段
-编码
-说明
-
-
-
-0
-1
-Magic 0
-ASCII
-固定为 W
-
-
-1
-1
-Magic 1
-ASCII
-固定为 X
-
-
-2
-1
-Version
-uint8
-当前为 2
-
-
-3
-1
-Type
-uint8
-消息类型
-
-
-4
-2
-Sequence
-uint16 BE
-发送包序号，自然回绕
-
-
-6
-2
-Payload length
-uint16 BE
-0..1200
-
-
-8
-N
-Payload
-bytes
-长度必须与包头完全一致
-
-
-接收端拒绝以下数据包：
-
-长度小于 8 B 或大于 1208 B；
-Magic 或版本不匹配；
-payload 长度大于 1200 B；
-UDP 实际长度不等于 8 + payload_len。
-
-3. 通用消息类型
-
-
-Type
-枚举
-当前状态
-
-
-
-1
-WECHAT_UDP_MSG_EMOJI
-已实现收发
-
-
-2
-WECHAT_UDP_MSG_VOICE
-已实现 WCA 文件收发
-
-
-3
-WECHAT_UDP_MSG_PHOTO_BEGIN
-预留
-
-
-4
-WECHAT_UDP_MSG_PHOTO_DATA
-预留
-
-
-5
-WECHAT_UDP_MSG_PHOTO_END
-预留
-
-
-6
-WECHAT_UDP_MSG_ACK
-预留，尚未使用
-
-
-sequence 当前只由发送端递增并传给接收回调，上层没有据此执行去重、丢包判断或重排。
-4. 表情消息表情 payload 固定为 1 B：
-
-
-
-偏移
-长度
-字段
-约束
-
-
-
-0
-1
-emoji_index
-0..7
-
-
-发送 API wechat_udp_send_emoji() 只负责把索引投递到深度为 16 的 TX 队列。真正的 sendto() 在 wechat_udp_tx 任务中执行，因此 API 返回成功仅表示消息已入队。
-5. 语音文件传输语音使用一个通用消息类型 WECHAT_UDP_MSG_VOICE，payload 第 1 B 再区分子类型。
-5.1 BEGINpayload 固定 9 B。
-
-
-
-偏移
-长度
-字段
-编码
-说明
-
-
-
-0
-1
-subtype
-uint8
-WECHAT_UDP_VOICE_BEGIN = 1
-
-
-1
-2
-transfer ID
-uint16 BE
-0 为非法值
-
-
-3
-4
-file size
-uint32 BE
-当前限制 1..128 KiB
-
-
-7
-2
-duration
-uint16 BE
-秒，必须大于 0
-
-
-5.2 DATA固定头 7 B，后接最多 1193 B 文件内容。
-
-
-
-偏移
-长度
-字段
-编码
-说明
-
-
-
-0
-1
-subtype
-uint8
-WECHAT_UDP_VOICE_DATA = 2
-
-
-1
-2
-transfer ID
-uint16 BE
-必须与 BEGIN 一致
-
-
-3
-4
-offset
-uint32 BE
-当前数据在文件内的字节偏移
-
-
-7
-N
-data
-bytes
-1..1193 B
-
-
-接收端要求：
-transfer_id == active transfer_idoffset      == received_sizedata_len    &lt;= expected_size - received_size
-
-这意味着协议当前只接受严格有序、无重复、无缺口的数据流。
-5.3 ENDpayload 固定 11 B。
-
-
-
-偏移
-长度
-字段
-编码
-说明
-
-
-
-0
-1
-subtype
-uint8
-WECHAT_UDP_VOICE_END = 3
-
-
-1
-2
-transfer ID
-uint16 BE
-必须与 BEGIN 一致
-
-
-3
-4
-file size
-uint32 BE
-必须与 BEGIN 和累计长度一致
-
-
-7
-4
-CRC32
-uint32 BE
-整个 WCA 文件的 CRC32
-
-
-CRC 参数：
-
-初始值：0xffffffff；
-多项式反射形式：0xedb88320；
-最终异或：0xffffffff；
-覆盖范围：所有 DATA 中的文件内容，不含 UDP 和语音子协议头。
-
-6. 发送流程wechat_udp_send_voice_file() 在调用者线程中同步完成整个文件发送：
-
-校验模块状态、对端、路径和时长。
-打开文件并检查大小不超过 128 KiB。
-持有 tx_lock，防止表情包插入语音文件传输中间。
-分配非零 transfer ID。
-发送 BEGIN。
-每次读取最多 1193 B，生成 offset 并发送 DATA。
-每个 DATA 后等待 5 ms，降低突发发送压力。
-完成 CRC32 后发送 END。
-释放 tx_lock 并关闭文件。
-
-在当前业务中，这个函数由 wechat_service 任务在录音完成后调用，因此语音发送期间服务事件处理会暂停。
-7. 接收流程wechat_udp_rx 使用 100 ms socket 接收超时，以便退出时能够观察 rx_running = 0。
-recvfrom  -&gt; 可选来源 IP 过滤  -&gt; v2 包头解析  -&gt; 表情合法性检查 / 通用消息分发  -&gt; recv_cb(type, payload, length, sequence, user_data)  -&gt; wechat_service_udp_recv()
-
-回调中的 payload 指向 UDP 模块内部 RX 缓冲区，只在本次回调期间有效。上层若需要延后处理，必须复制数据。
-8. 对端配置wechat_udp_set_peer() 保存 IPv4 地址与端口。服务层当前按 Wi-Fi 模式使用固定地址：
-
-
-
-本机模式
-对端地址
-
-
-
-AP
-192.168.1.100:5010
-
-
-STA
-192.168.1.1:5010
-
-
-RX 过滤只比较来源 IPv4 地址，没有比较来源端口。
-9. 线程与锁
-
-
-资源
-访问者
-保护方式
-
-
-
-tx_buffer、发送 sequence
-TX 任务、服务任务
-tx_lock
-
-
-TX 消息
-UI&#x2F;服务调用者、TX 任务
-tx_msgq
-
-
-RX buffer
-RX 任务
-单任务独占，回调期间借用
-
-
-socket
-TX、RX、deinit
-生命周期状态 + 退出信号量
-
-
-peer 地址
-初始化流程、TX&#x2F;RX
-当前假定运行期间不动态修改
-
-
-TX 与 RX 任务在退出点先发信号量，然后停留在休眠循环，最终由 deinit 调用 os_task_destroy() 回收。
-10. 错误和丢包行为
-
-
-情况
-当前行为
-
-
-
-表情 TX 队列满
-wechat_udp_send_emoji() 返回失败
-
-
-sendto() 失败
-打印日志，不重试
-
-
-非法包头&#x2F;长度
-丢弃并打印日志
-
-
-未知消息类型
-丢弃并打印日志
-
-
-来源 IP 不匹配
-静默丢弃
-
-
-DATA 丢失、重复或乱序
-服务层中止接收并删除临时文件
-
-
-END 长度或 CRC 错误
-中止并删除临时文件
-
-
-传输中途停止
-保持 active，直到新 BEGIN 触发超时检查或模块退出
-
-
-11. 已确认的限制与改进建议11.1 没有可靠传输闭环虽然定义了 ACK 类型和 sequence 字段，但尚无确认、重传、窗口或去重实现。语音消息的成功发送日志只代表本机所有 sendto() 调用成功，不代表对端完整落盘。
-建议最小升级方案：
-
-END 校验成功后返回包含 transfer ID、size、CRC 的 ACK；
-发送端等待 ACK 超时，至少支持整文件重发；
-再逐步增加分片位图或缺失 offset 列表，实现选择性重传。
-
-11.2 RX 回调执行 Flash I&#x2F;O当前 DATA 在 UDP RX 任务回调内直接写 Flash。若单次写入延迟接近或超过包到达间隔，后续 UDP 包可能因 socket 缓冲不足而丢失。
-建议将 RX 任务限定为“解析 + 复制 + 入队”，由文件接收任务负责落盘和 CRC。
-11.3 超时清理不主动WECHAT_SERVICE_VOICE_RX_TIMEOUT_MS = 3000 只在处理新的 BEGIN 时生效。建议增加周期 timer 或在 RX receive timeout 分支中驱动接收状态超时清理。
-11.4 安全边界协议没有鉴权和加密，只依赖固定 IP 过滤。它适合受控局域网和开发联调，不应直接暴露到不可信网络。
-12. 联调检查表
-两端协议版本均为 2；
-AP&#x2F;STA 地址与端口配置方向正确；
-表情索引严格为 0..7；
-抓包确认多字节字段采用大端序；
-DATA offset 连续递增，单片不超过 1193 B；
-BEGIN&#x2F;END 的 file size 一致；
-CRC32 覆盖原始 WCA 全文件；
-语音文件大于 0 且不超过 128 KiB；
-丢一个 DATA 包时，预期结果应为整段语音接收失败；
-退出页面时 RX 最长约等待一个 100 ms socket timeout。
-
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>TXW81x 可视对讲</category>
-      </categories>
-      <tags>
-        <tag>UDP</tag>
-        <tag>TXW81x</tag>
-        <tag>微信消息</tag>
-        <tag>网络协议</tag>
-        <tag>语音传输</tag>
-        <tag>CRC32</tag>
       </tags>
   </entry>
   <entry>
@@ -3693,6 +3260,689 @@ Flash 是否可创建 WCA；
       </tags>
   </entry>
   <entry>
+    <title>TXW81x 微信消息 UDP v2 协议开发文档</title>
+    <url>/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: TXW81x 可视对讲 UI模块: sdk/app/wechat_udp/协议版本: 2默认端口: 5010/UDP提交范围: febc4f7 至 2440a8e分析基线: 2440a8e（2026-07-17）
+
+
+1. 模块定位wechat_udp 是微信消息功能的网络传输层，当前负责：
+
+创建并绑定 UDP socket；
+管理固定对端地址；
+生成和解析统一 v2 包头；
+异步发送表情消息；
+同步分片发送 WCA 语音文件；
+在 RX 任务中校验数据包并回调上层服务。
+
+模块不负责 UI、Opus 编解码、业务状态和远端语音文件落盘。
+基线版本的关键源码定位：
+
+sdk/app/wechat_udp/wechat_udp.c:145：生成通用包头；
+sdk/app/wechat_udp/wechat_udp.c:255：解析通用包头；
+sdk/app/wechat_udp/wechat_udp.c:309：UDP RX 任务；
+sdk/app/wechat_udp/wechat_udp.c:365：socket 与任务初始化；
+sdk/app/wechat_udp/wechat_udp.c:579：语音文件分片发送；
+sdk/lib/gui/intercom_ui/wechat_service.c:206：语音 BEGIN 接收；
+sdk/lib/gui/intercom_ui/wechat_service.c:274：语音 DATA 接收；
+sdk/lib/gui/intercom_ui/wechat_service.c:308：语音 END 校验。
+
+2. 通用数据包格式固定包头长度为 8 B，最大 payload 为 1200 B，最大 UDP 应用数据长度为 1208 B。
+
+
+
+偏移
+长度
+字段
+编码
+说明
+
+
+
+0
+1
+Magic 0
+ASCII
+固定为 W
+
+
+1
+1
+Magic 1
+ASCII
+固定为 X
+
+
+2
+1
+Version
+uint8
+当前为 2
+
+
+3
+1
+Type
+uint8
+消息类型
+
+
+4
+2
+Sequence
+uint16 BE
+发送包序号，自然回绕
+
+
+6
+2
+Payload length
+uint16 BE
+0..1200
+
+
+8
+N
+Payload
+bytes
+长度必须与包头完全一致
+
+
+接收端拒绝以下数据包：
+
+长度小于 8 B 或大于 1208 B；
+Magic 或版本不匹配；
+payload 长度大于 1200 B；
+UDP 实际长度不等于 8 + payload_len。
+
+3. 通用消息类型
+
+
+Type
+枚举
+当前状态
+
+
+
+1
+WECHAT_UDP_MSG_EMOJI
+已实现收发
+
+
+2
+WECHAT_UDP_MSG_VOICE
+已实现 WCA 文件收发
+
+
+3
+WECHAT_UDP_MSG_PHOTO_BEGIN
+预留
+
+
+4
+WECHAT_UDP_MSG_PHOTO_DATA
+预留
+
+
+5
+WECHAT_UDP_MSG_PHOTO_END
+预留
+
+
+6
+WECHAT_UDP_MSG_ACK
+预留，尚未使用
+
+
+sequence 当前只由发送端递增并传给接收回调，上层没有据此执行去重、丢包判断或重排。
+4. 表情消息表情 payload 固定为 1 B：
+
+
+
+偏移
+长度
+字段
+约束
+
+
+
+0
+1
+emoji_index
+0..7
+
+
+发送 API wechat_udp_send_emoji() 只负责把索引投递到深度为 16 的 TX 队列。真正的 sendto() 在 wechat_udp_tx 任务中执行，因此 API 返回成功仅表示消息已入队。
+5. 语音文件传输语音使用一个通用消息类型 WECHAT_UDP_MSG_VOICE，payload 第 1 B 再区分子类型。
+5.1 BEGINpayload 固定 9 B。
+
+
+
+偏移
+长度
+字段
+编码
+说明
+
+
+
+0
+1
+subtype
+uint8
+WECHAT_UDP_VOICE_BEGIN = 1
+
+
+1
+2
+transfer ID
+uint16 BE
+0 为非法值
+
+
+3
+4
+file size
+uint32 BE
+当前限制 1..128 KiB
+
+
+7
+2
+duration
+uint16 BE
+秒，必须大于 0
+
+
+5.2 DATA固定头 7 B，后接最多 1193 B 文件内容。
+
+
+
+偏移
+长度
+字段
+编码
+说明
+
+
+
+0
+1
+subtype
+uint8
+WECHAT_UDP_VOICE_DATA = 2
+
+
+1
+2
+transfer ID
+uint16 BE
+必须与 BEGIN 一致
+
+
+3
+4
+offset
+uint32 BE
+当前数据在文件内的字节偏移
+
+
+7
+N
+data
+bytes
+1..1193 B
+
+
+接收端要求：
+transfer_id == active transfer_idoffset      == received_sizedata_len    &lt;= expected_size - received_size
+
+这意味着协议当前只接受严格有序、无重复、无缺口的数据流。
+5.3 ENDpayload 固定 11 B。
+
+
+
+偏移
+长度
+字段
+编码
+说明
+
+
+
+0
+1
+subtype
+uint8
+WECHAT_UDP_VOICE_END = 3
+
+
+1
+2
+transfer ID
+uint16 BE
+必须与 BEGIN 一致
+
+
+3
+4
+file size
+uint32 BE
+必须与 BEGIN 和累计长度一致
+
+
+7
+4
+CRC32
+uint32 BE
+整个 WCA 文件的 CRC32
+
+
+CRC 参数：
+
+初始值：0xffffffff；
+多项式反射形式：0xedb88320；
+最终异或：0xffffffff；
+覆盖范围：所有 DATA 中的文件内容，不含 UDP 和语音子协议头。
+
+6. 发送流程wechat_udp_send_voice_file() 在调用者线程中同步完成整个文件发送：
+
+校验模块状态、对端、路径和时长。
+打开文件并检查大小不超过 128 KiB。
+持有 tx_lock，防止表情包插入语音文件传输中间。
+分配非零 transfer ID。
+发送 BEGIN。
+每次读取最多 1193 B，生成 offset 并发送 DATA。
+每个 DATA 后等待 5 ms，降低突发发送压力。
+完成 CRC32 后发送 END。
+释放 tx_lock 并关闭文件。
+
+在当前业务中，这个函数由 wechat_service 任务在录音完成后调用，因此语音发送期间服务事件处理会暂停。
+7. 接收流程wechat_udp_rx 使用 100 ms socket 接收超时，以便退出时能够观察 rx_running = 0。
+recvfrom  -&gt; 可选来源 IP 过滤  -&gt; v2 包头解析  -&gt; 表情合法性检查 / 通用消息分发  -&gt; recv_cb(type, payload, length, sequence, user_data)  -&gt; wechat_service_udp_recv()
+
+回调中的 payload 指向 UDP 模块内部 RX 缓冲区，只在本次回调期间有效。上层若需要延后处理，必须复制数据。
+8. 对端配置wechat_udp_set_peer() 保存 IPv4 地址与端口。服务层当前按 Wi-Fi 模式使用固定地址：
+
+
+
+本机模式
+对端地址
+
+
+
+AP
+192.168.1.100:5010
+
+
+STA
+192.168.1.1:5010
+
+
+RX 过滤只比较来源 IPv4 地址，没有比较来源端口。
+9. 线程与锁
+
+
+资源
+访问者
+保护方式
+
+
+
+tx_buffer、发送 sequence
+TX 任务、服务任务
+tx_lock
+
+
+TX 消息
+UI&#x2F;服务调用者、TX 任务
+tx_msgq
+
+
+RX buffer
+RX 任务
+单任务独占，回调期间借用
+
+
+socket
+TX、RX、deinit
+生命周期状态 + 退出信号量
+
+
+peer 地址
+初始化流程、TX&#x2F;RX
+当前假定运行期间不动态修改
+
+
+TX 与 RX 任务在退出点先发信号量，然后停留在休眠循环，最终由 deinit 调用 os_task_destroy() 回收。
+10. 错误和丢包行为
+
+
+情况
+当前行为
+
+
+
+表情 TX 队列满
+wechat_udp_send_emoji() 返回失败
+
+
+sendto() 失败
+打印日志，不重试
+
+
+非法包头&#x2F;长度
+丢弃并打印日志
+
+
+未知消息类型
+丢弃并打印日志
+
+
+来源 IP 不匹配
+静默丢弃
+
+
+DATA 丢失、重复或乱序
+服务层中止接收并删除临时文件
+
+
+END 长度或 CRC 错误
+中止并删除临时文件
+
+
+传输中途停止
+保持 active，直到新 BEGIN 触发超时检查或模块退出
+
+
+11. 已确认的限制与改进建议11.1 没有可靠传输闭环虽然定义了 ACK 类型和 sequence 字段，但尚无确认、重传、窗口或去重实现。语音消息的成功发送日志只代表本机所有 sendto() 调用成功，不代表对端完整落盘。
+建议最小升级方案：
+
+END 校验成功后返回包含 transfer ID、size、CRC 的 ACK；
+发送端等待 ACK 超时，至少支持整文件重发；
+再逐步增加分片位图或缺失 offset 列表，实现选择性重传。
+
+11.2 RX 回调执行 Flash I&#x2F;O当前 DATA 在 UDP RX 任务回调内直接写 Flash。若单次写入延迟接近或超过包到达间隔，后续 UDP 包可能因 socket 缓冲不足而丢失。
+建议将 RX 任务限定为“解析 + 复制 + 入队”，由文件接收任务负责落盘和 CRC。
+11.3 超时清理不主动WECHAT_SERVICE_VOICE_RX_TIMEOUT_MS = 3000 只在处理新的 BEGIN 时生效。建议增加周期 timer 或在 RX receive timeout 分支中驱动接收状态超时清理。
+11.4 安全边界协议没有鉴权和加密，只依赖固定 IP 过滤。它适合受控局域网和开发联调，不应直接暴露到不可信网络。
+12. 联调检查表
+两端协议版本均为 2；
+AP&#x2F;STA 地址与端口配置方向正确；
+表情索引严格为 0..7；
+抓包确认多字节字段采用大端序；
+DATA offset 连续递增，单片不超过 1193 B；
+BEGIN&#x2F;END 的 file size 一致；
+CRC32 覆盖原始 WCA 全文件；
+语音文件大于 0 且不超过 128 KiB；
+丢一个 DATA 包时，预期结果应为整段语音接收失败；
+退出页面时 RX 最长约等待一个 100 ms socket timeout。
+
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW81x 可视对讲</category>
+      </categories>
+      <tags>
+        <tag>UDP</tag>
+        <tag>TXW81x</tag>
+        <tag>微信消息</tag>
+        <tag>网络协议</tag>
+        <tag>语音传输</tag>
+        <tag>CRC32</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TXW81x 微信消息模块总体架构开发文档</title>
+    <url>/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: TXW81x 可视对讲 UI模块: 微信式语音与表情消息阶段: UI、业务服务、UDP 与 Opus 链路整合提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）
+
+
+1. 文档目标本文给后续开发者建立模块级心智模型，重点说明以下问题：
+
+微信入口从哪里创建，页面由谁管理；
+按键事件如何转换为录音、发送、播放等业务动作；
+UDP 收发线程、服务线程和音频线程如何协作；
+Opus 在本项目中承担什么职责；
+哪些路径已经实现，哪些仍是预留能力；
+维护时需要优先关注哪些并发、队列和协议风险。
+
+配套文档：
+
+TXW81x微信消息UDP-v2协议开发文档.md：UDP v2 包格式与语音文件传输协议；
+TXW81x微信语音Opus与WCA音频链路开发文档.md：Opus 参数、WCA 文件和录放音任务；
+TXW81x微信UI控制层与业务服务开发文档.md：LVGL 页面、控制层、服务状态与消息队列。
+
+2. 代码范围
+
+
+层级
+主要文件
+职责
+
+
+
+应用入口
+sdk/app/ui/main_ui.c
+调用 wechat_service_create_ui() 创建微信入口
+
+
+UI 展示
+sdk/lib/gui/intercom_ui/wechat_ui.c
+创建聊天页面、气泡、表情面板和 30 ms 消息轮询定时器
+
+
+输入控制
+sdk/lib/gui/intercom_ui/wechat_ui_control.c
+将 LVGL 键值转换为语音按下&#x2F;松开、表情选择等动作
+
+
+业务服务
+sdk/lib/gui/intercom_ui/wechat_service.c
+初始化资源、串行化业务事件、调度录音&#x2F;播放、桥接 UI 与网络
+
+
+音频适配
+sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c
+音频流、Opus 编解码、WCA 文件和异步作业状态机
+
+
+UDP 传输
+sdk/app/wechat_udp/wechat_udp.c
+UDP socket、协议封包、接收解析、文件分片发送
+
+
+Opus 库
+sdk/lib/opus/
+Opus 1.5.1 编解码实现，固定点配置
+
+
+sdk/app/intercom/intercom_opus.c 是项目原有的实时对讲链路。微信语音模块没有直接复用它的实时网络抖动缓冲和重传逻辑，而是复用了底层音频 stream 与 Opus API，形成“先录制为文件，再通过 UDP 发送”的异步语音消息链路。
+基线版本的关键入口：
+
+sdk/app/ui/main_ui.c:85：创建微信服务 UI；
+sdk/lib/gui/intercom_ui/wechat_ui.c:818：通用 UI 创建接口；
+sdk/lib/gui/intercom_ui/wechat_service.c:642：业务服务初始化；
+sdk/app/wechat_udp/wechat_udp.c:365：UDP 初始化；
+sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:925：音频与 Opus 初始化。
+
+3. 总体分层main_ui.c    |    vwechat_ui.c  &lt;---- 30 ms 拉取 UI 消息 ----  wechat_service.c    |                                          |       |    | 按键动作                                 |       +--&gt; wechat_udp.c    v                                          |              |wechat_ui_control.c                            |              +--&gt; 对端 UDP 5010                                               |                                               +--&gt; wechat_audio.c                                                       |                                                       +--&gt; sdk/lib/opus/                                                       +--&gt; 音频 stream / DAC                                                       +--&gt; FLASH:/OPUS/*.WCA
+
+设计上的核心边界如下：
+
+UI 层不直接操作 socket、文件或 Opus。
+UDP 接收任务不操作 LVGL 对象，只回调服务层。
+音频工作任务不操作 LVGL，只向服务队列投递完成事件。
+服务任务负责把跨线程事件串行化，并保证录音和播放互斥。
+UI 通过独立 UI 队列获取可显示的消息，不直接读取服务内部状态。
+
+4. 运行实体与资源
+
+
+运行实体
+创建位置
+优先级
+栈&#x2F;队列
+主要工作
+
+
+
+LVGL 线程&#x2F;定时器
+GUI 框架
+GUI 上下文
+30 ms timer
+页面操作、消息气泡渲染
+
+
+wechat_service
+wechat_service_init()
+Normal
+栈 2048 B；事件队列 16
+业务状态编排
+
+
+wechat_udp_tx
+wechat_udp_init()
+Normal
+栈 1024 B；发送队列 16
+异步发送表情
+
+
+wechat_udp_rx
+wechat_udp_init()
+Normal
+栈 1024 B
+收包、校验、回调服务层
+
+
+wechat_audio
+wechat_audio_init()
+Normal
+PSRAM 栈 30 KiB；作业队列 4
+录音、编码、解码、播放
+
+
+重要静态&#x2F;动态资源：
+
+UDP 上下文包含 1209 B 接收缓冲区和 1208 B 发送缓冲区；
+音频播放时从 PSRAM 申请 4 × 1024 B 节点数据区；
+音频任务栈从 PSRAM 申请 30 KiB；
+Opus encoder、decoder 在服务打开时创建，在页面关闭时释放；
+语音文件统一保存在 FLASH:/OPUS。
+
+5. 初始化与退出顺序5.1 打开页面
+main_ui.c 创建微信菜单入口。
+用户短按入口，wechat_ui_open() 调用服务层 open 回调。
+wechat_service_init() 依次创建互斥锁、停止信号量、UI 队列和服务队列。
+初始化 wechat_audio，创建 Opus encoder、decoder 和音频工作任务。
+初始化 wechat_udp，绑定本地 UDP 端口 5010，创建收发任务。
+根据 Wi-Fi 模式配置固定对端：
+AP 模式：192.168.1.100:5010；
+STA 模式：192.168.1.1:5010。
+
+
+创建 wechat_service 任务。
+服务初始化成功后，UI 才隐藏主页面并创建聊天页面、焦点组和消息 timer。
+
+5.2 关闭页面
+删除 UI 消息 timer，停用输入控制。
+调用服务层 close 回调。
+服务任务收到 STOP 消息后发出停止信号。
+停止 UDP 收发任务。
+中止并销毁音频任务，释放 Opus 和 PSRAM 资源。
+清理未完成的接收文件、队列、锁和信号量。
+删除聊天页面，恢复原 LVGL group 和主页面。
+
+6. 本地语音消息链路按住语音键  -&gt; UI action: VOICE_PRESS  -&gt; service queue: VOICE_START  -&gt; 创建 record job_id  -&gt; audio worker 打开 R_WECHAT_AUDIO  -&gt; 每 160 个采样点编码一个 20 ms Opus 帧  -&gt; 写入 FLASH:/OPUS/MSG&lt;n&gt;.WCA松开语音键  -&gt; UI action: VOICE_RELEASE  -&gt; service queue: VOICE_STOP  -&gt; audio worker 协作停止并回报 RECORD_FINISHED  -&gt; service 读取真实录音结果  -&gt; UDP BEGIN + DATA... + END 发送整个 WCA 文件  -&gt; 发送成功后通知 UI 添加本地语音气泡
+
+注意：UI 在松键时计算的秒数被放入 VOICE_STOP 事件，但当前服务逻辑只把它当作附带数据，并不用于最终发送。最终语音时长来自 WCA 文件的实际 Opus 帧数，即 wechat_audio_result_t.duration_sec。
+7. 远端语音消息链路
+UDP RX 任务收到 WECHAT_UDP_MSG_VOICE。
+服务回调按 BEGIN / DATA / END 子类型处理。
+BEGIN 创建 FLASH:/OPUS/RX&lt;transfer_id&gt;.TMP。
+DATA 要求 offset 严格等于当前已接收长度，并边写文件边计算 CRC32。
+END 校验 transfer ID、文件长度和 CRC32。
+校验通过后将临时文件重命名为 .WCA。
+服务任务把它转为待播放语音并通知 UI 添加远端气泡。
+若当前没有录音或播放任务，立即创建播放 job。
+音频任务逐帧 Opus 解码，将 PCM 节点送往 speaker stream。
+
+录音优先级高于远端播放：用户在播放期间按下语音键时，服务先停止当前播放，待播放完成事件返回后再开始录音。
+8. 表情消息链路8.1 本地发送
+用户打开表情面板并选择索引 0..7。
+UI 调用 emoji_selected 回调。
+服务把 SEND_EMOJI 投递到服务队列。
+UI 在投递成功后立即显示本地表情气泡。
+服务任务调用 wechat_udp_send_emoji()。
+UDP TX 任务异步发送一个 1 B payload 的表情包。
+
+这里采用乐观 UI：本地气泡表示业务事件成功入队，不表示 UDP 已确认送达。
+8.2 远端接收
+UDP RX 校验协议头和表情索引。
+服务回调投递 REMOTE_EMOJI 事件。
+服务任务写入 UI 队列。
+LVGL timer 拉取消息并显示远端表情气泡。
+
+9. 当前功能边界已实现：
+
+8 个固定表情的双向 UDP 消息；
+8 kHz、单声道、20 ms 帧的 Opus 语音录制；
+WCA 文件保存、UDP 分片发送、CRC32 校验；
+远端语音自动播放；
+录音优先于播放的半双工业务调度；
+UI 与业务服务解耦；
+语音、表情编译期开关。
+
+尚未实现或仅预留：
+
+拍照按钮动作为空；
+UDP 的 PHOTO_BEGIN、PHOTO_DATA、PHOTO_END 只有消息类型定义；
+ACK 类型尚未形成确认与重传机制；
+UI 语音气泡可点击但没有绑定重播事件；
+聊天记录未持久化，重开页面不会恢复历史消息；
+对端 IP 为固定配置，不支持发现、配对或动态切换。
+
+10. 维护风险摘要高优先级
+音频完成回调使用非阻塞方式投递服务队列，且当前忽略投递失败。若 16 深度的服务队列已满，服务层可能收不到完成事件，导致 record_job_id 或 play_job_id 无法清零。
+UDP 协议没有 ACK、重传或乱序重组。任意一个语音 DATA 包丢失或乱序都会使接收端中止整个文件。
+
+中优先级
+UDP RX 回调内直接执行 Flash 文件创建、写入、重命名和 CRC 计算。Flash 延迟过高时可能拖慢后续收包。
+语音接收超时只在收到下一次 BEGIN 时检查。单次传输中途停止后，临时文件可能一直保持打开，直到新 BEGIN 或模块退出。
+UI 队列深度为 8，写入采用非阻塞方式；突发远端消息可能被丢弃。
+接收端只校验来源 IP，没有校验来源 UDP 端口。
+
+兼容性注意
+UDP 多字节字段使用大端序，跨平台可解析。
+WCA 文件头和每帧 packet_len 使用目标机本地字节序。当前文件以整体二进制形式传输并在同类设备上播放没有问题，但不应直接假定其跨端序兼容。
+Opus 库配置为 fixed-point，且启用了 C99 VLA；音频工作任务的大栈需求需要持续关注。
+
+11. 建议的后续演进顺序
+为服务队列完成事件增加可靠投递或兜底状态恢复。
+给语音协议增加 ACK、超时清理和重传策略。
+将 UDP RX 的文件写入移到专用接收任务或缓存队列。
+为消息增加 message ID、发送状态和失败提示，替代完全乐观的 UI。
+实现语音气泡重播与聊天记录索引。
+再扩展照片分片协议，复用 transfer ID、offset、size、CRC 的通用文件传输模型。
+
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW81x 可视对讲</category>
+      </categories>
+      <tags>
+        <tag>UDP</tag>
+        <tag>TXW81x</tag>
+        <tag>微信消息</tag>
+        <tag>LVGL</tag>
+        <tag>RTOS</tag>
+        <tag>可视对讲</tag>
+        <tag>Opus</tag>
+        <tag>软件架构</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</title>
     <url>/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[
@@ -4042,777 +4292,11 @@ play node 容量；
       <tags>
         <tag>TXW81x</tag>
         <tag>RTOS</tag>
-        <tag>微信语音</tag>
         <tag>Opus</tag>
+        <tag>微信语音</tag>
         <tag>WCA</tag>
         <tag>音频编解码</tag>
         <tag>PSRAM</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>TXW81x 微信消息模块总体架构开发文档</title>
-    <url>/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: TXW81x 可视对讲 UI模块: 微信式语音与表情消息阶段: UI、业务服务、UDP 与 Opus 链路整合提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）
-
-
-1. 文档目标本文给后续开发者建立模块级心智模型，重点说明以下问题：
-
-微信入口从哪里创建，页面由谁管理；
-按键事件如何转换为录音、发送、播放等业务动作；
-UDP 收发线程、服务线程和音频线程如何协作；
-Opus 在本项目中承担什么职责；
-哪些路径已经实现，哪些仍是预留能力；
-维护时需要优先关注哪些并发、队列和协议风险。
-
-配套文档：
-
-TXW81x微信消息UDP-v2协议开发文档.md：UDP v2 包格式与语音文件传输协议；
-TXW81x微信语音Opus与WCA音频链路开发文档.md：Opus 参数、WCA 文件和录放音任务；
-TXW81x微信UI控制层与业务服务开发文档.md：LVGL 页面、控制层、服务状态与消息队列。
-
-2. 代码范围
-
-
-层级
-主要文件
-职责
-
-
-
-应用入口
-sdk/app/ui/main_ui.c
-调用 wechat_service_create_ui() 创建微信入口
-
-
-UI 展示
-sdk/lib/gui/intercom_ui/wechat_ui.c
-创建聊天页面、气泡、表情面板和 30 ms 消息轮询定时器
-
-
-输入控制
-sdk/lib/gui/intercom_ui/wechat_ui_control.c
-将 LVGL 键值转换为语音按下&#x2F;松开、表情选择等动作
-
-
-业务服务
-sdk/lib/gui/intercom_ui/wechat_service.c
-初始化资源、串行化业务事件、调度录音&#x2F;播放、桥接 UI 与网络
-
-
-音频适配
-sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c
-音频流、Opus 编解码、WCA 文件和异步作业状态机
-
-
-UDP 传输
-sdk/app/wechat_udp/wechat_udp.c
-UDP socket、协议封包、接收解析、文件分片发送
-
-
-Opus 库
-sdk/lib/opus/
-Opus 1.5.1 编解码实现，固定点配置
-
-
-sdk/app/intercom/intercom_opus.c 是项目原有的实时对讲链路。微信语音模块没有直接复用它的实时网络抖动缓冲和重传逻辑，而是复用了底层音频 stream 与 Opus API，形成“先录制为文件，再通过 UDP 发送”的异步语音消息链路。
-基线版本的关键入口：
-
-sdk/app/ui/main_ui.c:85：创建微信服务 UI；
-sdk/lib/gui/intercom_ui/wechat_ui.c:818：通用 UI 创建接口；
-sdk/lib/gui/intercom_ui/wechat_service.c:642：业务服务初始化；
-sdk/app/wechat_udp/wechat_udp.c:365：UDP 初始化；
-sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c:925：音频与 Opus 初始化。
-
-3. 总体分层main_ui.c    |    vwechat_ui.c  &lt;---- 30 ms 拉取 UI 消息 ----  wechat_service.c    |                                          |       |    | 按键动作                                 |       +--&gt; wechat_udp.c    v                                          |              |wechat_ui_control.c                            |              +--&gt; 对端 UDP 5010                                               |                                               +--&gt; wechat_audio.c                                                       |                                                       +--&gt; sdk/lib/opus/                                                       +--&gt; 音频 stream / DAC                                                       +--&gt; FLASH:/OPUS/*.WCA
-
-设计上的核心边界如下：
-
-UI 层不直接操作 socket、文件或 Opus。
-UDP 接收任务不操作 LVGL 对象，只回调服务层。
-音频工作任务不操作 LVGL，只向服务队列投递完成事件。
-服务任务负责把跨线程事件串行化，并保证录音和播放互斥。
-UI 通过独立 UI 队列获取可显示的消息，不直接读取服务内部状态。
-
-4. 运行实体与资源
-
-
-运行实体
-创建位置
-优先级
-栈&#x2F;队列
-主要工作
-
-
-
-LVGL 线程&#x2F;定时器
-GUI 框架
-GUI 上下文
-30 ms timer
-页面操作、消息气泡渲染
-
-
-wechat_service
-wechat_service_init()
-Normal
-栈 2048 B；事件队列 16
-业务状态编排
-
-
-wechat_udp_tx
-wechat_udp_init()
-Normal
-栈 1024 B；发送队列 16
-异步发送表情
-
-
-wechat_udp_rx
-wechat_udp_init()
-Normal
-栈 1024 B
-收包、校验、回调服务层
-
-
-wechat_audio
-wechat_audio_init()
-Normal
-PSRAM 栈 30 KiB；作业队列 4
-录音、编码、解码、播放
-
-
-重要静态&#x2F;动态资源：
-
-UDP 上下文包含 1209 B 接收缓冲区和 1208 B 发送缓冲区；
-音频播放时从 PSRAM 申请 4 × 1024 B 节点数据区；
-音频任务栈从 PSRAM 申请 30 KiB；
-Opus encoder、decoder 在服务打开时创建，在页面关闭时释放；
-语音文件统一保存在 FLASH:/OPUS。
-
-5. 初始化与退出顺序5.1 打开页面
-main_ui.c 创建微信菜单入口。
-用户短按入口，wechat_ui_open() 调用服务层 open 回调。
-wechat_service_init() 依次创建互斥锁、停止信号量、UI 队列和服务队列。
-初始化 wechat_audio，创建 Opus encoder、decoder 和音频工作任务。
-初始化 wechat_udp，绑定本地 UDP 端口 5010，创建收发任务。
-根据 Wi-Fi 模式配置固定对端：
-AP 模式：192.168.1.100:5010；
-STA 模式：192.168.1.1:5010。
-
-
-创建 wechat_service 任务。
-服务初始化成功后，UI 才隐藏主页面并创建聊天页面、焦点组和消息 timer。
-
-5.2 关闭页面
-删除 UI 消息 timer，停用输入控制。
-调用服务层 close 回调。
-服务任务收到 STOP 消息后发出停止信号。
-停止 UDP 收发任务。
-中止并销毁音频任务，释放 Opus 和 PSRAM 资源。
-清理未完成的接收文件、队列、锁和信号量。
-删除聊天页面，恢复原 LVGL group 和主页面。
-
-6. 本地语音消息链路按住语音键  -&gt; UI action: VOICE_PRESS  -&gt; service queue: VOICE_START  -&gt; 创建 record job_id  -&gt; audio worker 打开 R_WECHAT_AUDIO  -&gt; 每 160 个采样点编码一个 20 ms Opus 帧  -&gt; 写入 FLASH:/OPUS/MSG&lt;n&gt;.WCA松开语音键  -&gt; UI action: VOICE_RELEASE  -&gt; service queue: VOICE_STOP  -&gt; audio worker 协作停止并回报 RECORD_FINISHED  -&gt; service 读取真实录音结果  -&gt; UDP BEGIN + DATA... + END 发送整个 WCA 文件  -&gt; 发送成功后通知 UI 添加本地语音气泡
-
-注意：UI 在松键时计算的秒数被放入 VOICE_STOP 事件，但当前服务逻辑只把它当作附带数据，并不用于最终发送。最终语音时长来自 WCA 文件的实际 Opus 帧数，即 wechat_audio_result_t.duration_sec。
-7. 远端语音消息链路
-UDP RX 任务收到 WECHAT_UDP_MSG_VOICE。
-服务回调按 BEGIN / DATA / END 子类型处理。
-BEGIN 创建 FLASH:/OPUS/RX&lt;transfer_id&gt;.TMP。
-DATA 要求 offset 严格等于当前已接收长度，并边写文件边计算 CRC32。
-END 校验 transfer ID、文件长度和 CRC32。
-校验通过后将临时文件重命名为 .WCA。
-服务任务把它转为待播放语音并通知 UI 添加远端气泡。
-若当前没有录音或播放任务，立即创建播放 job。
-音频任务逐帧 Opus 解码，将 PCM 节点送往 speaker stream。
-
-录音优先级高于远端播放：用户在播放期间按下语音键时，服务先停止当前播放，待播放完成事件返回后再开始录音。
-8. 表情消息链路8.1 本地发送
-用户打开表情面板并选择索引 0..7。
-UI 调用 emoji_selected 回调。
-服务把 SEND_EMOJI 投递到服务队列。
-UI 在投递成功后立即显示本地表情气泡。
-服务任务调用 wechat_udp_send_emoji()。
-UDP TX 任务异步发送一个 1 B payload 的表情包。
-
-这里采用乐观 UI：本地气泡表示业务事件成功入队，不表示 UDP 已确认送达。
-8.2 远端接收
-UDP RX 校验协议头和表情索引。
-服务回调投递 REMOTE_EMOJI 事件。
-服务任务写入 UI 队列。
-LVGL timer 拉取消息并显示远端表情气泡。
-
-9. 当前功能边界已实现：
-
-8 个固定表情的双向 UDP 消息；
-8 kHz、单声道、20 ms 帧的 Opus 语音录制；
-WCA 文件保存、UDP 分片发送、CRC32 校验；
-远端语音自动播放；
-录音优先于播放的半双工业务调度；
-UI 与业务服务解耦；
-语音、表情编译期开关。
-
-尚未实现或仅预留：
-
-拍照按钮动作为空；
-UDP 的 PHOTO_BEGIN、PHOTO_DATA、PHOTO_END 只有消息类型定义；
-ACK 类型尚未形成确认与重传机制；
-UI 语音气泡可点击但没有绑定重播事件；
-聊天记录未持久化，重开页面不会恢复历史消息；
-对端 IP 为固定配置，不支持发现、配对或动态切换。
-
-10. 维护风险摘要高优先级
-音频完成回调使用非阻塞方式投递服务队列，且当前忽略投递失败。若 16 深度的服务队列已满，服务层可能收不到完成事件，导致 record_job_id 或 play_job_id 无法清零。
-UDP 协议没有 ACK、重传或乱序重组。任意一个语音 DATA 包丢失或乱序都会使接收端中止整个文件。
-
-中优先级
-UDP RX 回调内直接执行 Flash 文件创建、写入、重命名和 CRC 计算。Flash 延迟过高时可能拖慢后续收包。
-语音接收超时只在收到下一次 BEGIN 时检查。单次传输中途停止后，临时文件可能一直保持打开，直到新 BEGIN 或模块退出。
-UI 队列深度为 8，写入采用非阻塞方式；突发远端消息可能被丢弃。
-接收端只校验来源 IP，没有校验来源 UDP 端口。
-
-兼容性注意
-UDP 多字节字段使用大端序，跨平台可解析。
-WCA 文件头和每帧 packet_len 使用目标机本地字节序。当前文件以整体二进制形式传输并在同类设备上播放没有问题，但不应直接假定其跨端序兼容。
-Opus 库配置为 fixed-point，且启用了 C99 VLA；音频工作任务的大栈需求需要持续关注。
-
-11. 建议的后续演进顺序
-为服务队列完成事件增加可靠投递或兜底状态恢复。
-给语音协议增加 ACK、超时清理和重传策略。
-将 UDP RX 的文件写入移到专用接收任务或缓存队列。
-为消息增加 message ID、发送状态和失败提示，替代完全乐观的 UI。
-实现语音气泡重播与聊天记录索引。
-再扩展照片分片协议，复用 transfer ID、offset、size、CRC 的通用文件传输模型。
-
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>TXW81x 可视对讲</category>
-      </categories>
-      <tags>
-        <tag>UDP</tag>
-        <tag>TXW81x</tag>
-        <tag>微信消息</tag>
-        <tag>LVGL</tag>
-        <tag>RTOS</tag>
-        <tag>Opus</tag>
-        <tag>可视对讲</tag>
-        <tag>软件架构</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>TXW828 AI 闹钟 — UI 模块工程说明文档</title>
-    <url>/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[TXW828 AI 闹钟 — UI 模块工程说明文档
-适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）
-
-
-目录
-模块概览
-目录结构
-核心架构
-各模块详细说明
-数据流与刷新机制
-公共 API 参考
-添加新页面的步骤
-依赖关系
-已知限制与注意事项
-编译与调试
-
-
-一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。
-1.2 UI 包含哪些功能页面
-
-
-页面
-功能
-代码路径
-
-
-
-Home（主页）
-显示时间、日期、天气、WiFi 状态、电量
-home/
-
-
-Plan List（计划列表）
-日期选择条 + 待办事项管理
-plan_list/
-
-
-AI Q&amp;A（AI 问答）
-AI 对话入口页面
-ai_qa/
-
-
-Timing（计时器）
-倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器
-timing/
-
-
-Calendar（日历）
-月历视图 + 年月选择器
-calendar/
-
-
-Settings（设置）
-WiFi、蓝牙、亮度等 11 项设置
-settings/
-
-
-1.3 技术栈
-GUI 框架： LVGL 8.x
-语言： C99
-RTOS： AliOS（通过 ohos/kernel/）
-服务层： 自定义 service 层（project/service/）
-构建工具： CDK（project/txw82xApp.cdkproj）
-
-
-二、目录结构project/ui/│├── ui_theme.h                  ── [基础] 统一颜色、字体、尺寸常量├── ui_back_button.h/.c         ── [基础] 可复用返回按钮组件├── ui_menu_detail_page.h/.c    ── [基础] 菜单→详情导航框架├── ui_manager.h/.c             ── [核心] UI 管理器（页面注册、导航、生命周期）├── ui_screen_ids.h             ── [核心] 屏幕 ID 枚举定义│├── menu/│   ├── menu_view.h             ── 菜单图片视图接口│   └── menu_view.c             ── 菜单图片显示 + 点击事件│├── home/│   ├── home_view.h             ── 主页视图接口│   ├── home_view.c             ── 主页 UI 布局（时间、日期、天气、电量）│   ├── home_refresh.h          ── 主页数据刷新接口│   └── home_refresh.c          ── 定时刷新逻辑（1s/10s/60s/1800s 周期）│├── ai_qa/│   ├── ai_qa_screen.h          ── AI 问答页面接口│   └── ai_qa_screen.c          ── AI 问答页面实现│├── timing/│   ├── timing_screen.h         ── 计时器页面接口│   └── timing_screen.c         ── 计时器页面（倒计时/秒表/番茄钟）│├── calendar/│   ├── calendar_screen.h       ── 日历页面接口│   └── calendar_screen.c       ── 日历页面（月历 + 年月选择器）│├── plan_list/│   ├── plan_list_screen.h      ── 计划列表页面接口│   └── plan_list_screen.c      ── 计划列表页面（日期条 + 待办）│├── settings/│   ├── settings_screen.h       ── 设置页面接口│   ├── settings_screen.c       ── 设置页面入口│   ├── settings_manager.h/.c   ── 设置项管理器（11 项设置 + 子页面路由）│   ├── settings_common_styles.h/.c ── 设置页面通用样式（标题栏、body）│   ├── settings_detail/        ── 设置列表视图│   ├── setting_brightness/     ── 亮度调节子页面│   └── setting_wifi/           ── WiFi 连接子页面│
-
-
-三、核心架构3.1 整体架构图┌─────────────────────────────────────────────────────────────┐│                         ui_manager                           ││  ┌─────────────────────────────────────────────────────────┐││  │                    lv_tileview                           │││  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐│││  │  │ HOME │ │PLAN  │ │AI_QA │ │TIMING│ │CALEN │ │SETTIN││││  │  │      │ │LIST  │ │      │ │      │ │DAR   │ │GS    ││││  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘│││  └─────────────────────────────────────────────────────────┘││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  home_refresh     │    │  ui_menu_detail_page (框架)   │  ││  │  (定时器 1s)       │    │  ┌─────────┐ ┌────────────┐ │  ││  │  → home_view      │    │  │menu_page│→│detail_page │ │  ││  └───────────────────┘    │  │(图片)   │ │(回调创建)  │ │  ││                           │  └─────────┘ └────────────┘ │  ││                           └──────────────────────────────┘  ││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  ui_theme.h       │    │  ui_back_button              │  ││  │  (颜色/字体/尺寸)  │    │  (返回按钮组件)               │  ││  └───────────────────┘    └──────────────────────────────┘  │└─────────────────────────────────────────────────────────────┘         │                          │         ▼                          ▼┌─────────────────┐    ┌──────────────────────┐│  service 层      │    │  LVGL 8.x            ││  time_service    │    │  (渲染、事件、输入)    ││  weather_service │    └──────────────────────┘│  system_status   ││  wifi_service    │└─────────────────┘
-
-3.2 导航模型UI 使用 LVGL 的 lv_tileview 作为顶层导航容器，每个功能页面对应一个 tile。用户水平滑动切换 tile。
-  ← 滑动 →┌────────┬────────┬────────┬────────┬────────┬────────┐│  HOME  │ PLAN   │ AI_QA  │ TIMING │ CALEND │ SETTING││  (0)   │ (1)    │ (2)    │ (3)    │ (4)    │ (5)    │└────────┴────────┴────────┴────────┴────────┴────────┘
-
-除 Home 页面外，其他页面点击菜单图片后进入 detail page（覆盖在 tile 上），此时水平滑动被禁用，点击返回按钮回到菜单页。
-3.3 页面生命周期┌──────────┐│  create  │  ← ui_manager_create_root() 时一次性创建所有 tile└────┬─────┘     │     ▼┌──────────┐│  active  │  ← 用户滑动到该 tile 时└────┬─────┘     │     ├── 点击菜单图片 → 进入 detail page（禁用滑动）     │                    │     │                    ├── detail_create_cb() 回调创建页面     │                    │     │                    └── 点击返回 → show_menu() 销毁 detail，恢复滑动     │     └── 滑动离开 → tile 失焦（home 定时器暂停）
-
-
-四、各模块详细说明4.1 ui_manager — UI 管理器职责：
-
-创建 root screen 和 tileview
-注册所有屏幕页面到 tile
-处理 tile 切换事件
-管理 Home 页面刷新定时器的启动&#x2F;暂停
-提供页面跳转 API（ui_manager_show_xxx_screen()）
-提供 tile 滑动方向控制（ui_manager_set_tile_swipe_enabled()）
-
-关键实现细节：
-// 屏幕配置表（ui_manager.c 内部）static const ui_screen_config_t g_ui_manager_screens[UI_SCREEN_ID_COUNT] = &#123;    [UI_SCREEN_ID_HOME]      = &#123; .name = &quot;home&quot;,      .image_path = NULL,              .create = ... &#125;,    [UI_SCREEN_ID_PLAN_LIST] = &#123; .name = &quot;plan_list&quot;,  .image_path = &quot;F:/jihuaqingdan.png&quot;, .create = ... &#125;,    [UI_SCREEN_ID_AI_QA]     = &#123; .name = &quot;ai_qa&quot;,     .image_path = &quot;F:/aiduihua.png&quot;,     .create = ... &#125;,    // ... 共 6 个页面&#125;;
-
-tile 切换时的自动行为：
-
-恢复水平滑动方向（安全保护）
-切换到 Home → 恢复 home_refresh_timer
-切换到其他页面 → 暂停 home_refresh_timer
-
-4.2 ui_theme — 主题系统纯头文件，只包含 #define 常量，无运行时开销。
-
-
-
-分类
-常量数量
-示例
-
-
-
-颜色
-16 个
-UI_COLOR_PRIMARY (0xffd54a)
-
-
-字体
-8 个
-UI_FONT_TITLE (&amp;lv_font_montserrat_20)
-
-
-尺寸
-5 个
-UI_HEADER_HEIGHT (35)
-
-
-4.3 ui_menu_detail_page — 菜单→详情导航框架解决的问题： 5 个页面（AI QA、Timing、Calendar、Plan List、Settings）都有完全相同的菜单→详情切换逻辑，原来每个页面重复实现 50-80 行样板代码。
-核心数据结构：
-typedef struct &#123;    lv_obj_t *screen;                    // tile 容器（不可销毁）    lv_obj_t *menu_page;                 // 菜单页面（带图片，可隐藏/显示）    lv_obj_t *detail_page;               // 详情页面（可创建/销毁）    ui_detail_create_cb_t detail_create_cb;   // 详情创建回调    ui_detail_destroy_cb_t detail_destroy_cb; // 详情销毁回调    void *user_data;                     // 传递给回调的用户数据    ui_menu_view_action_t menu_action;   // 存储在结构体内（避免悬空指针）    bool detail_created;&#125; ui_menu_detail_page_t;
-
-⚠️ 关键约束（二次开发时必须遵守）：
-
-detail_create_cb 回调内必须：
-
-在 parent（即 ctx-&gt;screen &#x3D; tile）上创建 page = lv_obj_create(parent)
-创建完成后设置 ctx-&gt;detail_page = page
-否则 show_detail() 会因为 detail_page == NULL 而返回，导致页面不显示
-
-
-menu_action 必须存储在结构体内（不能是局部变量），因为 ui_menu_view_create 只保存了指针引用。
-
-
-4.4 ui_back_button — 返回按钮组件lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
-
-创建一个 30×30 圆形透明按钮，带 LV_SYMBOL_LEFT 图标。被以下模块使用：
-
-ui_menu_detail_page_create_detail_header() — 通用标题栏
-settings_common_styles.c — 设置页面标题栏
-
-4.5 home — 主页模块组成： home_view.c（UI 布局） + home_refresh.c（数据刷新）
-home_view 暴露的接口：
-void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
-
-home_refresh 的刷新策略：
-
-
-
-周期
-操作
-
-
-
-每 1 秒
-刷新时间显示
-
-
-每 10 秒
-刷新 WiFi + 电量状态
-
-
-每 60 秒
-刷新日期 + 天气显示
-
-
-每 1800 秒
-调用 weather_service_refresh() 重新请求天气 API
-
-
-优化点： home_refresh_timer 在用户滑离 Home 页面时自动暂停，返回时恢复。
-4.6 menu — 菜单视图void ui_menu_view_create(lv_obj_t *parent, const char *image_path, const ui_menu_view_action_t *view_action);
-
-行为：
-
-如果 image_path 指向的文件存在 → 显示图片（lv_img）
-如果文件不存在 → 显示 LV_SYMBOL_IMAGE 占位符图标
-如果 view_action 有回调 → 图片可点击，点击触发回调
-
-注意： 图片路径格式为 &quot;F:/xxx.png&quot;，其中 F: 对应设备 Flash 存储的文件系统挂载点。
-4.7 settings — 设置模块（最复杂的子系统）Settings 使用三级导航结构：
-┌─────────────┐     点击图片      ┌─────────────┐     点击设置项     ┌─────────────┐│  menu_page  │ ────────────────→ │ detail_page │ ────────────────→ │  sub_page   ││  (菜单图片)  │                   │ (11项设置列表)│                   │ (具体设置界面)│└─────────────┘ ←──────────────── └─────────────┘ ←──────────────── └─────────────┘                    返回按钮                           返回按钮
-
-11 个设置项：
-
-
-
-ID
-名称
-子页面
-
-
-
-0
-Wi-Fi
-✅ 已实现（setting_wifi/）
-
-
-1
-Bluetooth
-❌ NULL（未实现）
-
-
-2
-Brightness
-✅ 已实现（setting_brightness/）
-
-
-3
-Sleep Timer
-❌ NULL
-
-
-4
-Baidu Netdisk
-❌ NULL
-
-
-5
-Volume
-❌ NULL
-
-
-6
-Do Not Disturb
-❌ NULL
-
-
-7
-Night Screen Off
-❌ NULL
-
-
-8
-WeChat Binding
-❌ NULL
-
-
-9
-System Update
-❌ NULL
-
-
-10
-Factory Reset
-❌ NULL
-
-
-⚠️ 注意： settings_manager 内部管理了 sub_page 的创建&#x2F;销毁，与 ui_menu_detail_page 框架独立。back_event_cb 由 settings_screen.c 提供，用于从 detail 返回到 menu。
-4.8 WiFi 设置子页面（setting_wifi）这是设置模块中最复杂的子页面，包含：
-
-WiFi 扫描（定时器驱动，300ms 周期）
-AP 列表展示（信号强度、SSID、加密状态、连接状态）
-密码输入页面（textarea + keyboard）
-自动排序（已连接 AP 优先，然后按信号强度）
-
-⚠️ 注意： WiFi 子页面使用 malloc 分配 SSID 副本（ssid_copy = malloc(MAX_SSID_LEN)），需要在事件回调中 free。
-
-五、数据流与刷新机制5.1 数据流向┌──────────────────────┐│     service 层        ││  ┌────────────────┐  ││  │ time_service    │──┼──→ home_view_set_time()│  │ weather_service │──┼──→ home_view_set_weather()│  │ system_status   │──┼──→ home_view_set_wifi()│  │                 │──┼──→ home_view_set_battery()│  └────────────────┘  │└──────────────────────┘
-
-Home 页面是唯一有定时刷新的页面。其他页面的数据在创建时获取一次，后续更新依赖用户交互（如 WiFi 扫描定时器）。
-5.2 事件流用户触摸事件    │    ▼LVGL 输入设备驱动（触摸屏）    │    ▼lv_tileview 事件处理    │    ├── 滑动 → LV_EVENT_VALUE_CHANGED → ui_manager_handle_tile_change()    │    └── 点击 → LV_EVENT_CLICKED                │                ├── menu_view: ui_menu_view_handle_click()                │       → ui_menu_detail_page_show_detail()                │           → detail_create_cb() [首次]                │           → 禁用滑动 + 隐藏 menu + 显示 detail                │                └── back_button: xxx_on_back_click()                        → ui_menu_detail_page_show_menu()                            → lv_obj_del(detail_page)                            → 启用滑动 + 显示 menu
-
-
-六、公共 API 参考6.1 ui_manager.hvoid ui_manager_init(void);                           // 初始化 UI（首次调用）void ui_manager_go_back(void);                        // 返回 Homeconst char *ui_manager_get_menu_image_path(ui_screen_id_t screen_id);  // 获取菜单图片路径// 页面跳转void ui_manager_show_home_screen(void);void ui_manager_show_plan_list_screen(void);void ui_manager_show_ai_qa_screen(void);void ui_manager_show_timing_screen(void);void ui_manager_show_calendar_screen(void);void ui_manager_show_settings_screen(void);// 滑动控制void ui_manager_set_tile_swipe_enabled(bool enabled);
-
-6.2 ui_menu_detail_page.hvoid ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,    uint32_t bg_color,    const char *menu_image_path,    ui_detail_create_cb_t detail_create_cb,    ui_detail_destroy_cb_t detail_destroy_cb,    void *user_data);void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
-
-6.3 ui_back_button.hlv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
-
-6.4 home_view.htypedef struct &#123;    int year, hour, minute, weekday, month, day;    int temperature;    const char *weather_text;    int wifi_connected, wifi_level;    int battery_percent, battery_charging;&#125; ui_home_view_model_t;void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
-
-6.5 ui_screen_ids.htypedef enum &#123;    UI_SCREEN_ID_NONE = -1,    UI_SCREEN_ID_HOME = 0,    UI_SCREEN_ID_PLAN_LIST,    UI_SCREEN_ID_AI_QA,    UI_SCREEN_ID_TIMING,    UI_SCREEN_ID_CALENDAR,    UI_SCREEN_ID_SETTINGS,    UI_SCREEN_ID_COUNT       // = 6&#125; ui_screen_id_t;
-
-
-七、添加新页面的步骤步骤 1：创建文件project/ui/my_feature/├── my_feature_screen.h└── my_feature_screen.c
-
-步骤 2：实现代码（模板）/* my_feature_screen.h */#ifndef UI_MY_FEATURE_SCREEN_H#define UI_MY_FEATURE_SCREEN_H#include &quot;lvgl/lvgl.h&quot;void ui_my_feature_screen_create(lv_obj_t *screen);#endif/* my_feature_screen.c */#include &quot;my_feature_screen.h&quot;#include &quot;../ui_manager.h&quot;#include &quot;../ui_menu_detail_page.h&quot;#include &quot;../ui_theme.h&quot;typedef struct &#123;    ui_menu_detail_page_t base;    /* 你的页面状态 */&#125; ui_my_feature_state_t;static ui_my_feature_state_t g_ui;static void on_back(lv_event_t *e) &#123;    (void)e;    ui_menu_detail_page_show_menu(&amp;g_ui.base);&#125;static void create_detail(lv_obj_t *parent, void *ud) &#123;    (void)ud;    lv_obj_t *page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));    lv_obj_center(page);    lv_obj_set_style_bg_color(page, lv_color_hex(UI_COLOR_BG_DETAIL), 0);    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);    lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);    g_ui.base.detail_page = page;  /* ⚠️ 必须设置 */    ui_menu_detail_page_create_detail_header(page, &quot;My Feature&quot;, on_back);    /* 在 page 上创建你的内容 */&#125;void ui_my_feature_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui.base, screen, UI_COLOR_BG_DETAIL,        ui_manager_get_menu_image_path(UI_SCREEN_ID_MY_FEATURE),        create_detail, NULL, NULL);&#125;
-
-步骤 3：注册到 ui_manager
-ui_screen_ids.h — 在 UI_SCREEN_ID_SETTINGS 后添加 UI_SCREEN_ID_MY_FEATURE
-
-ui_manager.c — 添加：
-#include &quot;my_feature/my_feature_screen.h&quot;static void ui_manager_create_my_feature_screen(lv_obj_t *screen) &#123;    ui_my_feature_screen_create(screen);&#125;// 在 g_ui_manager_screens 数组中添加：[UI_SCREEN_ID_MY_FEATURE] = &#123;    .name = &quot;my_feature&quot;,    .image_path = &quot;F:/myicon.png&quot;,    .create = ui_manager_create_my_feature_screen&#125;,
-
-ui_manager.h — 添加 void ui_manager_show_my_feature_screen(void);
-
-txw82xApp.cdkproj — 在 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加新 .c 文件引用
-
-
-步骤 4：准备菜单图片将 240×240 或适当尺寸的 PNG 图片放入设备 Flash，路径与 image_path 一致（如 &quot;F:/myicon.png&quot;）。
-
-八、依赖关系8.1 头文件依赖图ui_theme.h ◄─────────────────────────────────────────────────────┐    ▲                                                             │    │ (所有文件都 include)                                         │    │                                                             │ui_back_button.h ◄── ui_menu_detail_page.h ◄── 各 screen.c       │    ▲                   ▲                                        │    │                   │                                        │    │         menu/menu_view.h ◄──────────────────────────────────┘    │    └── settings_common_styles.h ◄── settings 子模块
-
-8.2 service 层依赖
-
-
-UI 模块
-依赖的 service
-调用的函数
-
-
-
-home_refresh
-time_service
-time_service_get_datetime()
-
-
-home_refresh
-weather_service
-weather_service_get_data(), weather_service_refresh()
-
-
-home_refresh
-system_status_service
-system_status_service_get_data()
-
-
-calendar_screen
-time_service
-time_service_get_datetime()
-
-
-plan_list_screen
-time_service
-time_service_get_datetime()
-
-
-setting_wifi
-wifi_service
-wifi_service_init(), wifi_service_scan(), wifi_service_connect() 等
-
-
-8.3 LVGL 组件使用统计
-
-
-LVGL 组件
-使用页面
-
-
-
-lv_obj
-所有页面（通用容器）
-
-
-lv_label
-所有页面（文本显示）
-
-
-lv_btn
-timing, plan_list, calendar, settings
-
-
-lv_img
-menu（菜单图片）
-
-
-lv_slider
-brightness（亮度调节）
-
-
-lv_textarea
-wifi（密码输入）
-
-
-lv_keyboard
-wifi（密码输入）
-
-
-lv_calendar
-calendar（月历）
-
-
-lv_roller
-calendar（年月选择器）
-
-
-lv_tileview
-ui_manager（顶层导航）
-
-
-
-九、已知限制与注意事项9.1 内存限制
-所有 6 个 tile 在 ui_manager_create_root() 时一次性全部创建，不支持懒加载
-每个 tile 创建后即使不可见也占用 LVGL 内存
-ui_home_create_flower() 创建 11 个 LVGL 对象绘制一朵花，可优化为 Canvas 或图片
-
-9.2 图片资源
-菜单图片存储在设备 Flash（路径 F:/xxx.png）
-图片不存在时显示占位图标（LV_SYMBOL_IMAGE）
-需要确保 menu_view.c 中 lv_fs_open 的文件系统驱动已正确注册
-
-9.3 WiFi 子页面
-使用 malloc/free 管理 SSID 字符串副本
-WiFi 扫描定时器有 9 秒超时限制（300ms × 30 次）
-密码输入要求最少 8 字符
-
-9.4 Settings 三级导航
-Settings 的 detail_page 由 settings_manager 内部管理，与 ui_menu_detail_page 框架的 detail_page 概念不同
-settings_manager 内部还有 sub_page 层级
-添加新设置项需要修改 settings_manager.c 中的 g_ui_settings_page_configs 数组
-
-9.5 字体
-使用 LVGL 内置的 Montserrat 字体（10&#x2F;12&#x2F;14&#x2F;16&#x2F;18&#x2F;20&#x2F;22&#x2F;48）
-仅支持英文 + 数字 + 特殊符号
-不支持中文显示（如需中文，需添加自定义字库）
-
-9.6 硬编码的文件路径所有图片路径硬编码为 &quot;F:/xxx.png&quot;，如需修改文件系统挂载点，需全局替换 ui_manager.c 中的 image_path 字段。
-
-十、编译与调试10.1 编译使用 CDK IDE 打开 project/txw82xApp.cdkproj，确保所有新增的 .c 文件已添加到工程的 ui 虚拟文件夹中。
-10.2 添加新文件到工程在 txw82xApp.cdkproj 的 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加：
-&lt;File Name=&quot;ui/my_feature/my_feature_screen.c&quot;&gt;  &lt;FileOption/&gt;&lt;/File&gt;
-
-10.3 调试技巧
-查看 LVGL 对象数量： 在调试器中查看 lv_obj_count 确认对象是否正确销毁
-检查 tile 切换： 在 ui_manager_handle_tile_change 中设断点，确认 screen_id 正确
-WiFi 调试： menu_view.c 中的文件存在检查可临时恢复 printf 语句
-内存不足： 如果页面创建失败，检查 lv_mem_monitor 确认可用内存
-
-10.4 常见问题排查
-
-
-现象
-可能原因
-排查方法
-
-
-
-页面不显示
-detail_page 未设置
-检查 callback 中是否有 g_xxx.base.detail_page = page
-
-
-无法滑动
-swipe 被禁用未恢复
-检查 show_menu 是否正确调用
-
-
-进入详情死机
-对象创建过多
-检查 LVGL 对象数量限制
-
-
-菜单图片不显示
-Flash 文件不存在
-检查 F:/ 下的图片文件
-
-
-中文乱码
-字体不支持中文
-需要添加中文字库
-
-
-
-附录：文件变更记录
-
-
-日期
-变更
-说明
-
-
-
-2026-05-09
-新增 ui_theme.h
-统一主题系统
-
-
-2026-05-09
-新增 ui_back_button.h/.c
-可复用返回按钮
-
-
-2026-05-09
-新增 ui_menu_detail_page.h/.c
-菜单→详情导航框架
-
-
-2026-05-09
-重构 5 个 screen 文件
-使用新框架消除样板代码
-
-
-2026-05-09
-修复 home_view.c
-花朵位置 bug
-
-
-2026-05-09
-优化 ui_manager.c
-Home 定时器按需暂停
-
-
-2026-05-09
-清理 menu_view.c
-移除 debug printf
-
-
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>TXW828 AI 闹钟</category>
-      </categories>
-      <tags>
-        <tag>嵌入式</tag>
-        <tag>LVGL</tag>
-        <tag>UI架构</tag>
-        <tag>代码移交</tag>
-        <tag>项目文档</tag>
       </tags>
   </entry>
   <entry>
@@ -5590,12 +5074,847 @@ KEY_MODULE_EN == 1 时按键输入已注册；
         <tag>UDP</tag>
         <tag>C语言</tag>
         <tag>嵌入式</tag>
-        <tag>TXW81x</tag>
         <tag>JPEG</tag>
+        <tag>TXW81x</tag>
         <tag>LVGL</tag>
         <tag>视频对讲</tag>
         <tag>流媒体</tag>
         <tag>双画面</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</title>
+    <url>/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿1. 优化背景TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：
+
+细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹；
+斜线、文字边缘和物体轮廓出现阶梯状锯齿；
+细节随镜头轻微移动而闪烁或跳变；
+硬件一次性大比例缩小后，部分像素信息被直接跳过。
+
+本次优化不改变摄像头、VPP 和 Scale3 的基础结构，而是在 Scale3 生成 YUV420P 帧后增加一次固定比例的软件降采样。核心思路是：
+
+先让 Scale3 输出较高分辨率的中间图像，再对相邻 2×2 像素做均值滤波并缩小一半，从而在抽取像素前抑制容易产生混叠的高频信息。
+
+对应提交：
+6820c0d scale3均值缩放
+
+核心修改文件：
+sdk/app/scale_msi/scale3_normal_msi.c
+
+
+2. 优化目标本次修改的主要目标是改善缩小图像的主观质量，而不是节省 Scale3 输出缓冲区。
+具体目标包括：
+
+在最终降采样前进行简单低通滤波；
+降低亮度细节产生的摩尔纹和混叠；
+平滑斜边与轮廓，减轻阶梯锯齿；
+使用固定 2:1 比例降低算法复杂度；
+在原有 YUV420P 缓冲区内原地处理，避免额外申请整帧内存；
+保持原有 MSI 输出接口和 framebuff 生命周期不变。
+
+需要特别说明：当前实现不会降低 Scale3 帧池最初申请的 PSRAM 容量，因为缓冲区仍按照中间分辨率创建。它降低的是送往下游的有效图像尺寸和 fb-&gt;len。
+
+3. 修改前后的数据链路3.1 修改前Camera / VPP     |     vScale3 硬件缩放     |  直接生成最终尺寸 YUV420P     vframebuff     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
+
+如果 Scale3 直接把高分辨率图像缩到较小尺寸，硬件缩放过程中对高频纹理的预滤波不足，就可能产生混叠。
+3.2 修改后Camera / VPP     |     vScale3 硬件缩放     |  生成较高分辨率中间帧，例如 800×480     vYUV420P 中间缓冲区     |     |  Y：2×2 Box Average     |  U/V：固定位置抽样     v原地 2:1 降采样     |  输出 400×240     v更新 framebuff 元数据     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
+
+以当前配套配置为例：
+
+
+
+阶段
+分辨率
+YUV420P 有效数据量
+
+
+
+Scale3 中间输出
+800×480
+576000 字节
+
+
+软件降采样输出
+400×240
+144000 字节
+
+
+宽、高各缩小一半，因此最终像素数量和有效数据量均变为原来的四分之一。
+
+4. 为什么均值降采样能改善摩尔纹和锯齿4.1 问题本质：缩小过程中的混叠缩小图像意味着目标图像的一个像素要代表源图中的一片区域。如果直接选择区域内的某一个像素，源图中比目标分辨率更细的纹理会被错误地映射成较低频率的条纹，这就是空间采样中的混叠。
+摩尔纹是混叠的一种典型表现。它并不是原始场景中真实存在的大条纹，而是细密纹理与目标像素网格相互干涉后形成的伪影。
+4.2 2×2 均值相当于简单低通滤波当前亮度分量的计算公式为：
+Yout(x, y) = (    Yin(2x,     2y)     +    Yin(2x + 1, 2y)     +    Yin(2x,     2y + 1) +    Yin(2x + 1, 2y + 1)) / 4
+
+它先把 2×2 区域内的亮度变化平均，再生成一个输出像素。这相当于使用下面的 Box Filter 卷积核：
+1/4 × [ 1  1 ]      [ 1  1 ]
+
+均值会削弱单像素级的明暗跳变和细密纹理，然后再执行 2:1 抽取，因此比直接隔点取样更不容易产生错误条纹。
+4.3 对锯齿的改善斜线穿过像素网格时，每个 2×2 区域内通常同时包含前景与背景。均值计算会生成介于二者之间的亮度值，使边缘产生有限的灰度过渡，而不是只有完全亮或完全暗两个状态。
+因此，最终显示出来的斜边会更平滑。这种效果属于缩放阶段的预滤波抗锯齿，不等同于 3D 渲染中的 MSAA，但二者都利用了区域覆盖信息改善边缘质量。
+
+5. YUV420P 内存布局算法处理的是三平面 YUV420P，缓冲区布局如下：
+buf | +-- Y 平面：W × H | +-- U 平面：(W / 2) × (H / 2) | +-- V 平面：(W / 2) × (H / 2)
+
+各平面的地址计算为：
+src_y_size = (uint32_t)src_w * src_h;src_u = buf + src_y_size;src_v = src_u + src_y_size / 4;
+
+YUV420P 的整帧数据量为：
+W × H + W × H / 4 + W × H / 4= W × H × 3 / 2
+
+降采样后，目标平面被紧凑地放到同一个缓冲区前部：
+dst_y_size = (uint32_t)out_w * out_h;dst_u = buf + dst_y_size;dst_v = dst_u + dst_y_size / 4;
+
+
+6. 核心实现分析6.1 函数接口新增函数为：
+static uint8_t scale3_yuv420p_downsample_2x2(    uint8_t *buf,    uint16_t src_w,    uint16_t src_h,    uint16_t *dst_w,    uint16_t *dst_h);
+
+参数含义：
+
+
+
+参数
+说明
+
+
+
+buf
+YUV420P 源缓冲区，同时作为目标缓冲区
+
+
+src_w、src_h
+Scale3 中间输出宽高
+
+
+dst_w、dst_h
+返回实际降采样后的宽高
+
+
+返回值
+1 表示成功，0 表示输入不满足处理条件
+
+
+6.2 尺寸检查与偶数约束if (!buf || src_w &lt; 4 || src_h &lt; 4 ||    (src_w &amp; 1) || (src_h &amp; 1))&#123;    return 0;&#125;out_w = (src_w &gt;&gt; 1) &amp; ~1U;out_h = (src_h &gt;&gt; 1) &amp; ~1U;
+
+YUV420P 要求宽高适合 2×2 色度采样，因此输出宽高继续保持偶数。
+当源尺寸除以 2 后为奇数时，代码会向下对齐到偶数。例如：
+322×242 -&gt; 160×120
+
+这种情况下会舍弃最右侧和最下侧各一个 2 像素块。常用的 800×480、320×240、168×128 均不会触发额外裁边。
+6.3 Cache 一致性Scale3 通过 DMA 向缓冲区写入数据，CPU 随后读取并修改该缓冲区，因此处理前先失效 D-Cache：
+sys_dcache_invalid_range((uint32_t *)buf, src_y_size * 3 / 2);
+
+处理完成后清理目标范围，确保下游 DMA 或其他硬件模块读到 CPU 写入的新数据：
+sys_dcache_clean_range((uint32_t *)buf, dst_y_size * 3 / 2);
+
+这一对操作是硬件缩放输出与 CPU 图像处理之间的重要边界，不能省略。
+6.4 Y 平面均值Y 平面按照两行、四列源数据一组处理，每次生成两个目标像素：
+uint32_t row0 = *(uint32_t *)(src_y0 + (x &lt;&lt; 1));uint32_t row1 = *(uint32_t *)(src_y1 + (x &lt;&lt; 1));sum = (row0 &amp; 0x00ff00ff) +      ((row0 &gt;&gt; 8) &amp; 0x00ff00ff) +      (row1 &amp; 0x00ff00ff) +      ((row1 &gt;&gt; 8) &amp; 0x00ff00ff);*(uint16_t *)(out_y + x) =    (uint16_t)(((sum &gt;&gt; 2) &amp; 0xff) |               ((sum &gt;&gt; 10) &amp; 0xff00));
+
+该实现使用 32 位读取和位运算同时累计两组 2×2 像素，减少逐像素循环、除法和存储次数。除以 4 通过右移 2 位完成。
+6.5 U&#x2F;V 平面处理当前色度分量没有计算 2×2 均值，而是从每个源色度块中选择左上角样本：
+dst_u[dst_row + x] = src_u[src_index];dst_v[dst_row + x] = src_v[src_index];
+
+由于 YUV420P 的 U&#x2F;V 本来就只有 Y 平面四分之一的采样数，Y 再缩小 2 倍后，U&#x2F;V 也必须继续缩小 2 倍，才能形成合法的目标 YUV420P 布局。
+这种实现速度较快，但意味着当前的“均值缩放”主要作用于亮度：
+
+明暗细节造成的摩尔纹和锯齿能够得到改善；
+彩色细纹造成的色度摩尔纹仍可能保留；
+如果后续需要进一步提升质量，可将 U&#x2F;V 也改为 2×2 均值。
+
+6.6 为什么可以原地处理处理顺序是 Y 平面在前、U&#x2F;V 平面在后，目标图像又比源图更小。目标数据始终写入缓冲区更靠前的位置：
+源布局：[           Y           ][    U    ][    V    ]目标布局：[  Y  ][ U ][ V ]
+
+Y 平面从前向后压缩时，写指针不会追上后续仍需读取的源行。完成整个 Y 平面后，再从原始 U&#x2F;V 区域读取色度数据并写到前部空出的区域，因此不需要第二块整帧缓冲区。
+
+7. 接入 Scale3 工作队列降采样发生在 scale3_normal_msi_work() 从消息队列取出普通帧之后、调用 msi_output_fb() 之前：
+uint16_t output_w = scale3-&gt;ow;uint16_t output_h = scale3-&gt;oh;scale3_yuv420p_downsample_2x2(    fb-&gt;data,    scale3-&gt;ow,    scale3-&gt;oh,    &amp;output_w,    &amp;output_h);ow = output_w;oh = output_h;
+
+处理完成后同步更新 framebuff 的描述信息：
+arg-&gt;yuv_arg.y_size = ow * oh;arg-&gt;yuv_arg.out_w  = ow;arg-&gt;yuv_arg.out_h  = oh;fb-&gt;len             = ow * oh * 3 / 2;
+
+这一步非常关键。下游不能继续使用中间分辨率解释已经压缩后的数据，否则会发生以下问题：
+
+Y&#x2F;U&#x2F;V 平面地址计算错误；
+下游读取超出有效目标帧的数据；
+LCD 显示花屏、错色或图像撕裂；
+帧长度统计和带宽计算错误。
+
+
+8. 普通帧与额外拍照帧的区别工作队列通过 datatag 区分普通连续帧和临时申请的额外帧：
+if (fb-&gt;datatag != (uint8_t)~0)&#123;    // 普通帧：执行 2×2 降采样&#125;else&#123;    // 额外拍照/缩略图帧：保持请求尺寸，直接输出&#125;
+
+因此，本次算法不会处理 datatag == 0xff 的额外拍照帧。这样可以避免拍照命令请求的特定分辨率被再次减半。
+不过，所有通过本模块帧池产生的普通帧都会进入降采样分支。该行为不仅影响 scale3_normal_msi2()，也可能影响调用 scale3_normal_msi() 的连续输出场景。后续若只希望特定 UI 使用该优化，建议增加独立使能标志，而不是仅依赖普通帧&#x2F;额外帧分类。
+
+9. 当前 UI 配套参数当前工作区中，Pocket Camera UI 在主界面预创建 Scale3 时使用：
+scale3_normal_msi2(    S_PREVIEW_SCALE3,    FSTYPE_YUV_P0,    800,    480);
+
+经过固定 2×2 降采样后，下游得到：
+400×240 YUV420P
+
+这里的 800×480 已不再代表最终 MSI 输出尺寸，而是“Scale3 中间尺寸”。这属于本次改动带来的接口语义变化。
+Pocket Camera 的各页面之后再次调用同名 S_PREVIEW_SCALE3 时，msi_new() 会复用已经创建的 MSI，因此实际尺寸由第一次创建时的 800×480 决定。这种行为依赖组件创建顺序，维护时需要格外注意。
+建议后续把两个概念显式区分：
+scale_w / scale_h：Scale3 硬件中间输出尺寸out_w / out_h：均值降采样后的最终输出尺寸
+
+
+10. 性能与内存分析10.1 CPU 运算量以 800×480 -&gt; 400×240 为例：
+
+Y 平面需要生成 96000 个目标像素；
+U 平面需要生成 24000 个目标样本；
+V 平面需要生成 24000 个目标样本；
+每帧需额外遍历约 144000 个目标采样值。
+
+算法没有乘法和通用除法，亮度平均主要使用加法、掩码与移位，适合算力有限的嵌入式平台。
+10.2 PSRAM 占用scale3_common() 仍按照 ow × oh × 3 / 2 为每个帧池节点分配缓冲区。默认 MAX_COUNT 为 3，因此 800×480 配置下仅像素缓冲区约占：
+800 × 480 × 3 / 2 × 3= 1,728,000 字节
+
+降采样完成后虽然 fb-&gt;len 只有 144000 字节，但底层 buffer 容量仍为 576000 字节。这是原地处理能够正常工作的前提，也是当前方案的内存代价。
+10.3 带宽变化
+
+
+位置
+单帧有效数据量
+相对中间帧
+
+
+
+Scale3 DMA 写入 PSRAM
+576000 字节
+100%
+
+
+CPU 处理后的下游有效帧
+144000 字节
+25%
+
+
+所以该方案会降低下游 MSI 传递的有效数据量，但不会降低 Scale3 写入中间帧所需的 DMA 带宽，反而增加了一次 CPU 读写与 Cache 维护。
+
+11. 当前实现的边界与风险11.1 U&#x2F;V 没有做均值滤波当前只对 Y 平面执行 2×2 均值。对于彩色网格、彩色织物等场景，色度混叠仍可能形成彩色摩尔纹。若实测仍有明显色彩条纹，应优先评估 U&#x2F;V 2×2 均值。
+11.2 API 尺寸语义发生变化原先调用者传入 ow、oh，下游就收到相同尺寸；修改后普通帧实际输出约为：
+(ow / 2 对齐到偶数) × (oh / 2 对齐到偶数)
+
+现有调用者如果仍把参数理解为最终分辨率，可能得到尺寸减半的画面。
+11.3 优化范围较宽降采样直接放在公共工作队列的普通帧输出分支中，没有独立配置开关。凡是使用该帧池的普通输出都会被处理。更稳妥的工程化方式是增加例如：
+uint8_t mean_downsample_enable : 1;
+
+并只在明确需要抗混叠的 UI 或产品配置中开启。
+11.4 实时性需要实机验证该算法运行在 workqueue 中，不在 Scale3 ISR 内直接执行，这避免了在中断上下文进行整帧处理。但 800×480 连续预览时，每帧都会增加 CPU 和 PSRAM 访问开销，需要结合实际帧率确认：
+
+workqueue 是否出现积压；
+Scale3 帧池是否频繁耗尽并打印 D；
+LCD 是否掉帧或延迟增加；
+CPU 占用和功耗是否可接受。
+
+11.5 视觉改善需要固定场景对比代码原理能够解释预期改善，但最终效果与摄像头传感器、ISP 锐化、Scale3 算法、LCD 二次缩放及场景纹理有关。不能只凭实现判断“摩尔纹已经消失”，应通过同机位 A&#x2F;B 测试确认。
+
+12. 建议验证方案12.1 测试场景建议准备以下固定测试目标：
+
+黑白等间距细条纹；
+横向、纵向及 30°&#x2F;45° 斜线；
+棋盘格和同心圆测试图；
+布料、纱窗、键盘和印刷网点；
+红绿或蓝黄相间的彩色细条纹；
+镜头缓慢平移时的动态纹理。
+
+12.2 A&#x2F;B 对照组
+
+
+组别
+处理链路
+
+
+
+A：原始方案
+Scale3 直接输出最终尺寸
+
+
+B：当前方案
+Scale3 输出 2 倍宽高，再做 Y 平面 2×2 均值
+
+
+C：完整均值方案
+Scale3 输出 2 倍宽高，Y&#x2F;U&#x2F;V 全部做 2×2 均值
+
+
+应确保三组测试使用相同传感器参数、曝光、增益、锐化、LCD 显示区域和拍摄距离。
+12.3 功能检查
+检查 arg-&gt;yuv_arg.out_w/out_h 是否为实际输出尺寸；
+检查 arg-&gt;yuv_arg.y_size == out_w × out_h；
+检查 fb-&gt;len == out_w × out_h × 3 / 2；
+检查 Y&#x2F;U&#x2F;V 平面地址和颜色是否正常；
+检查额外拍照帧是否保持请求分辨率；
+检查进入、退出和反复切换 UI 后 MSI 是否仍正常复用；
+检查连续运行时是否掉帧、花屏或出现帧池耗尽。
+
+12.4 视觉评价重点观察：
+
+高频区域是否仍出现大尺度明暗条纹；
+斜线边缘阶梯是否减轻；
+镜头移动时纹理是否闪烁；
+画面是否因 Box Filter 变得过于柔和；
+彩色条纹是否仍产生色度摩尔纹。
+
+
+13. 后续优化方向13.1 对 U&#x2F;V 同样执行 2×2 均值这是当前实现最直接的质量增强项。色度平面可使用与 Y 相同的计算思想：
+Uout = (U00 + U01 + U10 + U11) / 4Vout = (V00 + V01 + V10 + V11) / 4
+
+由于 U&#x2F;V 总采样数较少，额外计算量小于 Y 平面。
+13.2 增加显式开关把固定行为改为可配置行为：
+scale3_normal_msi2(..., mean_downsample_enable)
+
+或者通过 MSI 命令动态控制，使拍照、录像、预览和不同客户配置可以独立选择。
+13.3 明确中间尺寸与最终尺寸可把 API 改为同时传入最终输出尺寸，内部自动计算中间尺寸：
+最终需要 400×240-&gt; Scale3 自动配置为 800×480-&gt; 软件输出固定为 400×240
+
+这样调用者不必了解“传入尺寸会被减半”的隐含规则。
+13.4 根据画质与性能选择滤波核2×2 Box Filter 的优势是实现简单、速度快，但频率响应并不理想。如果平台性能允许，可以比较：
+
+2×2 Box Average：当前方案，速度最快；
+3×3 Gaussian：边缘更自然，计算和边界处理更复杂；
+双线性缩放：适合任意比例，但抗混叠能力取决于实现；
+多级缩放：适合更大倍率缩小，避免一次跨越过多源像素。
+
+
+14. 总结本次修改在 TXW82x Scale3 普通 YUV420P 输出链路中加入了原地 2×2 降采样。其核心价值不是简单地把宽高减半，而是在抽取像素前对 Y 分量进行区域均值，使高频亮度信息先被平滑，从而在一定程度上降低摩尔纹、斜边锯齿和动态闪烁。
+当前方案的典型链路为：
+VPP-&gt; Scale3 硬件生成 800×480 YUV420P-&gt; CPU 对 Y 分量执行 2×2 Box Average-&gt; U/V 分量固定位置抽样-&gt; 原地压缩为 400×240 YUV420P-&gt; 更新 out_w、out_h、y_size 和 fb-&gt;len-&gt; MSI 输出到 LCD 链路
+
+它在不增加第二块整帧缓冲区的前提下提供了低成本的缩放预滤波，但目前仍存在 U&#x2F;V 未均值、API 尺寸语义变化、公共输出路径影响范围较宽等限制。后续应以固定测试图进行 A&#x2F;B 对比，并结合帧率、CPU 占用与 PSRAM 带宽，决定是否进一步加入色度均值和独立功能开关。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW82x Scale3</category>
+      </categories>
+      <tags>
+        <tag>C语言</tag>
+        <tag>TXW82x</tag>
+        <tag>嵌入式</tag>
+        <tag>BugFix</tag>
+        <tag>Scale3</tag>
+        <tag>YUV420P</tag>
+        <tag>图像缩放</tag>
+        <tag>摩尔纹</tag>
+        <tag>抗锯齿</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>TXW828 AI 闹钟 — UI 模块工程说明文档</title>
+    <url>/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[TXW828 AI 闹钟 — UI 模块工程说明文档
+适用对象： 接手此项目的开发者、团队成员最后更新： 2026-05-09LVGL 版本： LVGL 8.x（见 sdk/lib/lvgl/）硬件平台： TXW828（C-SKY 架构）
+
+
+目录
+模块概览
+目录结构
+核心架构
+各模块详细说明
+数据流与刷新机制
+公共 API 参考
+添加新页面的步骤
+依赖关系
+已知限制与注意事项
+编译与调试
+
+
+一、模块概览1.1 这个项目是什么这是一个基于 TXW828 芯片的 AI 闹钟产品的 UI 界面。设备配备一个小尺寸 LCD 屏幕（约 320×240），用户通过左右滑动切换功能页面，点击进入各功能的详情界面。
+1.2 UI 包含哪些功能页面
+
+
+页面
+功能
+代码路径
+
+
+
+Home（主页）
+显示时间、日期、天气、WiFi 状态、电量
+home/
+
+
+Plan List（计划列表）
+日期选择条 + 待办事项管理
+plan_list/
+
+
+AI Q&amp;A（AI 问答）
+AI 对话入口页面
+ai_qa/
+
+
+Timing（计时器）
+倒计时 &#x2F; 秒表 &#x2F; 番茄钟选择器
+timing/
+
+
+Calendar（日历）
+月历视图 + 年月选择器
+calendar/
+
+
+Settings（设置）
+WiFi、蓝牙、亮度等 11 项设置
+settings/
+
+
+1.3 技术栈
+GUI 框架： LVGL 8.x
+语言： C99
+RTOS： AliOS（通过 ohos/kernel/）
+服务层： 自定义 service 层（project/service/）
+构建工具： CDK（project/txw82xApp.cdkproj）
+
+
+二、目录结构project/ui/│├── ui_theme.h                  ── [基础] 统一颜色、字体、尺寸常量├── ui_back_button.h/.c         ── [基础] 可复用返回按钮组件├── ui_menu_detail_page.h/.c    ── [基础] 菜单→详情导航框架├── ui_manager.h/.c             ── [核心] UI 管理器（页面注册、导航、生命周期）├── ui_screen_ids.h             ── [核心] 屏幕 ID 枚举定义│├── menu/│   ├── menu_view.h             ── 菜单图片视图接口│   └── menu_view.c             ── 菜单图片显示 + 点击事件│├── home/│   ├── home_view.h             ── 主页视图接口│   ├── home_view.c             ── 主页 UI 布局（时间、日期、天气、电量）│   ├── home_refresh.h          ── 主页数据刷新接口│   └── home_refresh.c          ── 定时刷新逻辑（1s/10s/60s/1800s 周期）│├── ai_qa/│   ├── ai_qa_screen.h          ── AI 问答页面接口│   └── ai_qa_screen.c          ── AI 问答页面实现│├── timing/│   ├── timing_screen.h         ── 计时器页面接口│   └── timing_screen.c         ── 计时器页面（倒计时/秒表/番茄钟）│├── calendar/│   ├── calendar_screen.h       ── 日历页面接口│   └── calendar_screen.c       ── 日历页面（月历 + 年月选择器）│├── plan_list/│   ├── plan_list_screen.h      ── 计划列表页面接口│   └── plan_list_screen.c      ── 计划列表页面（日期条 + 待办）│├── settings/│   ├── settings_screen.h       ── 设置页面接口│   ├── settings_screen.c       ── 设置页面入口│   ├── settings_manager.h/.c   ── 设置项管理器（11 项设置 + 子页面路由）│   ├── settings_common_styles.h/.c ── 设置页面通用样式（标题栏、body）│   ├── settings_detail/        ── 设置列表视图│   ├── setting_brightness/     ── 亮度调节子页面│   └── setting_wifi/           ── WiFi 连接子页面│
+
+
+三、核心架构3.1 整体架构图┌─────────────────────────────────────────────────────────────┐│                         ui_manager                           ││  ┌─────────────────────────────────────────────────────────┐││  │                    lv_tileview                           │││  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐│││  │  │ HOME │ │PLAN  │ │AI_QA │ │TIMING│ │CALEN │ │SETTIN││││  │  │      │ │LIST  │ │      │ │      │ │DAR   │ │GS    ││││  │  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘│││  └─────────────────────────────────────────────────────────┘││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  home_refresh     │    │  ui_menu_detail_page (框架)   │  ││  │  (定时器 1s)       │    │  ┌─────────┐ ┌────────────┐ │  ││  │  → home_view      │    │  │menu_page│→│detail_page │ │  ││  └───────────────────┘    │  │(图片)   │ │(回调创建)  │ │  ││                           │  └─────────┘ └────────────┘ │  ││                           └──────────────────────────────┘  ││                                                             ││  ┌───────────────────┐    ┌──────────────────────────────┐  ││  │  ui_theme.h       │    │  ui_back_button              │  ││  │  (颜色/字体/尺寸)  │    │  (返回按钮组件)               │  ││  └───────────────────┘    └──────────────────────────────┘  │└─────────────────────────────────────────────────────────────┘         │                          │         ▼                          ▼┌─────────────────┐    ┌──────────────────────┐│  service 层      │    │  LVGL 8.x            ││  time_service    │    │  (渲染、事件、输入)    ││  weather_service │    └──────────────────────┘│  system_status   ││  wifi_service    │└─────────────────┘
+
+3.2 导航模型UI 使用 LVGL 的 lv_tileview 作为顶层导航容器，每个功能页面对应一个 tile。用户水平滑动切换 tile。
+  ← 滑动 →┌────────┬────────┬────────┬────────┬────────┬────────┐│  HOME  │ PLAN   │ AI_QA  │ TIMING │ CALEND │ SETTING││  (0)   │ (1)    │ (2)    │ (3)    │ (4)    │ (5)    │└────────┴────────┴────────┴────────┴────────┴────────┘
+
+除 Home 页面外，其他页面点击菜单图片后进入 detail page（覆盖在 tile 上），此时水平滑动被禁用，点击返回按钮回到菜单页。
+3.3 页面生命周期┌──────────┐│  create  │  ← ui_manager_create_root() 时一次性创建所有 tile└────┬─────┘     │     ▼┌──────────┐│  active  │  ← 用户滑动到该 tile 时└────┬─────┘     │     ├── 点击菜单图片 → 进入 detail page（禁用滑动）     │                    │     │                    ├── detail_create_cb() 回调创建页面     │                    │     │                    └── 点击返回 → show_menu() 销毁 detail，恢复滑动     │     └── 滑动离开 → tile 失焦（home 定时器暂停）
+
+
+四、各模块详细说明4.1 ui_manager — UI 管理器职责：
+
+创建 root screen 和 tileview
+注册所有屏幕页面到 tile
+处理 tile 切换事件
+管理 Home 页面刷新定时器的启动&#x2F;暂停
+提供页面跳转 API（ui_manager_show_xxx_screen()）
+提供 tile 滑动方向控制（ui_manager_set_tile_swipe_enabled()）
+
+关键实现细节：
+// 屏幕配置表（ui_manager.c 内部）static const ui_screen_config_t g_ui_manager_screens[UI_SCREEN_ID_COUNT] = &#123;    [UI_SCREEN_ID_HOME]      = &#123; .name = &quot;home&quot;,      .image_path = NULL,              .create = ... &#125;,    [UI_SCREEN_ID_PLAN_LIST] = &#123; .name = &quot;plan_list&quot;,  .image_path = &quot;F:/jihuaqingdan.png&quot;, .create = ... &#125;,    [UI_SCREEN_ID_AI_QA]     = &#123; .name = &quot;ai_qa&quot;,     .image_path = &quot;F:/aiduihua.png&quot;,     .create = ... &#125;,    // ... 共 6 个页面&#125;;
+
+tile 切换时的自动行为：
+
+恢复水平滑动方向（安全保护）
+切换到 Home → 恢复 home_refresh_timer
+切换到其他页面 → 暂停 home_refresh_timer
+
+4.2 ui_theme — 主题系统纯头文件，只包含 #define 常量，无运行时开销。
+
+
+
+分类
+常量数量
+示例
+
+
+
+颜色
+16 个
+UI_COLOR_PRIMARY (0xffd54a)
+
+
+字体
+8 个
+UI_FONT_TITLE (&amp;lv_font_montserrat_20)
+
+
+尺寸
+5 个
+UI_HEADER_HEIGHT (35)
+
+
+4.3 ui_menu_detail_page — 菜单→详情导航框架解决的问题： 5 个页面（AI QA、Timing、Calendar、Plan List、Settings）都有完全相同的菜单→详情切换逻辑，原来每个页面重复实现 50-80 行样板代码。
+核心数据结构：
+typedef struct &#123;    lv_obj_t *screen;                    // tile 容器（不可销毁）    lv_obj_t *menu_page;                 // 菜单页面（带图片，可隐藏/显示）    lv_obj_t *detail_page;               // 详情页面（可创建/销毁）    ui_detail_create_cb_t detail_create_cb;   // 详情创建回调    ui_detail_destroy_cb_t detail_destroy_cb; // 详情销毁回调    void *user_data;                     // 传递给回调的用户数据    ui_menu_view_action_t menu_action;   // 存储在结构体内（避免悬空指针）    bool detail_created;&#125; ui_menu_detail_page_t;
+
+⚠️ 关键约束（二次开发时必须遵守）：
+
+detail_create_cb 回调内必须：
+
+在 parent（即 ctx-&gt;screen &#x3D; tile）上创建 page = lv_obj_create(parent)
+创建完成后设置 ctx-&gt;detail_page = page
+否则 show_detail() 会因为 detail_page == NULL 而返回，导致页面不显示
+
+
+menu_action 必须存储在结构体内（不能是局部变量），因为 ui_menu_view_create 只保存了指针引用。
+
+
+4.4 ui_back_button — 返回按钮组件lv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
+
+创建一个 30×30 圆形透明按钮，带 LV_SYMBOL_LEFT 图标。被以下模块使用：
+
+ui_menu_detail_page_create_detail_header() — 通用标题栏
+settings_common_styles.c — 设置页面标题栏
+
+4.5 home — 主页模块组成： home_view.c（UI 布局） + home_refresh.c（数据刷新）
+home_view 暴露的接口：
+void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
+
+home_refresh 的刷新策略：
+
+
+
+周期
+操作
+
+
+
+每 1 秒
+刷新时间显示
+
+
+每 10 秒
+刷新 WiFi + 电量状态
+
+
+每 60 秒
+刷新日期 + 天气显示
+
+
+每 1800 秒
+调用 weather_service_refresh() 重新请求天气 API
+
+
+优化点： home_refresh_timer 在用户滑离 Home 页面时自动暂停，返回时恢复。
+4.6 menu — 菜单视图void ui_menu_view_create(lv_obj_t *parent, const char *image_path, const ui_menu_view_action_t *view_action);
+
+行为：
+
+如果 image_path 指向的文件存在 → 显示图片（lv_img）
+如果文件不存在 → 显示 LV_SYMBOL_IMAGE 占位符图标
+如果 view_action 有回调 → 图片可点击，点击触发回调
+
+注意： 图片路径格式为 &quot;F:/xxx.png&quot;，其中 F: 对应设备 Flash 存储的文件系统挂载点。
+4.7 settings — 设置模块（最复杂的子系统）Settings 使用三级导航结构：
+┌─────────────┐     点击图片      ┌─────────────┐     点击设置项     ┌─────────────┐│  menu_page  │ ────────────────→ │ detail_page │ ────────────────→ │  sub_page   ││  (菜单图片)  │                   │ (11项设置列表)│                   │ (具体设置界面)│└─────────────┘ ←──────────────── └─────────────┘ ←──────────────── └─────────────┘                    返回按钮                           返回按钮
+
+11 个设置项：
+
+
+
+ID
+名称
+子页面
+
+
+
+0
+Wi-Fi
+✅ 已实现（setting_wifi/）
+
+
+1
+Bluetooth
+❌ NULL（未实现）
+
+
+2
+Brightness
+✅ 已实现（setting_brightness/）
+
+
+3
+Sleep Timer
+❌ NULL
+
+
+4
+Baidu Netdisk
+❌ NULL
+
+
+5
+Volume
+❌ NULL
+
+
+6
+Do Not Disturb
+❌ NULL
+
+
+7
+Night Screen Off
+❌ NULL
+
+
+8
+WeChat Binding
+❌ NULL
+
+
+9
+System Update
+❌ NULL
+
+
+10
+Factory Reset
+❌ NULL
+
+
+⚠️ 注意： settings_manager 内部管理了 sub_page 的创建&#x2F;销毁，与 ui_menu_detail_page 框架独立。back_event_cb 由 settings_screen.c 提供，用于从 detail 返回到 menu。
+4.8 WiFi 设置子页面（setting_wifi）这是设置模块中最复杂的子页面，包含：
+
+WiFi 扫描（定时器驱动，300ms 周期）
+AP 列表展示（信号强度、SSID、加密状态、连接状态）
+密码输入页面（textarea + keyboard）
+自动排序（已连接 AP 优先，然后按信号强度）
+
+⚠️ 注意： WiFi 子页面使用 malloc 分配 SSID 副本（ssid_copy = malloc(MAX_SSID_LEN)），需要在事件回调中 free。
+
+五、数据流与刷新机制5.1 数据流向┌──────────────────────┐│     service 层        ││  ┌────────────────┐  ││  │ time_service    │──┼──→ home_view_set_time()│  │ weather_service │──┼──→ home_view_set_weather()│  │ system_status   │──┼──→ home_view_set_wifi()│  │                 │──┼──→ home_view_set_battery()│  └────────────────┘  │└──────────────────────┘
+
+Home 页面是唯一有定时刷新的页面。其他页面的数据在创建时获取一次，后续更新依赖用户交互（如 WiFi 扫描定时器）。
+5.2 事件流用户触摸事件    │    ▼LVGL 输入设备驱动（触摸屏）    │    ▼lv_tileview 事件处理    │    ├── 滑动 → LV_EVENT_VALUE_CHANGED → ui_manager_handle_tile_change()    │    └── 点击 → LV_EVENT_CLICKED                │                ├── menu_view: ui_menu_view_handle_click()                │       → ui_menu_detail_page_show_detail()                │           → detail_create_cb() [首次]                │           → 禁用滑动 + 隐藏 menu + 显示 detail                │                └── back_button: xxx_on_back_click()                        → ui_menu_detail_page_show_menu()                            → lv_obj_del(detail_page)                            → 启用滑动 + 显示 menu
+
+
+六、公共 API 参考6.1 ui_manager.hvoid ui_manager_init(void);                           // 初始化 UI（首次调用）void ui_manager_go_back(void);                        // 返回 Homeconst char *ui_manager_get_menu_image_path(ui_screen_id_t screen_id);  // 获取菜单图片路径// 页面跳转void ui_manager_show_home_screen(void);void ui_manager_show_plan_list_screen(void);void ui_manager_show_ai_qa_screen(void);void ui_manager_show_timing_screen(void);void ui_manager_show_calendar_screen(void);void ui_manager_show_settings_screen(void);// 滑动控制void ui_manager_set_tile_swipe_enabled(bool enabled);
+
+6.2 ui_menu_detail_page.hvoid ui_menu_detail_page_init(    ui_menu_detail_page_t *ctx,    lv_obj_t *screen,    uint32_t bg_color,    const char *menu_image_path,    ui_detail_create_cb_t detail_create_cb,    ui_detail_destroy_cb_t detail_destroy_cb,    void *user_data);void ui_menu_detail_page_show_menu(ui_menu_detail_page_t *ctx);void ui_menu_detail_page_show_detail(ui_menu_detail_page_t *ctx);lv_obj_t *ui_menu_detail_page_create_detail_header(    lv_obj_t *parent,    const char *title,    lv_event_cb_t back_click_cb);
+
+6.3 ui_back_button.hlv_obj_t *ui_back_button_create(lv_obj_t *parent, lv_event_cb_t click_cb);
+
+6.4 home_view.htypedef struct &#123;    int year, hour, minute, weekday, month, day;    int temperature;    const char *weather_text;    int wifi_connected, wifi_level;    int battery_percent, battery_charging;&#125; ui_home_view_model_t;void ui_home_view_create(lv_obj_t *parent);void ui_home_view_set_time(int hour, int minute);void ui_home_view_set_date(int weekday, int year, int month, int day);void ui_home_view_set_weather(int temperature, const char *weather_text);void ui_home_view_set_wifi(int connected, int level);void ui_home_view_set_battery(int percent, int charging);void ui_home_view_refresh(const ui_home_view_model_t *view_model);
+
+6.5 ui_screen_ids.htypedef enum &#123;    UI_SCREEN_ID_NONE = -1,    UI_SCREEN_ID_HOME = 0,    UI_SCREEN_ID_PLAN_LIST,    UI_SCREEN_ID_AI_QA,    UI_SCREEN_ID_TIMING,    UI_SCREEN_ID_CALENDAR,    UI_SCREEN_ID_SETTINGS,    UI_SCREEN_ID_COUNT       // = 6&#125; ui_screen_id_t;
+
+
+七、添加新页面的步骤步骤 1：创建文件project/ui/my_feature/├── my_feature_screen.h└── my_feature_screen.c
+
+步骤 2：实现代码（模板）/* my_feature_screen.h */#ifndef UI_MY_FEATURE_SCREEN_H#define UI_MY_FEATURE_SCREEN_H#include &quot;lvgl/lvgl.h&quot;void ui_my_feature_screen_create(lv_obj_t *screen);#endif/* my_feature_screen.c */#include &quot;my_feature_screen.h&quot;#include &quot;../ui_manager.h&quot;#include &quot;../ui_menu_detail_page.h&quot;#include &quot;../ui_theme.h&quot;typedef struct &#123;    ui_menu_detail_page_t base;    /* 你的页面状态 */&#125; ui_my_feature_state_t;static ui_my_feature_state_t g_ui;static void on_back(lv_event_t *e) &#123;    (void)e;    ui_menu_detail_page_show_menu(&amp;g_ui.base);&#125;static void create_detail(lv_obj_t *parent, void *ud) &#123;    (void)ud;    lv_obj_t *page = lv_obj_create(parent);    lv_obj_remove_style_all(page);    lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));    lv_obj_center(page);    lv_obj_set_style_bg_color(page, lv_color_hex(UI_COLOR_BG_DETAIL), 0);    lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);    lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);    g_ui.base.detail_page = page;  /* ⚠️ 必须设置 */    ui_menu_detail_page_create_detail_header(page, &quot;My Feature&quot;, on_back);    /* 在 page 上创建你的内容 */&#125;void ui_my_feature_screen_create(lv_obj_t *screen) &#123;    ui_menu_detail_page_init(&amp;g_ui.base, screen, UI_COLOR_BG_DETAIL,        ui_manager_get_menu_image_path(UI_SCREEN_ID_MY_FEATURE),        create_detail, NULL, NULL);&#125;
+
+步骤 3：注册到 ui_manager
+ui_screen_ids.h — 在 UI_SCREEN_ID_SETTINGS 后添加 UI_SCREEN_ID_MY_FEATURE
+
+ui_manager.c — 添加：
+#include &quot;my_feature/my_feature_screen.h&quot;static void ui_manager_create_my_feature_screen(lv_obj_t *screen) &#123;    ui_my_feature_screen_create(screen);&#125;// 在 g_ui_manager_screens 数组中添加：[UI_SCREEN_ID_MY_FEATURE] = &#123;    .name = &quot;my_feature&quot;,    .image_path = &quot;F:/myicon.png&quot;,    .create = ui_manager_create_my_feature_screen&#125;,
+
+ui_manager.h — 添加 void ui_manager_show_my_feature_screen(void);
+
+txw82xApp.cdkproj — 在 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加新 .c 文件引用
+
+
+步骤 4：准备菜单图片将 240×240 或适当尺寸的 PNG 图片放入设备 Flash，路径与 image_path 一致（如 &quot;F:/myicon.png&quot;）。
+
+八、依赖关系8.1 头文件依赖图ui_theme.h ◄─────────────────────────────────────────────────────┐    ▲                                                             │    │ (所有文件都 include)                                         │    │                                                             │ui_back_button.h ◄── ui_menu_detail_page.h ◄── 各 screen.c       │    ▲                   ▲                                        │    │                   │                                        │    │         menu/menu_view.h ◄──────────────────────────────────┘    │    └── settings_common_styles.h ◄── settings 子模块
+
+8.2 service 层依赖
+
+
+UI 模块
+依赖的 service
+调用的函数
+
+
+
+home_refresh
+time_service
+time_service_get_datetime()
+
+
+home_refresh
+weather_service
+weather_service_get_data(), weather_service_refresh()
+
+
+home_refresh
+system_status_service
+system_status_service_get_data()
+
+
+calendar_screen
+time_service
+time_service_get_datetime()
+
+
+plan_list_screen
+time_service
+time_service_get_datetime()
+
+
+setting_wifi
+wifi_service
+wifi_service_init(), wifi_service_scan(), wifi_service_connect() 等
+
+
+8.3 LVGL 组件使用统计
+
+
+LVGL 组件
+使用页面
+
+
+
+lv_obj
+所有页面（通用容器）
+
+
+lv_label
+所有页面（文本显示）
+
+
+lv_btn
+timing, plan_list, calendar, settings
+
+
+lv_img
+menu（菜单图片）
+
+
+lv_slider
+brightness（亮度调节）
+
+
+lv_textarea
+wifi（密码输入）
+
+
+lv_keyboard
+wifi（密码输入）
+
+
+lv_calendar
+calendar（月历）
+
+
+lv_roller
+calendar（年月选择器）
+
+
+lv_tileview
+ui_manager（顶层导航）
+
+
+
+九、已知限制与注意事项9.1 内存限制
+所有 6 个 tile 在 ui_manager_create_root() 时一次性全部创建，不支持懒加载
+每个 tile 创建后即使不可见也占用 LVGL 内存
+ui_home_create_flower() 创建 11 个 LVGL 对象绘制一朵花，可优化为 Canvas 或图片
+
+9.2 图片资源
+菜单图片存储在设备 Flash（路径 F:/xxx.png）
+图片不存在时显示占位图标（LV_SYMBOL_IMAGE）
+需要确保 menu_view.c 中 lv_fs_open 的文件系统驱动已正确注册
+
+9.3 WiFi 子页面
+使用 malloc/free 管理 SSID 字符串副本
+WiFi 扫描定时器有 9 秒超时限制（300ms × 30 次）
+密码输入要求最少 8 字符
+
+9.4 Settings 三级导航
+Settings 的 detail_page 由 settings_manager 内部管理，与 ui_menu_detail_page 框架的 detail_page 概念不同
+settings_manager 内部还有 sub_page 层级
+添加新设置项需要修改 settings_manager.c 中的 g_ui_settings_page_configs 数组
+
+9.5 字体
+使用 LVGL 内置的 Montserrat 字体（10&#x2F;12&#x2F;14&#x2F;16&#x2F;18&#x2F;20&#x2F;22&#x2F;48）
+仅支持英文 + 数字 + 特殊符号
+不支持中文显示（如需中文，需添加自定义字库）
+
+9.6 硬编码的文件路径所有图片路径硬编码为 &quot;F:/xxx.png&quot;，如需修改文件系统挂载点，需全局替换 ui_manager.c 中的 image_path 字段。
+
+十、编译与调试10.1 编译使用 CDK IDE 打开 project/txw82xApp.cdkproj，确保所有新增的 .c 文件已添加到工程的 ui 虚拟文件夹中。
+10.2 添加新文件到工程在 txw82xApp.cdkproj 的 &lt;VirtualFolder Name=&quot;ui&quot;&gt; 下添加：
+&lt;File Name=&quot;ui/my_feature/my_feature_screen.c&quot;&gt;  &lt;FileOption/&gt;&lt;/File&gt;
+
+10.3 调试技巧
+查看 LVGL 对象数量： 在调试器中查看 lv_obj_count 确认对象是否正确销毁
+检查 tile 切换： 在 ui_manager_handle_tile_change 中设断点，确认 screen_id 正确
+WiFi 调试： menu_view.c 中的文件存在检查可临时恢复 printf 语句
+内存不足： 如果页面创建失败，检查 lv_mem_monitor 确认可用内存
+
+10.4 常见问题排查
+
+
+现象
+可能原因
+排查方法
+
+
+
+页面不显示
+detail_page 未设置
+检查 callback 中是否有 g_xxx.base.detail_page = page
+
+
+无法滑动
+swipe 被禁用未恢复
+检查 show_menu 是否正确调用
+
+
+进入详情死机
+对象创建过多
+检查 LVGL 对象数量限制
+
+
+菜单图片不显示
+Flash 文件不存在
+检查 F:/ 下的图片文件
+
+
+中文乱码
+字体不支持中文
+需要添加中文字库
+
+
+
+附录：文件变更记录
+
+
+日期
+变更
+说明
+
+
+
+2026-05-09
+新增 ui_theme.h
+统一主题系统
+
+
+2026-05-09
+新增 ui_back_button.h/.c
+可复用返回按钮
+
+
+2026-05-09
+新增 ui_menu_detail_page.h/.c
+菜单→详情导航框架
+
+
+2026-05-09
+重构 5 个 screen 文件
+使用新框架消除样板代码
+
+
+2026-05-09
+修复 home_view.c
+花朵位置 bug
+
+
+2026-05-09
+优化 ui_manager.c
+Home 定时器按需暂停
+
+
+2026-05-09
+清理 menu_view.c
+移除 debug printf
+
+
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW828 AI 闹钟</category>
+      </categories>
+      <tags>
+        <tag>嵌入式</tag>
+        <tag>LVGL</tag>
+        <tag>UI架构</tag>
+        <tag>代码移交</tag>
+        <tag>项目文档</tag>
       </tags>
   </entry>
   <entry>
@@ -6207,325 +6526,6 @@ TXW82x (C-SKY CK810 + lwIP)
         <tag>JPEG</tag>
         <tag>Wi-Fi图传</tag>
         <tag>流媒体</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</title>
-    <url>/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿1. 优化背景TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：
-
-细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹；
-斜线、文字边缘和物体轮廓出现阶梯状锯齿；
-细节随镜头轻微移动而闪烁或跳变；
-硬件一次性大比例缩小后，部分像素信息被直接跳过。
-
-本次优化不改变摄像头、VPP 和 Scale3 的基础结构，而是在 Scale3 生成 YUV420P 帧后增加一次固定比例的软件降采样。核心思路是：
-
-先让 Scale3 输出较高分辨率的中间图像，再对相邻 2×2 像素做均值滤波并缩小一半，从而在抽取像素前抑制容易产生混叠的高频信息。
-
-对应提交：
-6820c0d scale3均值缩放
-
-核心修改文件：
-sdk/app/scale_msi/scale3_normal_msi.c
-
-
-2. 优化目标本次修改的主要目标是改善缩小图像的主观质量，而不是节省 Scale3 输出缓冲区。
-具体目标包括：
-
-在最终降采样前进行简单低通滤波；
-降低亮度细节产生的摩尔纹和混叠；
-平滑斜边与轮廓，减轻阶梯锯齿；
-使用固定 2:1 比例降低算法复杂度；
-在原有 YUV420P 缓冲区内原地处理，避免额外申请整帧内存；
-保持原有 MSI 输出接口和 framebuff 生命周期不变。
-
-需要特别说明：当前实现不会降低 Scale3 帧池最初申请的 PSRAM 容量，因为缓冲区仍按照中间分辨率创建。它降低的是送往下游的有效图像尺寸和 fb-&gt;len。
-
-3. 修改前后的数据链路3.1 修改前Camera / VPP     |     vScale3 硬件缩放     |  直接生成最终尺寸 YUV420P     vframebuff     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
-
-如果 Scale3 直接把高分辨率图像缩到较小尺寸，硬件缩放过程中对高频纹理的预滤波不足，就可能产生混叠。
-3.2 修改后Camera / VPP     |     vScale3 硬件缩放     |  生成较高分辨率中间帧，例如 800×480     vYUV420P 中间缓冲区     |     |  Y：2×2 Box Average     |  U/V：固定位置抽样     v原地 2:1 降采样     |  输出 400×240     v更新 framebuff 元数据     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
-
-以当前配套配置为例：
-
-
-
-阶段
-分辨率
-YUV420P 有效数据量
-
-
-
-Scale3 中间输出
-800×480
-576000 字节
-
-
-软件降采样输出
-400×240
-144000 字节
-
-
-宽、高各缩小一半，因此最终像素数量和有效数据量均变为原来的四分之一。
-
-4. 为什么均值降采样能改善摩尔纹和锯齿4.1 问题本质：缩小过程中的混叠缩小图像意味着目标图像的一个像素要代表源图中的一片区域。如果直接选择区域内的某一个像素，源图中比目标分辨率更细的纹理会被错误地映射成较低频率的条纹，这就是空间采样中的混叠。
-摩尔纹是混叠的一种典型表现。它并不是原始场景中真实存在的大条纹，而是细密纹理与目标像素网格相互干涉后形成的伪影。
-4.2 2×2 均值相当于简单低通滤波当前亮度分量的计算公式为：
-Yout(x, y) = (    Yin(2x,     2y)     +    Yin(2x + 1, 2y)     +    Yin(2x,     2y + 1) +    Yin(2x + 1, 2y + 1)) / 4
-
-它先把 2×2 区域内的亮度变化平均，再生成一个输出像素。这相当于使用下面的 Box Filter 卷积核：
-1/4 × [ 1  1 ]      [ 1  1 ]
-
-均值会削弱单像素级的明暗跳变和细密纹理，然后再执行 2:1 抽取，因此比直接隔点取样更不容易产生错误条纹。
-4.3 对锯齿的改善斜线穿过像素网格时，每个 2×2 区域内通常同时包含前景与背景。均值计算会生成介于二者之间的亮度值，使边缘产生有限的灰度过渡，而不是只有完全亮或完全暗两个状态。
-因此，最终显示出来的斜边会更平滑。这种效果属于缩放阶段的预滤波抗锯齿，不等同于 3D 渲染中的 MSAA，但二者都利用了区域覆盖信息改善边缘质量。
-
-5. YUV420P 内存布局算法处理的是三平面 YUV420P，缓冲区布局如下：
-buf | +-- Y 平面：W × H | +-- U 平面：(W / 2) × (H / 2) | +-- V 平面：(W / 2) × (H / 2)
-
-各平面的地址计算为：
-src_y_size = (uint32_t)src_w * src_h;src_u = buf + src_y_size;src_v = src_u + src_y_size / 4;
-
-YUV420P 的整帧数据量为：
-W × H + W × H / 4 + W × H / 4= W × H × 3 / 2
-
-降采样后，目标平面被紧凑地放到同一个缓冲区前部：
-dst_y_size = (uint32_t)out_w * out_h;dst_u = buf + dst_y_size;dst_v = dst_u + dst_y_size / 4;
-
-
-6. 核心实现分析6.1 函数接口新增函数为：
-static uint8_t scale3_yuv420p_downsample_2x2(    uint8_t *buf,    uint16_t src_w,    uint16_t src_h,    uint16_t *dst_w,    uint16_t *dst_h);
-
-参数含义：
-
-
-
-参数
-说明
-
-
-
-buf
-YUV420P 源缓冲区，同时作为目标缓冲区
-
-
-src_w、src_h
-Scale3 中间输出宽高
-
-
-dst_w、dst_h
-返回实际降采样后的宽高
-
-
-返回值
-1 表示成功，0 表示输入不满足处理条件
-
-
-6.2 尺寸检查与偶数约束if (!buf || src_w &lt; 4 || src_h &lt; 4 ||    (src_w &amp; 1) || (src_h &amp; 1))&#123;    return 0;&#125;out_w = (src_w &gt;&gt; 1) &amp; ~1U;out_h = (src_h &gt;&gt; 1) &amp; ~1U;
-
-YUV420P 要求宽高适合 2×2 色度采样，因此输出宽高继续保持偶数。
-当源尺寸除以 2 后为奇数时，代码会向下对齐到偶数。例如：
-322×242 -&gt; 160×120
-
-这种情况下会舍弃最右侧和最下侧各一个 2 像素块。常用的 800×480、320×240、168×128 均不会触发额外裁边。
-6.3 Cache 一致性Scale3 通过 DMA 向缓冲区写入数据，CPU 随后读取并修改该缓冲区，因此处理前先失效 D-Cache：
-sys_dcache_invalid_range((uint32_t *)buf, src_y_size * 3 / 2);
-
-处理完成后清理目标范围，确保下游 DMA 或其他硬件模块读到 CPU 写入的新数据：
-sys_dcache_clean_range((uint32_t *)buf, dst_y_size * 3 / 2);
-
-这一对操作是硬件缩放输出与 CPU 图像处理之间的重要边界，不能省略。
-6.4 Y 平面均值Y 平面按照两行、四列源数据一组处理，每次生成两个目标像素：
-uint32_t row0 = *(uint32_t *)(src_y0 + (x &lt;&lt; 1));uint32_t row1 = *(uint32_t *)(src_y1 + (x &lt;&lt; 1));sum = (row0 &amp; 0x00ff00ff) +      ((row0 &gt;&gt; 8) &amp; 0x00ff00ff) +      (row1 &amp; 0x00ff00ff) +      ((row1 &gt;&gt; 8) &amp; 0x00ff00ff);*(uint16_t *)(out_y + x) =    (uint16_t)(((sum &gt;&gt; 2) &amp; 0xff) |               ((sum &gt;&gt; 10) &amp; 0xff00));
-
-该实现使用 32 位读取和位运算同时累计两组 2×2 像素，减少逐像素循环、除法和存储次数。除以 4 通过右移 2 位完成。
-6.5 U&#x2F;V 平面处理当前色度分量没有计算 2×2 均值，而是从每个源色度块中选择左上角样本：
-dst_u[dst_row + x] = src_u[src_index];dst_v[dst_row + x] = src_v[src_index];
-
-由于 YUV420P 的 U&#x2F;V 本来就只有 Y 平面四分之一的采样数，Y 再缩小 2 倍后，U&#x2F;V 也必须继续缩小 2 倍，才能形成合法的目标 YUV420P 布局。
-这种实现速度较快，但意味着当前的“均值缩放”主要作用于亮度：
-
-明暗细节造成的摩尔纹和锯齿能够得到改善；
-彩色细纹造成的色度摩尔纹仍可能保留；
-如果后续需要进一步提升质量，可将 U&#x2F;V 也改为 2×2 均值。
-
-6.6 为什么可以原地处理处理顺序是 Y 平面在前、U&#x2F;V 平面在后，目标图像又比源图更小。目标数据始终写入缓冲区更靠前的位置：
-源布局：[           Y           ][    U    ][    V    ]目标布局：[  Y  ][ U ][ V ]
-
-Y 平面从前向后压缩时，写指针不会追上后续仍需读取的源行。完成整个 Y 平面后，再从原始 U&#x2F;V 区域读取色度数据并写到前部空出的区域，因此不需要第二块整帧缓冲区。
-
-7. 接入 Scale3 工作队列降采样发生在 scale3_normal_msi_work() 从消息队列取出普通帧之后、调用 msi_output_fb() 之前：
-uint16_t output_w = scale3-&gt;ow;uint16_t output_h = scale3-&gt;oh;scale3_yuv420p_downsample_2x2(    fb-&gt;data,    scale3-&gt;ow,    scale3-&gt;oh,    &amp;output_w,    &amp;output_h);ow = output_w;oh = output_h;
-
-处理完成后同步更新 framebuff 的描述信息：
-arg-&gt;yuv_arg.y_size = ow * oh;arg-&gt;yuv_arg.out_w  = ow;arg-&gt;yuv_arg.out_h  = oh;fb-&gt;len             = ow * oh * 3 / 2;
-
-这一步非常关键。下游不能继续使用中间分辨率解释已经压缩后的数据，否则会发生以下问题：
-
-Y&#x2F;U&#x2F;V 平面地址计算错误；
-下游读取超出有效目标帧的数据；
-LCD 显示花屏、错色或图像撕裂；
-帧长度统计和带宽计算错误。
-
-
-8. 普通帧与额外拍照帧的区别工作队列通过 datatag 区分普通连续帧和临时申请的额外帧：
-if (fb-&gt;datatag != (uint8_t)~0)&#123;    // 普通帧：执行 2×2 降采样&#125;else&#123;    // 额外拍照/缩略图帧：保持请求尺寸，直接输出&#125;
-
-因此，本次算法不会处理 datatag == 0xff 的额外拍照帧。这样可以避免拍照命令请求的特定分辨率被再次减半。
-不过，所有通过本模块帧池产生的普通帧都会进入降采样分支。该行为不仅影响 scale3_normal_msi2()，也可能影响调用 scale3_normal_msi() 的连续输出场景。后续若只希望特定 UI 使用该优化，建议增加独立使能标志，而不是仅依赖普通帧&#x2F;额外帧分类。
-
-9. 当前 UI 配套参数当前工作区中，Pocket Camera UI 在主界面预创建 Scale3 时使用：
-scale3_normal_msi2(    S_PREVIEW_SCALE3,    FSTYPE_YUV_P0,    800,    480);
-
-经过固定 2×2 降采样后，下游得到：
-400×240 YUV420P
-
-这里的 800×480 已不再代表最终 MSI 输出尺寸，而是“Scale3 中间尺寸”。这属于本次改动带来的接口语义变化。
-Pocket Camera 的各页面之后再次调用同名 S_PREVIEW_SCALE3 时，msi_new() 会复用已经创建的 MSI，因此实际尺寸由第一次创建时的 800×480 决定。这种行为依赖组件创建顺序，维护时需要格外注意。
-建议后续把两个概念显式区分：
-scale_w / scale_h：Scale3 硬件中间输出尺寸out_w / out_h：均值降采样后的最终输出尺寸
-
-
-10. 性能与内存分析10.1 CPU 运算量以 800×480 -&gt; 400×240 为例：
-
-Y 平面需要生成 96000 个目标像素；
-U 平面需要生成 24000 个目标样本；
-V 平面需要生成 24000 个目标样本；
-每帧需额外遍历约 144000 个目标采样值。
-
-算法没有乘法和通用除法，亮度平均主要使用加法、掩码与移位，适合算力有限的嵌入式平台。
-10.2 PSRAM 占用scale3_common() 仍按照 ow × oh × 3 / 2 为每个帧池节点分配缓冲区。默认 MAX_COUNT 为 3，因此 800×480 配置下仅像素缓冲区约占：
-800 × 480 × 3 / 2 × 3= 1,728,000 字节
-
-降采样完成后虽然 fb-&gt;len 只有 144000 字节，但底层 buffer 容量仍为 576000 字节。这是原地处理能够正常工作的前提，也是当前方案的内存代价。
-10.3 带宽变化
-
-
-位置
-单帧有效数据量
-相对中间帧
-
-
-
-Scale3 DMA 写入 PSRAM
-576000 字节
-100%
-
-
-CPU 处理后的下游有效帧
-144000 字节
-25%
-
-
-所以该方案会降低下游 MSI 传递的有效数据量，但不会降低 Scale3 写入中间帧所需的 DMA 带宽，反而增加了一次 CPU 读写与 Cache 维护。
-
-11. 当前实现的边界与风险11.1 U&#x2F;V 没有做均值滤波当前只对 Y 平面执行 2×2 均值。对于彩色网格、彩色织物等场景，色度混叠仍可能形成彩色摩尔纹。若实测仍有明显色彩条纹，应优先评估 U&#x2F;V 2×2 均值。
-11.2 API 尺寸语义发生变化原先调用者传入 ow、oh，下游就收到相同尺寸；修改后普通帧实际输出约为：
-(ow / 2 对齐到偶数) × (oh / 2 对齐到偶数)
-
-现有调用者如果仍把参数理解为最终分辨率，可能得到尺寸减半的画面。
-11.3 优化范围较宽降采样直接放在公共工作队列的普通帧输出分支中，没有独立配置开关。凡是使用该帧池的普通输出都会被处理。更稳妥的工程化方式是增加例如：
-uint8_t mean_downsample_enable : 1;
-
-并只在明确需要抗混叠的 UI 或产品配置中开启。
-11.4 实时性需要实机验证该算法运行在 workqueue 中，不在 Scale3 ISR 内直接执行，这避免了在中断上下文进行整帧处理。但 800×480 连续预览时，每帧都会增加 CPU 和 PSRAM 访问开销，需要结合实际帧率确认：
-
-workqueue 是否出现积压；
-Scale3 帧池是否频繁耗尽并打印 D；
-LCD 是否掉帧或延迟增加；
-CPU 占用和功耗是否可接受。
-
-11.5 视觉改善需要固定场景对比代码原理能够解释预期改善，但最终效果与摄像头传感器、ISP 锐化、Scale3 算法、LCD 二次缩放及场景纹理有关。不能只凭实现判断“摩尔纹已经消失”，应通过同机位 A&#x2F;B 测试确认。
-
-12. 建议验证方案12.1 测试场景建议准备以下固定测试目标：
-
-黑白等间距细条纹；
-横向、纵向及 30°&#x2F;45° 斜线；
-棋盘格和同心圆测试图；
-布料、纱窗、键盘和印刷网点；
-红绿或蓝黄相间的彩色细条纹；
-镜头缓慢平移时的动态纹理。
-
-12.2 A&#x2F;B 对照组
-
-
-组别
-处理链路
-
-
-
-A：原始方案
-Scale3 直接输出最终尺寸
-
-
-B：当前方案
-Scale3 输出 2 倍宽高，再做 Y 平面 2×2 均值
-
-
-C：完整均值方案
-Scale3 输出 2 倍宽高，Y&#x2F;U&#x2F;V 全部做 2×2 均值
-
-
-应确保三组测试使用相同传感器参数、曝光、增益、锐化、LCD 显示区域和拍摄距离。
-12.3 功能检查
-检查 arg-&gt;yuv_arg.out_w/out_h 是否为实际输出尺寸；
-检查 arg-&gt;yuv_arg.y_size == out_w × out_h；
-检查 fb-&gt;len == out_w × out_h × 3 / 2；
-检查 Y&#x2F;U&#x2F;V 平面地址和颜色是否正常；
-检查额外拍照帧是否保持请求分辨率；
-检查进入、退出和反复切换 UI 后 MSI 是否仍正常复用；
-检查连续运行时是否掉帧、花屏或出现帧池耗尽。
-
-12.4 视觉评价重点观察：
-
-高频区域是否仍出现大尺度明暗条纹；
-斜线边缘阶梯是否减轻；
-镜头移动时纹理是否闪烁；
-画面是否因 Box Filter 变得过于柔和；
-彩色条纹是否仍产生色度摩尔纹。
-
-
-13. 后续优化方向13.1 对 U&#x2F;V 同样执行 2×2 均值这是当前实现最直接的质量增强项。色度平面可使用与 Y 相同的计算思想：
-Uout = (U00 + U01 + U10 + U11) / 4Vout = (V00 + V01 + V10 + V11) / 4
-
-由于 U&#x2F;V 总采样数较少，额外计算量小于 Y 平面。
-13.2 增加显式开关把固定行为改为可配置行为：
-scale3_normal_msi2(..., mean_downsample_enable)
-
-或者通过 MSI 命令动态控制，使拍照、录像、预览和不同客户配置可以独立选择。
-13.3 明确中间尺寸与最终尺寸可把 API 改为同时传入最终输出尺寸，内部自动计算中间尺寸：
-最终需要 400×240-&gt; Scale3 自动配置为 800×480-&gt; 软件输出固定为 400×240
-
-这样调用者不必了解“传入尺寸会被减半”的隐含规则。
-13.4 根据画质与性能选择滤波核2×2 Box Filter 的优势是实现简单、速度快，但频率响应并不理想。如果平台性能允许，可以比较：
-
-2×2 Box Average：当前方案，速度最快；
-3×3 Gaussian：边缘更自然，计算和边界处理更复杂；
-双线性缩放：适合任意比例，但抗混叠能力取决于实现；
-多级缩放：适合更大倍率缩小，避免一次跨越过多源像素。
-
-
-14. 总结本次修改在 TXW82x Scale3 普通 YUV420P 输出链路中加入了原地 2×2 降采样。其核心价值不是简单地把宽高减半，而是在抽取像素前对 Y 分量进行区域均值，使高频亮度信息先被平滑，从而在一定程度上降低摩尔纹、斜边锯齿和动态闪烁。
-当前方案的典型链路为：
-VPP-&gt; Scale3 硬件生成 800×480 YUV420P-&gt; CPU 对 Y 分量执行 2×2 Box Average-&gt; U/V 分量固定位置抽样-&gt; 原地压缩为 400×240 YUV420P-&gt; 更新 out_w、out_h、y_size 和 fb-&gt;len-&gt; MSI 输出到 LCD 链路
-
-它在不增加第二块整帧缓冲区的前提下提供了低成本的缩放预滤波，但目前仍存在 U&#x2F;V 未均值、API 尺寸语义变化、公共输出路径影响范围较宽等限制。后续应以固定测试图进行 A&#x2F;B 对比，并结合帧率、CPU 占用与 PSRAM 带宽，决定是否进一步加入色度均值和独立功能开关。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>TXW82x Scale3</category>
-      </categories>
-      <tags>
-        <tag>C语言</tag>
-        <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
-        <tag>BugFix</tag>
-        <tag>Scale3</tag>
-        <tag>YUV420P</tag>
-        <tag>图像缩放</tag>
-        <tag>摩尔纹</tag>
-        <tag>抗锯齿</tag>
       </tags>
   </entry>
   <entry>
@@ -7958,6 +7958,24 @@ sdk/app/ui/main_ui.c
       </tags>
   </entry>
   <entry>
+    <title>Hello World</title>
+    <url>/2026/05/03/hello-world/</url>
+    <content><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
+Quick StartCreate a new post$ hexo new &quot;My New Post&quot;
+
+More info: Writing
+Run server$ hexo server
+
+More info: Server
+Generate static files$ hexo generate
+
+More info: Generating
+Deploy to remote sites$ hexo deploy
+
+More info: Deployment
+]]></content>
+  </entry>
+  <entry>
     <title>嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统</title>
     <url>/2026/05/09/%E5%B5%8C%E5%85%A5%E5%BC%8FLVGL-UI%E6%A1%86%E6%9E%B6%E9%87%8D%E6%9E%84%E5%AE%9E%E6%88%98-%E6%B6%88%E9%99%A4%E6%A0%B7%E6%9D%BF%E4%BB%A3%E7%A0%81%E7%BB%9F%E4%B8%80%E4%B8%BB%E9%A2%98%E7%B3%BB%E7%BB%9F/</url>
     <content><![CDATA[嵌入式 LVGL UI 框架重构实战：消除样板代码、统一主题系统
@@ -8541,24 +8559,6 @@ P3
       </tags>
   </entry>
   <entry>
-    <title>Hello World</title>
-    <url>/2026/05/03/hello-world/</url>
-    <content><![CDATA[Welcome to Hexo! This is your very first post. Check documentation for more info. If you get any problems when using Hexo, you can find the answer in troubleshooting or you can ask me on GitHub.
-Quick StartCreate a new post$ hexo new &quot;My New Post&quot;
-
-More info: Writing
-Run server$ hexo server
-
-More info: Server
-Generate static files$ hexo generate
-
-More info: Generating
-Deploy to remote sites$ hexo deploy
-
-More info: Deployment
-]]></content>
-  </entry>
-  <entry>
     <title>source/css 样式文档</title>
     <url>/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[
@@ -9015,9 +9015,9 @@ responsive.css
         <tag>Butterfly</tag>
         <tag>Hexo</tag>
         <tag>文档</tag>
+        <tag>样式</tag>
         <tag>主题定制</tag>
         <tag>前端</tag>
-        <tag>样式</tag>
       </tags>
   </entry>
 </search>
