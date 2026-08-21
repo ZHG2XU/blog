@@ -1,250 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
-    <title>Blog 代码主题与目录锚点修复开发文档</title>
-    <url>/2026/07/12/Blog%E4%BB%A3%E7%A0%81%E4%B8%BB%E9%A2%98%E4%B8%8E%E7%9B%AE%E5%BD%95%E9%94%9A%E7%82%B9%E4%BF%AE%E5%A4%8D%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)阶段: 代码阅读与目录跳转修复提交范围: 18d27c5 至 10e4a3a关键文件: code-highlight.css &#x2F; typography.css &#x2F; responsive.css &#x2F; themes/butterfly/source/js/main.js
-
-
-目录
-提交范围
-优化目标
-代码主题对齐
-目录跳转偏移
-实时目录锚点映射
-影响范围
-验证要点
-后续建议
-
-
-提交范围
-
-
-提交
-日期
-说明
-
-
-
-18d27c5
-2026-07-12
-对齐 VS Code Dark+ 代码主题与字体
-
-
-4f77f3c
-2026-07-12
-统一目录跳转与标题定位偏移
-
-
-10e4a3a
-2026-07-12
-改用实时目录锚点映射机制
-
-
-
-优化目标技术博客的核心阅读对象不是普通段落，而是：
-
-代码块。
-文件路径。
-函数名。
-表格。
-长文目录。
-
-本阶段主要解决：
-
-代码块颜色和本地 VS Code 阅读习惯不一致。
-目录点击后标题定位被固定导航遮挡。
-Butterfly 目录锚点在页面结构变化后映射不稳定。
-
-
-代码主题对齐涉及提交：
-
-18d27c5
-
-涉及文件：
-
-_config.butterfly.yml
-source/css/modules/code-highlight.css
-
-1. 目标风格暗色代码块对齐本地常用编辑器体验：
-
-VS Code Dark+
-Cascadia Code
-16px 左右阅读字号
-清晰 token 色彩
-
-2. 关键调整code-highlight.css 调整内容：
-
-代码块背景。
-工具栏背景。
-行号颜色。
-token 颜色。
-字体族。
-行高。
-行内代码样式。
-
-核心字体栈：
-font-family: &quot;Cascadia Code&quot;, &quot;Cascadia Mono&quot;, Consolas, &quot;Courier New&quot;, monospace;
-
-3. 设计原因博客文章包含大量：
-
-C 语言代码。
-SDK 路径。
-宏定义。
-函数名。
-架构片段。
-
-代码块越接近本地 IDE 阅读体验，迁移到网页后的认知成本越低。
-
-目录跳转偏移涉及提交：
-
-4f77f3c
-
-涉及文件：
-
-source/css/modules/responsive.css
-source/css/modules/typography.css
-themes/butterfly/source/js/main.js
-
-1. 问题表现点击文章目录后，标题定位容易被固定导航遮住。
-原因：
-
-页面存在固定导航栏。
-标题锚点默认滚动到视口顶部。
-移动端和桌面端导航高度不同。
-
-2. CSS 侧调整通过 scroll-padding-top 和标题定位策略，让跳转位置预留导航高度。
-相关文件：
-source/css/modules/typography.csssource/css/modules/responsive.css
-
-3. JS 侧调整Butterfly 的目录点击逻辑位于：
-themes/butterfly/source/js/main.js
-
-提交 4f77f3c 对目录跳转逻辑做了第一次统一，避免不同入口计算偏移不一致。
-
-实时目录锚点映射涉及提交：
-
-10e4a3a
-
-涉及文件：
-
-themes/butterfly/source/js/main.js
-
-1. 为什么需要实时映射文章内容较长，且标题结构可能包含：
-
-H1&#x2F;H2&#x2F;H3 多级标题。
-自动生成的 anchor。
-中文标题。
-代码、表格、长段落导致的滚动高度变化。
-
-如果目录只在初始化时缓存锚点映射，页面后续变化可能导致：
-
-当前目录高亮不准确。
-点击目录跳到错误位置。
-标题偏移和实际 DOM 不一致。
-
-2. 实时映射机制提交 10e4a3a 将目录锚点逻辑改为实时查询：
-
-点击时根据当前 DOM 查找目标标题。
-滚动时根据当前标题位置更新目录状态。
-避免依赖过早缓存的锚点映射。
-
-3. 改动收益
-长文目录稳定性更好。
-中文标题锚点更可靠。
-页面加载后发生布局变化时，目录仍能工作。
-与固定导航偏移策略配合更自然。
-
-
-影响范围
-
-
-页面
-影响
-
-
-
-文章页
-代码块主题、目录跳转、标题定位
-
-
-移动端文章页
-目录抽屉与标题定位
-
-
-长文页面
-当前目录高亮和滚动定位
-
-
-技术文档
-代码可读性提升
-
-
-
-验证要点1. 代码块检查：
-
-暗黑模式代码块是否接近 VS Code Dark+。
-字体是否为 Cascadia Code 优先。
-行号是否清晰。
-选中文本是否可读。
-行内代码是否和正文区分明显。
-
-2. 目录点击检查：
-
-点击目录一级标题。
-点击目录二级标题。
-点击目录三级标题。
-标题是否被导航遮挡。
-URL hash 是否更新正常。
-
-3. 滚动高亮检查：
-
-手动滚动文章。
-当前目录项是否跟随变化。
-长文中段和末尾是否仍准确。
-
-
-后续建议1. 减少主题源码改动themes/butterfly/source/js/main.js 已被本地修改，后续升级 Butterfly 时需要重点合并。
-建议后续记录：
-themes/butterfly/source/js/main.js
-
-中的本地补丁点。
-2. 增加目录视觉层级目录功能已稳定，视觉上还可以继续：
-
-当前项左侧加细线。
-H2&#x2F;H3 缩进更明显。
-长标题截断更平滑。
-
-3. 优化代码块复制反馈后续可以增加：
-
-复制成功提示。
-复制按钮 hover 状态。
-移动端复制按钮更大点击区域。
-
-
-结论本阶段把技术博客最关键的两个阅读组件继续打磨：
-
-代码块更接近本地开发体验。
-长文目录跳转和高亮更可靠。
-
-这类优化不一定第一眼显眼，但会显著影响读者阅读长篇工程文档时的稳定感。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>Blog-Hexo</category>
-      </categories>
-      <tags>
-        <tag>JavaScript</tag>
-        <tag>CSS</tag>
-        <tag>代码高亮</tag>
-        <tag>目录</tag>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>文档</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>ADPCM 对讲模块详细设计文档</title>
     <url>/2026/07/03/ADPCM%E5%AF%B9%E8%AE%B2%E6%A8%A1%E5%9D%97%E8%AF%A6%E7%BB%86%E8%AE%BE%E8%AE%A1%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[ADPCM 对讲模块详细设计文档1. 文档目标本文档说明 sdk/app/intercom/intercom_adpcm.c 的 ADPCM 对讲模块实现，重点讲清楚：
@@ -821,6 +577,250 @@ intercom_init()-&gt; intercom_handle_init()-&gt; intercom_encoded_handle() / int
         <tag>MSI</tag>
         <tag>TXW82x</tag>
         <tag>嵌入式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Blog 代码主题与目录锚点修复开发文档</title>
+    <url>/2026/07/12/Blog%E4%BB%A3%E7%A0%81%E4%B8%BB%E9%A2%98%E4%B8%8E%E7%9B%AE%E5%BD%95%E9%94%9A%E7%82%B9%E4%BF%AE%E5%A4%8D%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)阶段: 代码阅读与目录跳转修复提交范围: 18d27c5 至 10e4a3a关键文件: code-highlight.css &#x2F; typography.css &#x2F; responsive.css &#x2F; themes/butterfly/source/js/main.js
+
+
+目录
+提交范围
+优化目标
+代码主题对齐
+目录跳转偏移
+实时目录锚点映射
+影响范围
+验证要点
+后续建议
+
+
+提交范围
+
+
+提交
+日期
+说明
+
+
+
+18d27c5
+2026-07-12
+对齐 VS Code Dark+ 代码主题与字体
+
+
+4f77f3c
+2026-07-12
+统一目录跳转与标题定位偏移
+
+
+10e4a3a
+2026-07-12
+改用实时目录锚点映射机制
+
+
+
+优化目标技术博客的核心阅读对象不是普通段落，而是：
+
+代码块。
+文件路径。
+函数名。
+表格。
+长文目录。
+
+本阶段主要解决：
+
+代码块颜色和本地 VS Code 阅读习惯不一致。
+目录点击后标题定位被固定导航遮挡。
+Butterfly 目录锚点在页面结构变化后映射不稳定。
+
+
+代码主题对齐涉及提交：
+
+18d27c5
+
+涉及文件：
+
+_config.butterfly.yml
+source/css/modules/code-highlight.css
+
+1. 目标风格暗色代码块对齐本地常用编辑器体验：
+
+VS Code Dark+
+Cascadia Code
+16px 左右阅读字号
+清晰 token 色彩
+
+2. 关键调整code-highlight.css 调整内容：
+
+代码块背景。
+工具栏背景。
+行号颜色。
+token 颜色。
+字体族。
+行高。
+行内代码样式。
+
+核心字体栈：
+font-family: &quot;Cascadia Code&quot;, &quot;Cascadia Mono&quot;, Consolas, &quot;Courier New&quot;, monospace;
+
+3. 设计原因博客文章包含大量：
+
+C 语言代码。
+SDK 路径。
+宏定义。
+函数名。
+架构片段。
+
+代码块越接近本地 IDE 阅读体验，迁移到网页后的认知成本越低。
+
+目录跳转偏移涉及提交：
+
+4f77f3c
+
+涉及文件：
+
+source/css/modules/responsive.css
+source/css/modules/typography.css
+themes/butterfly/source/js/main.js
+
+1. 问题表现点击文章目录后，标题定位容易被固定导航遮住。
+原因：
+
+页面存在固定导航栏。
+标题锚点默认滚动到视口顶部。
+移动端和桌面端导航高度不同。
+
+2. CSS 侧调整通过 scroll-padding-top 和标题定位策略，让跳转位置预留导航高度。
+相关文件：
+source/css/modules/typography.csssource/css/modules/responsive.css
+
+3. JS 侧调整Butterfly 的目录点击逻辑位于：
+themes/butterfly/source/js/main.js
+
+提交 4f77f3c 对目录跳转逻辑做了第一次统一，避免不同入口计算偏移不一致。
+
+实时目录锚点映射涉及提交：
+
+10e4a3a
+
+涉及文件：
+
+themes/butterfly/source/js/main.js
+
+1. 为什么需要实时映射文章内容较长，且标题结构可能包含：
+
+H1&#x2F;H2&#x2F;H3 多级标题。
+自动生成的 anchor。
+中文标题。
+代码、表格、长段落导致的滚动高度变化。
+
+如果目录只在初始化时缓存锚点映射，页面后续变化可能导致：
+
+当前目录高亮不准确。
+点击目录跳到错误位置。
+标题偏移和实际 DOM 不一致。
+
+2. 实时映射机制提交 10e4a3a 将目录锚点逻辑改为实时查询：
+
+点击时根据当前 DOM 查找目标标题。
+滚动时根据当前标题位置更新目录状态。
+避免依赖过早缓存的锚点映射。
+
+3. 改动收益
+长文目录稳定性更好。
+中文标题锚点更可靠。
+页面加载后发生布局变化时，目录仍能工作。
+与固定导航偏移策略配合更自然。
+
+
+影响范围
+
+
+页面
+影响
+
+
+
+文章页
+代码块主题、目录跳转、标题定位
+
+
+移动端文章页
+目录抽屉与标题定位
+
+
+长文页面
+当前目录高亮和滚动定位
+
+
+技术文档
+代码可读性提升
+
+
+
+验证要点1. 代码块检查：
+
+暗黑模式代码块是否接近 VS Code Dark+。
+字体是否为 Cascadia Code 优先。
+行号是否清晰。
+选中文本是否可读。
+行内代码是否和正文区分明显。
+
+2. 目录点击检查：
+
+点击目录一级标题。
+点击目录二级标题。
+点击目录三级标题。
+标题是否被导航遮挡。
+URL hash 是否更新正常。
+
+3. 滚动高亮检查：
+
+手动滚动文章。
+当前目录项是否跟随变化。
+长文中段和末尾是否仍准确。
+
+
+后续建议1. 减少主题源码改动themes/butterfly/source/js/main.js 已被本地修改，后续升级 Butterfly 时需要重点合并。
+建议后续记录：
+themes/butterfly/source/js/main.js
+
+中的本地补丁点。
+2. 增加目录视觉层级目录功能已稳定，视觉上还可以继续：
+
+当前项左侧加细线。
+H2&#x2F;H3 缩进更明显。
+长标题截断更平滑。
+
+3. 优化代码块复制反馈后续可以增加：
+
+复制成功提示。
+复制按钮 hover 状态。
+移动端复制按钮更大点击区域。
+
+
+结论本阶段把技术博客最关键的两个阅读组件继续打磨：
+
+代码块更接近本地开发体验。
+长文目录跳转和高亮更可靠。
+
+这类优化不一定第一眼显眼，但会显著影响读者阅读长篇工程文档时的稳定感。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>Blog-Hexo</category>
+      </categories>
+      <tags>
+        <tag>JavaScript</tag>
+        <tag>CSS</tag>
+        <tag>代码高亮</tag>
+        <tag>目录</tag>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>文档</tag>
       </tags>
   </entry>
   <entry>
@@ -1416,401 +1416,6 @@ source/_posts/样式文档.md
       </tags>
   </entry>
   <entry>
-    <title>Blog 视觉与阅读体验追加优化开发文档</title>
-    <url>/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)阶段: 工作区追加优化基准提交: 10e4a3a 之后优化周期: 2026-07-11 至 2026-07-12样式入口: source/css/custom.css模块目录: source/css/modules/主要目标: 提升首页视觉表现、文章阅读体验、长文目录可用性与移动端可读性。
-
-
-目录
-优化目标
-文件分类
-优化总览
-模块详解
-首页 Hero 与头图
-导航栏
-首页文章卡片
-侧栏与目录
-文章正文排版
-代码块与行内代码
-移动端适配
-主题变量
-
-
-验证记录
-后续优化建议
-
-
-优化目标本次优化围绕博客的实际内容形态展开。站点以嵌入式开发、系统设计、工程文档和问题记录为主，因此视觉风格需要同时满足两个方向：
-
-首页保持个人主页的沉浸感，保留全屏壁纸与明确的个人识别。
-文章页优先服务长文阅读，目录、代码块、正文层级和移动端换行必须清晰稳定。
-
-最终取向是：少一点装饰性干扰，多一点信息层级、阅读节奏和交互反馈。
-
-文件分类
-
-
-分类
-标签
-涉及文件
-
-
-
-站点配置
-config &#x2F; subtitle &#x2F; home
-_config.butterfly.yml
-
-
-主题系统
-theme &#x2F; variable &#x2F; radius
-variables.css
-
-
-布局组件
-hero &#x2F; header &#x2F; navigation
-header-text.css &#x2F; navigation.css
-
-
-卡片与侧栏
-card &#x2F; sidebar &#x2F; toc &#x2F; surface
-cards.css &#x2F; post-meta.css
-
-
-内容排版
-typography &#x2F; article &#x2F; heading
-typography.css
-
-
-代码阅读
-code &#x2F; highlight &#x2F; inline-code
-code-highlight.css
-
-
-响应式设计
-responsive &#x2F; mobile
-responsive.css
-
-
-
-优化总览
-
-
-优化项
-目标
-结果
-
-
-
-首页滚动文字英文化
-统一首页 Hero 的视觉语言
-首页打字文案改为英文短句
-
-
-全屏 Hero 保留
-保留个人主页沉浸感
-full_page 维持 100vh / 100svh
-
-
-Hero 动效
-增加轻量生命感
-标题、字幕、社交图标、滚动按钮加入入场与呼吸动画
-
-
-导航栏对比度
-避免白字压在亮图上不清楚
-首屏顶部添加暗色渐变，滚动后恢复浅色毛玻璃
-
-
-首页文章卡片
-降低信息密度
-摘要缩短，圆角收敛，hover 反馈更清楚
-
-
-目录正常显示
-去掉目录虚化&#x2F;磨砂感
-#card-toc 和 .toc-content 改为实底显示
-
-
-文章正文层级
-减弱重复标题压迫感
-正文首个 H1 降级为更克制的视觉尺寸
-
-
-移动端行内代码
-避免长路径撑破布局
-行内代码允许正常折行
-
-
-代码交互反馈
-提升技术文章细节体验
-行内代码 hover 增加轻量边框与阴影反馈
-
-
-
-模块详解首页 Hero 与头图涉及文件:
-
-source/css/modules/header-text.css
-_config.butterfly.yml
-
-1. 首页英文滚动文案将首页 subtitle.sub 从中文短句调整为英文短句：
-sub:  - Turn complex systems into clear notes  - Embedded development, system design, and engineering practice  - Build carefully, document honestly, improve continuously
-
-目的:
-
-首页 Hero 中英文更适合短句打字效果。
-减少中文长句在移动端换行时的拥挤感。
-强化站点“工程记录 &#x2F; 系统设计 &#x2F; 持续构建”的定位。
-
-2. 保留全屏壁纸首页 Hero 最终保持全屏：
-#page-header.full_page &#123;    min-height: 100vh;    min-height: 100svh;    height: 100vh;    height: 100svh;&#125;
-
-说明:
-
-曾尝试将 Hero 调整为 92svh，让首屏露出文章区。
-最终确认首页应保留完整壁纸沉浸感，因此恢复为 100svh。
-
-3. Hero 入场动画新增动画:
-
-hero-copy-in
-hero-title-in
-hero-subtitle-in
-hero-social-in
-scroll-button-float
-
-对应元素:
-
-#site-info
-#site-title
-#site-subtitle
-#site_social_icons
-#scroll-down .scroll-down-effects
-
-设计原则:
-
-动画时间短，避免影响阅读。
-不使用大幅度移动。
-不对内容做持续闪烁。
-滚动按钮只保留轻微呼吸&#x2F;浮动提示。
-
-
-导航栏涉及文件:
-
-source/css/modules/navigation.css
-
-1. 首屏导航增强对比度首屏 Hero 背景图局部较亮，白色导航文字容易丢失，因此增加顶部暗色渐变：
-#page-header.full_page:not(.nav-fixed) #nav &#123;    background: linear-gradient(180deg, rgba(2, 6, 23, 0.42), rgba(2, 6, 23, 0.08)) !important;&#125;
-
-2. 滚动后恢复正常导航选择器限制在 :not(.nav-fixed)，避免滚动到文章列表后仍保留 Hero 的暗色渐变。
-验证结果:
-
-首屏导航文字对比度更稳。
-滚动后导航恢复浅色实用状态。
-未产生横向溢出。
-
-
-首页文章卡片涉及文件:
-
-source/css/modules/cards.css
-source/css/modules/variables.css
-
-1. 圆角收敛将全局大圆角变量从 24px 调整为 18px：
---ui-radius-lg: 18px;
-
-目的:
-
-降低卡片的装饰感。
-让技术博客界面更偏工具型、文档型。
-
-2. 摘要密度调整桌面端文章摘要从 3 行改为 2 行：
-#recent-posts .recent-post-item .content &#123;    line-height: 1.78;    -webkit-line-clamp: 2;&#125;
-
-移动端保留 3 行：
-@media screen and (max-width: 768px) &#123;    #recent-posts .recent-post-item .content &#123;        -webkit-line-clamp: 3;    &#125;&#125;
-
-3. 卡片交互增加轻量 hover：
-#recent-posts &gt; .recent-post-items &gt; .recent-post-item:hover &#123;    border-color: var(--ui-border-strong);    box-shadow: var(--ui-shadow-md);    transform: translateY(-6px);&#125;
-
-滚动出现动画只保留透明度变化，避免虚化：
-@keyframes surface-reveal &#123;    from &#123;        opacity: 0;    &#125;    to &#123;        opacity: 1;    &#125;&#125;
-
-
-侧栏与目录涉及文件:
-
-source/css/modules/cards.css
-source/css/modules/post-meta.css
-
-1. 目录关闭虚化目录卡片最终改为正常实底显示：
-#aside-content .sticky_layout:has(#card-toc),#aside-content #card-toc,#aside-content #card-toc .toc-content &#123;    background: var(--ui-surface-solid) !important;    backdrop-filter: none !important;    -webkit-backdrop-filter: none !important;&#125;
-
-目录内容区也单独覆盖：
-#card-toc .toc-content &#123;    background: var(--ui-surface-solid) !important;    backdrop-filter: none !important;    -webkit-backdrop-filter: none !important;&#125;
-
-目的:
-
-目录作为长文导航工具，必须清晰。
-避免半透明&#x2F;磨砂效果影响条目识别。
-让目录和正文形成稳定阅读辅助关系。
-
-2. 目录内部滚动长文目录内容很多，因此限制目录高度并允许内部滚动：
-#card-toc .toc-content &#123;    overflow-y: auto;    max-height: calc(100vh - 180px);    scrollbar-width: thin;&#125;
-
-3. 目录当前项反馈当前项与 hover 项增加轻微横向反馈：
-#card-toc .toc-link:hover &#123;    transform: translateX(2px);&#125;#card-toc .toc-link.active &#123;    transform: translateX(3px);&#125;
-
-
-文章正文排版涉及文件:
-
-source/css/modules/typography.css
-
-1. 正文首个 H1 降级文章页顶部已经有 Hero 标题，正文再次出现同名 H1 时容易显得重复。因此正文首个 H1 调整为更克制的尺寸：
-#article-container &gt; h1:first-child &#123;    margin-top: 0;    font-size: clamp(1.55rem, 3vw, 1.95rem);&#125;
-
-2. 正文换行策略全局正文从 overflow-wrap: anywhere 调整为 break-word：
-#article-container &#123;    overflow-wrap: break-word;&#125;
-
-目的:
-
-避免普通中文、英文段落过度碎裂。
-行内代码在移动端由单独规则处理。
-
-
-代码块与行内代码涉及文件:
-
-source/css/modules/code-highlight.css
-source/css/modules/responsive.css
-
-1. 行内代码 hover 反馈行内代码增加轻量过渡与 hover 状态：
-#article-container :not(pre) &gt; code &#123;    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease,        box-shadow 0.18s ease;&#125;#article-container :not(pre) &gt; code:hover &#123;    border-color: var(--ui-border-strong);    box-shadow: 0 0 0 3px var(--ui-accent-soft);&#125;
-
-2. 移动端长路径折行移动端行内代码允许正常折行：
-@media screen and (max-width: 768px) &#123;    #article-container :not(pre) &gt; code &#123;        max-width: 100%;        white-space: normal;        overflow-wrap: anywhere;        word-break: break-word;    &#125;&#125;
-
-解决的问题:
-
-sdk/app/intercom/intercom_adpcm.c 这类路径过长。
-移动端正文宽度有限。
-不处理会导致行内代码撑破或换行很难看。
-
-
-移动端适配涉及文件:
-
-source/css/modules/header-text.css
-source/css/modules/responsive.css
-
-1. 移动端 Hero 取景移动端调整背景位置：
-@media screen and (max-width: 768px) &#123;    #page-header.full_page &#123;        background-position: 47% center !important;    &#125;&#125;
-
-2. 移动端 Hero 信息位置移动端将站点信息下移：
-#page-header.full_page #site-info &#123;    top: 70%;&#125;
-
-目的:
-
-避免标题压在人物眼部区域。
-保留壁纸主体。
-社交图标以底条形式出现，视觉更稳定。
-
-3. 移动端文章页内边距文章页移动端内边距调整：
-#post &#123;    padding: 26px 20px;&#125;
-
-
-主题变量涉及文件:
-
-source/css/modules/variables.css
-
-本次主要调整：
---ui-radius-lg: 18px;
-
-影响范围:
-
-首页文章卡片
-侧栏卡片
-页面容器
-相关文章卡片
-
-设计原因:
-
-原 24px 更偏柔和、装饰性。
-18px 更适合技术文档站点，保留现代感但不过度圆润。
-
-
-验证记录构建验证执行命令：
-npm run build
-
-结果：
-
-Hexo 构建通过。
-CSS 模块正常生成到 public/css/modules/。
-文章、分类、标签、归档页面正常生成。
-
-Chrome 视觉验证检查页面：
-
-http://localhost:4000/
-http://localhost:4000/2026/07/03/ADPCM对讲模块详细设计文档/
-
-检查项：
-
-首页 Hero 是否保持全屏。
-首页英文打字文案是否正常。
-滚动后导航栏是否恢复正常浅色状态。
-首页卡片是否无横向溢出。
-文章页目录是否正常实底显示。
-移动端文章页行内代码是否正常折行。
-
-截图记录目录：
-.codex-screenshots/
-
-
-后续优化建议1. 目录层级继续增强当前目录已经可用，后续可以优化：
-
-二级&#x2F;三级标题缩进更明确。
-当前章节左侧增加细线。
-长标题截断策略更稳定。
-
-2. 代码块工具栏优化技术文章代码较多，后续可继续优化：
-
-复制按钮成功状态。
-代码语言标签位置。
-横向滚动条样式。
-移动端代码块阅读宽度。
-
-3. 首页卡片元信息结构化当前文章卡片已经收敛摘要，但还可以继续：
-
-日期、分类、标签视觉弱化。
-标题和摘要之间拉开层级。
-分类标签改为更小的 metadata 样式。
-
-4. 首屏资源优化首页壁纸是核心视觉资源，后续可考虑：
-
-为 Hero 图增加 preload。
-针对移动端使用更小尺寸图片。
-避免弱网下首屏空白时间过长。
-
-
-结论本轮优化完成后，站点视觉方向更加明确：
-
-首页负责第一印象，保留全屏壁纸与轻量动画。
-首页列表负责内容入口，降低摘要密度并增强卡片反馈。
-文章页负责长文阅读，目录正常实底显示，正文层级更克制。
-移动端优先保证可读性，尤其是技术路径和行内代码换行。
-
-整体风格从“偏装饰的主题定制”进一步收敛到“适合工程文档阅读的个人技术博客”。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>Blog-Hexo</category>
-      </categories>
-      <tags>
-        <tag>CSS</tag>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>文档</tag>
-        <tag>样式</tag>
-        <tag>主题定制</tag>
-        <tag>前端</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>Butterfly 主题接入与仓库清理开发文档</title>
     <url>/2026/07/03/Butterfly%E4%B8%BB%E9%A2%98%E6%8E%A5%E5%85%A5%E4%B8%8E%E4%BB%93%E5%BA%93%E6%B8%85%E7%90%86%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[
@@ -2226,6 +1831,401 @@ H.264 Annex-B 起始码长度是动态的（3 或 4 字节）。 所有涉及 NA
         <tag>硬件解码</tag>
         <tag>framebuff</tag>
         <tag>BugFix</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Blog 视觉与阅读体验追加优化开发文档</title>
+    <url>/2026/07/12/Blog%E8%A7%86%E8%A7%89%E4%B8%8E%E9%98%85%E8%AF%BB%E4%BD%93%E9%AA%8C%E4%BC%98%E5%8C%96%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)阶段: 工作区追加优化基准提交: 10e4a3a 之后优化周期: 2026-07-11 至 2026-07-12样式入口: source/css/custom.css模块目录: source/css/modules/主要目标: 提升首页视觉表现、文章阅读体验、长文目录可用性与移动端可读性。
+
+
+目录
+优化目标
+文件分类
+优化总览
+模块详解
+首页 Hero 与头图
+导航栏
+首页文章卡片
+侧栏与目录
+文章正文排版
+代码块与行内代码
+移动端适配
+主题变量
+
+
+验证记录
+后续优化建议
+
+
+优化目标本次优化围绕博客的实际内容形态展开。站点以嵌入式开发、系统设计、工程文档和问题记录为主，因此视觉风格需要同时满足两个方向：
+
+首页保持个人主页的沉浸感，保留全屏壁纸与明确的个人识别。
+文章页优先服务长文阅读，目录、代码块、正文层级和移动端换行必须清晰稳定。
+
+最终取向是：少一点装饰性干扰，多一点信息层级、阅读节奏和交互反馈。
+
+文件分类
+
+
+分类
+标签
+涉及文件
+
+
+
+站点配置
+config &#x2F; subtitle &#x2F; home
+_config.butterfly.yml
+
+
+主题系统
+theme &#x2F; variable &#x2F; radius
+variables.css
+
+
+布局组件
+hero &#x2F; header &#x2F; navigation
+header-text.css &#x2F; navigation.css
+
+
+卡片与侧栏
+card &#x2F; sidebar &#x2F; toc &#x2F; surface
+cards.css &#x2F; post-meta.css
+
+
+内容排版
+typography &#x2F; article &#x2F; heading
+typography.css
+
+
+代码阅读
+code &#x2F; highlight &#x2F; inline-code
+code-highlight.css
+
+
+响应式设计
+responsive &#x2F; mobile
+responsive.css
+
+
+
+优化总览
+
+
+优化项
+目标
+结果
+
+
+
+首页滚动文字英文化
+统一首页 Hero 的视觉语言
+首页打字文案改为英文短句
+
+
+全屏 Hero 保留
+保留个人主页沉浸感
+full_page 维持 100vh / 100svh
+
+
+Hero 动效
+增加轻量生命感
+标题、字幕、社交图标、滚动按钮加入入场与呼吸动画
+
+
+导航栏对比度
+避免白字压在亮图上不清楚
+首屏顶部添加暗色渐变，滚动后恢复浅色毛玻璃
+
+
+首页文章卡片
+降低信息密度
+摘要缩短，圆角收敛，hover 反馈更清楚
+
+
+目录正常显示
+去掉目录虚化&#x2F;磨砂感
+#card-toc 和 .toc-content 改为实底显示
+
+
+文章正文层级
+减弱重复标题压迫感
+正文首个 H1 降级为更克制的视觉尺寸
+
+
+移动端行内代码
+避免长路径撑破布局
+行内代码允许正常折行
+
+
+代码交互反馈
+提升技术文章细节体验
+行内代码 hover 增加轻量边框与阴影反馈
+
+
+
+模块详解首页 Hero 与头图涉及文件:
+
+source/css/modules/header-text.css
+_config.butterfly.yml
+
+1. 首页英文滚动文案将首页 subtitle.sub 从中文短句调整为英文短句：
+sub:  - Turn complex systems into clear notes  - Embedded development, system design, and engineering practice  - Build carefully, document honestly, improve continuously
+
+目的:
+
+首页 Hero 中英文更适合短句打字效果。
+减少中文长句在移动端换行时的拥挤感。
+强化站点“工程记录 &#x2F; 系统设计 &#x2F; 持续构建”的定位。
+
+2. 保留全屏壁纸首页 Hero 最终保持全屏：
+#page-header.full_page &#123;    min-height: 100vh;    min-height: 100svh;    height: 100vh;    height: 100svh;&#125;
+
+说明:
+
+曾尝试将 Hero 调整为 92svh，让首屏露出文章区。
+最终确认首页应保留完整壁纸沉浸感，因此恢复为 100svh。
+
+3. Hero 入场动画新增动画:
+
+hero-copy-in
+hero-title-in
+hero-subtitle-in
+hero-social-in
+scroll-button-float
+
+对应元素:
+
+#site-info
+#site-title
+#site-subtitle
+#site_social_icons
+#scroll-down .scroll-down-effects
+
+设计原则:
+
+动画时间短，避免影响阅读。
+不使用大幅度移动。
+不对内容做持续闪烁。
+滚动按钮只保留轻微呼吸&#x2F;浮动提示。
+
+
+导航栏涉及文件:
+
+source/css/modules/navigation.css
+
+1. 首屏导航增强对比度首屏 Hero 背景图局部较亮，白色导航文字容易丢失，因此增加顶部暗色渐变：
+#page-header.full_page:not(.nav-fixed) #nav &#123;    background: linear-gradient(180deg, rgba(2, 6, 23, 0.42), rgba(2, 6, 23, 0.08)) !important;&#125;
+
+2. 滚动后恢复正常导航选择器限制在 :not(.nav-fixed)，避免滚动到文章列表后仍保留 Hero 的暗色渐变。
+验证结果:
+
+首屏导航文字对比度更稳。
+滚动后导航恢复浅色实用状态。
+未产生横向溢出。
+
+
+首页文章卡片涉及文件:
+
+source/css/modules/cards.css
+source/css/modules/variables.css
+
+1. 圆角收敛将全局大圆角变量从 24px 调整为 18px：
+--ui-radius-lg: 18px;
+
+目的:
+
+降低卡片的装饰感。
+让技术博客界面更偏工具型、文档型。
+
+2. 摘要密度调整桌面端文章摘要从 3 行改为 2 行：
+#recent-posts .recent-post-item .content &#123;    line-height: 1.78;    -webkit-line-clamp: 2;&#125;
+
+移动端保留 3 行：
+@media screen and (max-width: 768px) &#123;    #recent-posts .recent-post-item .content &#123;        -webkit-line-clamp: 3;    &#125;&#125;
+
+3. 卡片交互增加轻量 hover：
+#recent-posts &gt; .recent-post-items &gt; .recent-post-item:hover &#123;    border-color: var(--ui-border-strong);    box-shadow: var(--ui-shadow-md);    transform: translateY(-6px);&#125;
+
+滚动出现动画只保留透明度变化，避免虚化：
+@keyframes surface-reveal &#123;    from &#123;        opacity: 0;    &#125;    to &#123;        opacity: 1;    &#125;&#125;
+
+
+侧栏与目录涉及文件:
+
+source/css/modules/cards.css
+source/css/modules/post-meta.css
+
+1. 目录关闭虚化目录卡片最终改为正常实底显示：
+#aside-content .sticky_layout:has(#card-toc),#aside-content #card-toc,#aside-content #card-toc .toc-content &#123;    background: var(--ui-surface-solid) !important;    backdrop-filter: none !important;    -webkit-backdrop-filter: none !important;&#125;
+
+目录内容区也单独覆盖：
+#card-toc .toc-content &#123;    background: var(--ui-surface-solid) !important;    backdrop-filter: none !important;    -webkit-backdrop-filter: none !important;&#125;
+
+目的:
+
+目录作为长文导航工具，必须清晰。
+避免半透明&#x2F;磨砂效果影响条目识别。
+让目录和正文形成稳定阅读辅助关系。
+
+2. 目录内部滚动长文目录内容很多，因此限制目录高度并允许内部滚动：
+#card-toc .toc-content &#123;    overflow-y: auto;    max-height: calc(100vh - 180px);    scrollbar-width: thin;&#125;
+
+3. 目录当前项反馈当前项与 hover 项增加轻微横向反馈：
+#card-toc .toc-link:hover &#123;    transform: translateX(2px);&#125;#card-toc .toc-link.active &#123;    transform: translateX(3px);&#125;
+
+
+文章正文排版涉及文件:
+
+source/css/modules/typography.css
+
+1. 正文首个 H1 降级文章页顶部已经有 Hero 标题，正文再次出现同名 H1 时容易显得重复。因此正文首个 H1 调整为更克制的尺寸：
+#article-container &gt; h1:first-child &#123;    margin-top: 0;    font-size: clamp(1.55rem, 3vw, 1.95rem);&#125;
+
+2. 正文换行策略全局正文从 overflow-wrap: anywhere 调整为 break-word：
+#article-container &#123;    overflow-wrap: break-word;&#125;
+
+目的:
+
+避免普通中文、英文段落过度碎裂。
+行内代码在移动端由单独规则处理。
+
+
+代码块与行内代码涉及文件:
+
+source/css/modules/code-highlight.css
+source/css/modules/responsive.css
+
+1. 行内代码 hover 反馈行内代码增加轻量过渡与 hover 状态：
+#article-container :not(pre) &gt; code &#123;    transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease,        box-shadow 0.18s ease;&#125;#article-container :not(pre) &gt; code:hover &#123;    border-color: var(--ui-border-strong);    box-shadow: 0 0 0 3px var(--ui-accent-soft);&#125;
+
+2. 移动端长路径折行移动端行内代码允许正常折行：
+@media screen and (max-width: 768px) &#123;    #article-container :not(pre) &gt; code &#123;        max-width: 100%;        white-space: normal;        overflow-wrap: anywhere;        word-break: break-word;    &#125;&#125;
+
+解决的问题:
+
+sdk/app/intercom/intercom_adpcm.c 这类路径过长。
+移动端正文宽度有限。
+不处理会导致行内代码撑破或换行很难看。
+
+
+移动端适配涉及文件:
+
+source/css/modules/header-text.css
+source/css/modules/responsive.css
+
+1. 移动端 Hero 取景移动端调整背景位置：
+@media screen and (max-width: 768px) &#123;    #page-header.full_page &#123;        background-position: 47% center !important;    &#125;&#125;
+
+2. 移动端 Hero 信息位置移动端将站点信息下移：
+#page-header.full_page #site-info &#123;    top: 70%;&#125;
+
+目的:
+
+避免标题压在人物眼部区域。
+保留壁纸主体。
+社交图标以底条形式出现，视觉更稳定。
+
+3. 移动端文章页内边距文章页移动端内边距调整：
+#post &#123;    padding: 26px 20px;&#125;
+
+
+主题变量涉及文件:
+
+source/css/modules/variables.css
+
+本次主要调整：
+--ui-radius-lg: 18px;
+
+影响范围:
+
+首页文章卡片
+侧栏卡片
+页面容器
+相关文章卡片
+
+设计原因:
+
+原 24px 更偏柔和、装饰性。
+18px 更适合技术文档站点，保留现代感但不过度圆润。
+
+
+验证记录构建验证执行命令：
+npm run build
+
+结果：
+
+Hexo 构建通过。
+CSS 模块正常生成到 public/css/modules/。
+文章、分类、标签、归档页面正常生成。
+
+Chrome 视觉验证检查页面：
+
+http://localhost:4000/
+http://localhost:4000/2026/07/03/ADPCM对讲模块详细设计文档/
+
+检查项：
+
+首页 Hero 是否保持全屏。
+首页英文打字文案是否正常。
+滚动后导航栏是否恢复正常浅色状态。
+首页卡片是否无横向溢出。
+文章页目录是否正常实底显示。
+移动端文章页行内代码是否正常折行。
+
+截图记录目录：
+.codex-screenshots/
+
+
+后续优化建议1. 目录层级继续增强当前目录已经可用，后续可以优化：
+
+二级&#x2F;三级标题缩进更明确。
+当前章节左侧增加细线。
+长标题截断策略更稳定。
+
+2. 代码块工具栏优化技术文章代码较多，后续可继续优化：
+
+复制按钮成功状态。
+代码语言标签位置。
+横向滚动条样式。
+移动端代码块阅读宽度。
+
+3. 首页卡片元信息结构化当前文章卡片已经收敛摘要，但还可以继续：
+
+日期、分类、标签视觉弱化。
+标题和摘要之间拉开层级。
+分类标签改为更小的 metadata 样式。
+
+4. 首屏资源优化首页壁纸是核心视觉资源，后续可考虑：
+
+为 Hero 图增加 preload。
+针对移动端使用更小尺寸图片。
+避免弱网下首屏空白时间过长。
+
+
+结论本轮优化完成后，站点视觉方向更加明确：
+
+首页负责第一印象，保留全屏壁纸与轻量动画。
+首页列表负责内容入口，降低摘要密度并增强卡片反馈。
+文章页负责长文阅读，目录正常实底显示，正文层级更克制。
+移动端优先保证可读性，尤其是技术路径和行内代码换行。
+
+整体风格从“偏装饰的主题定制”进一步收敛到“适合工程文档阅读的个人技术博客”。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>Blog-Hexo</category>
+      </categories>
+      <tags>
+        <tag>CSS</tag>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>文档</tag>
+        <tag>样式</tag>
+        <tag>主题定制</tag>
+        <tag>前端</tag>
       </tags>
   </entry>
   <entry>
@@ -5083,325 +5083,6 @@ KEY_MODULE_EN == 1 时按键输入已注册；
       </tags>
   </entry>
   <entry>
-    <title>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</title>
-    <url>/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿1. 优化背景TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：
-
-细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹；
-斜线、文字边缘和物体轮廓出现阶梯状锯齿；
-细节随镜头轻微移动而闪烁或跳变；
-硬件一次性大比例缩小后，部分像素信息被直接跳过。
-
-本次优化不改变摄像头、VPP 和 Scale3 的基础结构，而是在 Scale3 生成 YUV420P 帧后增加一次固定比例的软件降采样。核心思路是：
-
-先让 Scale3 输出较高分辨率的中间图像，再对相邻 2×2 像素做均值滤波并缩小一半，从而在抽取像素前抑制容易产生混叠的高频信息。
-
-对应提交：
-6820c0d scale3均值缩放
-
-核心修改文件：
-sdk/app/scale_msi/scale3_normal_msi.c
-
-
-2. 优化目标本次修改的主要目标是改善缩小图像的主观质量，而不是节省 Scale3 输出缓冲区。
-具体目标包括：
-
-在最终降采样前进行简单低通滤波；
-降低亮度细节产生的摩尔纹和混叠；
-平滑斜边与轮廓，减轻阶梯锯齿；
-使用固定 2:1 比例降低算法复杂度；
-在原有 YUV420P 缓冲区内原地处理，避免额外申请整帧内存；
-保持原有 MSI 输出接口和 framebuff 生命周期不变。
-
-需要特别说明：当前实现不会降低 Scale3 帧池最初申请的 PSRAM 容量，因为缓冲区仍按照中间分辨率创建。它降低的是送往下游的有效图像尺寸和 fb-&gt;len。
-
-3. 修改前后的数据链路3.1 修改前Camera / VPP     |     vScale3 硬件缩放     |  直接生成最终尺寸 YUV420P     vframebuff     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
-
-如果 Scale3 直接把高分辨率图像缩到较小尺寸，硬件缩放过程中对高频纹理的预滤波不足，就可能产生混叠。
-3.2 修改后Camera / VPP     |     vScale3 硬件缩放     |  生成较高分辨率中间帧，例如 800×480     vYUV420P 中间缓冲区     |     |  Y：2×2 Box Average     |  U/V：固定位置抽样     v原地 2:1 降采样     |  输出 400×240     v更新 framebuff 元数据     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
-
-以当前配套配置为例：
-
-
-
-阶段
-分辨率
-YUV420P 有效数据量
-
-
-
-Scale3 中间输出
-800×480
-576000 字节
-
-
-软件降采样输出
-400×240
-144000 字节
-
-
-宽、高各缩小一半，因此最终像素数量和有效数据量均变为原来的四分之一。
-
-4. 为什么均值降采样能改善摩尔纹和锯齿4.1 问题本质：缩小过程中的混叠缩小图像意味着目标图像的一个像素要代表源图中的一片区域。如果直接选择区域内的某一个像素，源图中比目标分辨率更细的纹理会被错误地映射成较低频率的条纹，这就是空间采样中的混叠。
-摩尔纹是混叠的一种典型表现。它并不是原始场景中真实存在的大条纹，而是细密纹理与目标像素网格相互干涉后形成的伪影。
-4.2 2×2 均值相当于简单低通滤波当前亮度分量的计算公式为：
-Yout(x, y) = (    Yin(2x,     2y)     +    Yin(2x + 1, 2y)     +    Yin(2x,     2y + 1) +    Yin(2x + 1, 2y + 1)) / 4
-
-它先把 2×2 区域内的亮度变化平均，再生成一个输出像素。这相当于使用下面的 Box Filter 卷积核：
-1/4 × [ 1  1 ]      [ 1  1 ]
-
-均值会削弱单像素级的明暗跳变和细密纹理，然后再执行 2:1 抽取，因此比直接隔点取样更不容易产生错误条纹。
-4.3 对锯齿的改善斜线穿过像素网格时，每个 2×2 区域内通常同时包含前景与背景。均值计算会生成介于二者之间的亮度值，使边缘产生有限的灰度过渡，而不是只有完全亮或完全暗两个状态。
-因此，最终显示出来的斜边会更平滑。这种效果属于缩放阶段的预滤波抗锯齿，不等同于 3D 渲染中的 MSAA，但二者都利用了区域覆盖信息改善边缘质量。
-
-5. YUV420P 内存布局算法处理的是三平面 YUV420P，缓冲区布局如下：
-buf | +-- Y 平面：W × H | +-- U 平面：(W / 2) × (H / 2) | +-- V 平面：(W / 2) × (H / 2)
-
-各平面的地址计算为：
-src_y_size = (uint32_t)src_w * src_h;src_u = buf + src_y_size;src_v = src_u + src_y_size / 4;
-
-YUV420P 的整帧数据量为：
-W × H + W × H / 4 + W × H / 4= W × H × 3 / 2
-
-降采样后，目标平面被紧凑地放到同一个缓冲区前部：
-dst_y_size = (uint32_t)out_w * out_h;dst_u = buf + dst_y_size;dst_v = dst_u + dst_y_size / 4;
-
-
-6. 核心实现分析6.1 函数接口新增函数为：
-static uint8_t scale3_yuv420p_downsample_2x2(    uint8_t *buf,    uint16_t src_w,    uint16_t src_h,    uint16_t *dst_w,    uint16_t *dst_h);
-
-参数含义：
-
-
-
-参数
-说明
-
-
-
-buf
-YUV420P 源缓冲区，同时作为目标缓冲区
-
-
-src_w、src_h
-Scale3 中间输出宽高
-
-
-dst_w、dst_h
-返回实际降采样后的宽高
-
-
-返回值
-1 表示成功，0 表示输入不满足处理条件
-
-
-6.2 尺寸检查与偶数约束if (!buf || src_w &lt; 4 || src_h &lt; 4 ||    (src_w &amp; 1) || (src_h &amp; 1))&#123;    return 0;&#125;out_w = (src_w &gt;&gt; 1) &amp; ~1U;out_h = (src_h &gt;&gt; 1) &amp; ~1U;
-
-YUV420P 要求宽高适合 2×2 色度采样，因此输出宽高继续保持偶数。
-当源尺寸除以 2 后为奇数时，代码会向下对齐到偶数。例如：
-322×242 -&gt; 160×120
-
-这种情况下会舍弃最右侧和最下侧各一个 2 像素块。常用的 800×480、320×240、168×128 均不会触发额外裁边。
-6.3 Cache 一致性Scale3 通过 DMA 向缓冲区写入数据，CPU 随后读取并修改该缓冲区，因此处理前先失效 D-Cache：
-sys_dcache_invalid_range((uint32_t *)buf, src_y_size * 3 / 2);
-
-处理完成后清理目标范围，确保下游 DMA 或其他硬件模块读到 CPU 写入的新数据：
-sys_dcache_clean_range((uint32_t *)buf, dst_y_size * 3 / 2);
-
-这一对操作是硬件缩放输出与 CPU 图像处理之间的重要边界，不能省略。
-6.4 Y 平面均值Y 平面按照两行、四列源数据一组处理，每次生成两个目标像素：
-uint32_t row0 = *(uint32_t *)(src_y0 + (x &lt;&lt; 1));uint32_t row1 = *(uint32_t *)(src_y1 + (x &lt;&lt; 1));sum = (row0 &amp; 0x00ff00ff) +      ((row0 &gt;&gt; 8) &amp; 0x00ff00ff) +      (row1 &amp; 0x00ff00ff) +      ((row1 &gt;&gt; 8) &amp; 0x00ff00ff);*(uint16_t *)(out_y + x) =    (uint16_t)(((sum &gt;&gt; 2) &amp; 0xff) |               ((sum &gt;&gt; 10) &amp; 0xff00));
-
-该实现使用 32 位读取和位运算同时累计两组 2×2 像素，减少逐像素循环、除法和存储次数。除以 4 通过右移 2 位完成。
-6.5 U&#x2F;V 平面处理当前色度分量没有计算 2×2 均值，而是从每个源色度块中选择左上角样本：
-dst_u[dst_row + x] = src_u[src_index];dst_v[dst_row + x] = src_v[src_index];
-
-由于 YUV420P 的 U&#x2F;V 本来就只有 Y 平面四分之一的采样数，Y 再缩小 2 倍后，U&#x2F;V 也必须继续缩小 2 倍，才能形成合法的目标 YUV420P 布局。
-这种实现速度较快，但意味着当前的“均值缩放”主要作用于亮度：
-
-明暗细节造成的摩尔纹和锯齿能够得到改善；
-彩色细纹造成的色度摩尔纹仍可能保留；
-如果后续需要进一步提升质量，可将 U&#x2F;V 也改为 2×2 均值。
-
-6.6 为什么可以原地处理处理顺序是 Y 平面在前、U&#x2F;V 平面在后，目标图像又比源图更小。目标数据始终写入缓冲区更靠前的位置：
-源布局：[           Y           ][    U    ][    V    ]目标布局：[  Y  ][ U ][ V ]
-
-Y 平面从前向后压缩时，写指针不会追上后续仍需读取的源行。完成整个 Y 平面后，再从原始 U&#x2F;V 区域读取色度数据并写到前部空出的区域，因此不需要第二块整帧缓冲区。
-
-7. 接入 Scale3 工作队列降采样发生在 scale3_normal_msi_work() 从消息队列取出普通帧之后、调用 msi_output_fb() 之前：
-uint16_t output_w = scale3-&gt;ow;uint16_t output_h = scale3-&gt;oh;scale3_yuv420p_downsample_2x2(    fb-&gt;data,    scale3-&gt;ow,    scale3-&gt;oh,    &amp;output_w,    &amp;output_h);ow = output_w;oh = output_h;
-
-处理完成后同步更新 framebuff 的描述信息：
-arg-&gt;yuv_arg.y_size = ow * oh;arg-&gt;yuv_arg.out_w  = ow;arg-&gt;yuv_arg.out_h  = oh;fb-&gt;len             = ow * oh * 3 / 2;
-
-这一步非常关键。下游不能继续使用中间分辨率解释已经压缩后的数据，否则会发生以下问题：
-
-Y&#x2F;U&#x2F;V 平面地址计算错误；
-下游读取超出有效目标帧的数据；
-LCD 显示花屏、错色或图像撕裂；
-帧长度统计和带宽计算错误。
-
-
-8. 普通帧与额外拍照帧的区别工作队列通过 datatag 区分普通连续帧和临时申请的额外帧：
-if (fb-&gt;datatag != (uint8_t)~0)&#123;    // 普通帧：执行 2×2 降采样&#125;else&#123;    // 额外拍照/缩略图帧：保持请求尺寸，直接输出&#125;
-
-因此，本次算法不会处理 datatag == 0xff 的额外拍照帧。这样可以避免拍照命令请求的特定分辨率被再次减半。
-不过，所有通过本模块帧池产生的普通帧都会进入降采样分支。该行为不仅影响 scale3_normal_msi2()，也可能影响调用 scale3_normal_msi() 的连续输出场景。后续若只希望特定 UI 使用该优化，建议增加独立使能标志，而不是仅依赖普通帧&#x2F;额外帧分类。
-
-9. 当前 UI 配套参数当前工作区中，Pocket Camera UI 在主界面预创建 Scale3 时使用：
-scale3_normal_msi2(    S_PREVIEW_SCALE3,    FSTYPE_YUV_P0,    800,    480);
-
-经过固定 2×2 降采样后，下游得到：
-400×240 YUV420P
-
-这里的 800×480 已不再代表最终 MSI 输出尺寸，而是“Scale3 中间尺寸”。这属于本次改动带来的接口语义变化。
-Pocket Camera 的各页面之后再次调用同名 S_PREVIEW_SCALE3 时，msi_new() 会复用已经创建的 MSI，因此实际尺寸由第一次创建时的 800×480 决定。这种行为依赖组件创建顺序，维护时需要格外注意。
-建议后续把两个概念显式区分：
-scale_w / scale_h：Scale3 硬件中间输出尺寸out_w / out_h：均值降采样后的最终输出尺寸
-
-
-10. 性能与内存分析10.1 CPU 运算量以 800×480 -&gt; 400×240 为例：
-
-Y 平面需要生成 96000 个目标像素；
-U 平面需要生成 24000 个目标样本；
-V 平面需要生成 24000 个目标样本；
-每帧需额外遍历约 144000 个目标采样值。
-
-算法没有乘法和通用除法，亮度平均主要使用加法、掩码与移位，适合算力有限的嵌入式平台。
-10.2 PSRAM 占用scale3_common() 仍按照 ow × oh × 3 / 2 为每个帧池节点分配缓冲区。默认 MAX_COUNT 为 3，因此 800×480 配置下仅像素缓冲区约占：
-800 × 480 × 3 / 2 × 3= 1,728,000 字节
-
-降采样完成后虽然 fb-&gt;len 只有 144000 字节，但底层 buffer 容量仍为 576000 字节。这是原地处理能够正常工作的前提，也是当前方案的内存代价。
-10.3 带宽变化
-
-
-位置
-单帧有效数据量
-相对中间帧
-
-
-
-Scale3 DMA 写入 PSRAM
-576000 字节
-100%
-
-
-CPU 处理后的下游有效帧
-144000 字节
-25%
-
-
-所以该方案会降低下游 MSI 传递的有效数据量，但不会降低 Scale3 写入中间帧所需的 DMA 带宽，反而增加了一次 CPU 读写与 Cache 维护。
-
-11. 当前实现的边界与风险11.1 U&#x2F;V 没有做均值滤波当前只对 Y 平面执行 2×2 均值。对于彩色网格、彩色织物等场景，色度混叠仍可能形成彩色摩尔纹。若实测仍有明显色彩条纹，应优先评估 U&#x2F;V 2×2 均值。
-11.2 API 尺寸语义发生变化原先调用者传入 ow、oh，下游就收到相同尺寸；修改后普通帧实际输出约为：
-(ow / 2 对齐到偶数) × (oh / 2 对齐到偶数)
-
-现有调用者如果仍把参数理解为最终分辨率，可能得到尺寸减半的画面。
-11.3 优化范围较宽降采样直接放在公共工作队列的普通帧输出分支中，没有独立配置开关。凡是使用该帧池的普通输出都会被处理。更稳妥的工程化方式是增加例如：
-uint8_t mean_downsample_enable : 1;
-
-并只在明确需要抗混叠的 UI 或产品配置中开启。
-11.4 实时性需要实机验证该算法运行在 workqueue 中，不在 Scale3 ISR 内直接执行，这避免了在中断上下文进行整帧处理。但 800×480 连续预览时，每帧都会增加 CPU 和 PSRAM 访问开销，需要结合实际帧率确认：
-
-workqueue 是否出现积压；
-Scale3 帧池是否频繁耗尽并打印 D；
-LCD 是否掉帧或延迟增加；
-CPU 占用和功耗是否可接受。
-
-11.5 视觉改善需要固定场景对比代码原理能够解释预期改善，但最终效果与摄像头传感器、ISP 锐化、Scale3 算法、LCD 二次缩放及场景纹理有关。不能只凭实现判断“摩尔纹已经消失”，应通过同机位 A&#x2F;B 测试确认。
-
-12. 建议验证方案12.1 测试场景建议准备以下固定测试目标：
-
-黑白等间距细条纹；
-横向、纵向及 30°&#x2F;45° 斜线；
-棋盘格和同心圆测试图；
-布料、纱窗、键盘和印刷网点；
-红绿或蓝黄相间的彩色细条纹；
-镜头缓慢平移时的动态纹理。
-
-12.2 A&#x2F;B 对照组
-
-
-组别
-处理链路
-
-
-
-A：原始方案
-Scale3 直接输出最终尺寸
-
-
-B：当前方案
-Scale3 输出 2 倍宽高，再做 Y 平面 2×2 均值
-
-
-C：完整均值方案
-Scale3 输出 2 倍宽高，Y&#x2F;U&#x2F;V 全部做 2×2 均值
-
-
-应确保三组测试使用相同传感器参数、曝光、增益、锐化、LCD 显示区域和拍摄距离。
-12.3 功能检查
-检查 arg-&gt;yuv_arg.out_w/out_h 是否为实际输出尺寸；
-检查 arg-&gt;yuv_arg.y_size == out_w × out_h；
-检查 fb-&gt;len == out_w × out_h × 3 / 2；
-检查 Y&#x2F;U&#x2F;V 平面地址和颜色是否正常；
-检查额外拍照帧是否保持请求分辨率；
-检查进入、退出和反复切换 UI 后 MSI 是否仍正常复用；
-检查连续运行时是否掉帧、花屏或出现帧池耗尽。
-
-12.4 视觉评价重点观察：
-
-高频区域是否仍出现大尺度明暗条纹；
-斜线边缘阶梯是否减轻；
-镜头移动时纹理是否闪烁；
-画面是否因 Box Filter 变得过于柔和；
-彩色条纹是否仍产生色度摩尔纹。
-
-
-13. 后续优化方向13.1 对 U&#x2F;V 同样执行 2×2 均值这是当前实现最直接的质量增强项。色度平面可使用与 Y 相同的计算思想：
-Uout = (U00 + U01 + U10 + U11) / 4Vout = (V00 + V01 + V10 + V11) / 4
-
-由于 U&#x2F;V 总采样数较少，额外计算量小于 Y 平面。
-13.2 增加显式开关把固定行为改为可配置行为：
-scale3_normal_msi2(..., mean_downsample_enable)
-
-或者通过 MSI 命令动态控制，使拍照、录像、预览和不同客户配置可以独立选择。
-13.3 明确中间尺寸与最终尺寸可把 API 改为同时传入最终输出尺寸，内部自动计算中间尺寸：
-最终需要 400×240-&gt; Scale3 自动配置为 800×480-&gt; 软件输出固定为 400×240
-
-这样调用者不必了解“传入尺寸会被减半”的隐含规则。
-13.4 根据画质与性能选择滤波核2×2 Box Filter 的优势是实现简单、速度快，但频率响应并不理想。如果平台性能允许，可以比较：
-
-2×2 Box Average：当前方案，速度最快；
-3×3 Gaussian：边缘更自然，计算和边界处理更复杂；
-双线性缩放：适合任意比例，但抗混叠能力取决于实现；
-多级缩放：适合更大倍率缩小，避免一次跨越过多源像素。
-
-
-14. 总结本次修改在 TXW82x Scale3 普通 YUV420P 输出链路中加入了原地 2×2 降采样。其核心价值不是简单地把宽高减半，而是在抽取像素前对 Y 分量进行区域均值，使高频亮度信息先被平滑，从而在一定程度上降低摩尔纹、斜边锯齿和动态闪烁。
-当前方案的典型链路为：
-VPP-&gt; Scale3 硬件生成 800×480 YUV420P-&gt; CPU 对 Y 分量执行 2×2 Box Average-&gt; U/V 分量固定位置抽样-&gt; 原地压缩为 400×240 YUV420P-&gt; 更新 out_w、out_h、y_size 和 fb-&gt;len-&gt; MSI 输出到 LCD 链路
-
-它在不增加第二块整帧缓冲区的前提下提供了低成本的缩放预滤波，但目前仍存在 U&#x2F;V 未均值、API 尺寸语义变化、公共输出路径影响范围较宽等限制。后续应以固定测试图进行 A&#x2F;B 对比，并结合帧率、CPU 占用与 PSRAM 带宽，决定是否进一步加入色度均值和独立功能开关。
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>TXW82x Scale3</category>
-      </categories>
-      <tags>
-        <tag>C语言</tag>
-        <tag>TXW82x</tag>
-        <tag>嵌入式</tag>
-        <tag>BugFix</tag>
-        <tag>Scale3</tag>
-        <tag>YUV420P</tag>
-        <tag>图像缩放</tag>
-        <tag>摩尔纹</tag>
-        <tag>抗锯齿</tag>
-      </tags>
-  </entry>
-  <entry>
     <title>TXW828 AI 闹钟 — UI 模块工程说明文档</title>
     <url>/2026/05/09/TXW828-AI%E9%97%B9%E9%92%9FUI%E6%A8%A1%E5%9D%97%E5%B7%A5%E7%A8%8B%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[TXW828 AI 闹钟 — UI 模块工程说明文档
@@ -6529,6 +6210,325 @@ TXW82x (C-SKY CK810 + lwIP)
       </tags>
   </entry>
   <entry>
+    <title>TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</title>
+    <url>/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿1. 优化背景TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：
+
+细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹；
+斜线、文字边缘和物体轮廓出现阶梯状锯齿；
+细节随镜头轻微移动而闪烁或跳变；
+硬件一次性大比例缩小后，部分像素信息被直接跳过。
+
+本次优化不改变摄像头、VPP 和 Scale3 的基础结构，而是在 Scale3 生成 YUV420P 帧后增加一次固定比例的软件降采样。核心思路是：
+
+先让 Scale3 输出较高分辨率的中间图像，再对相邻 2×2 像素做均值滤波并缩小一半，从而在抽取像素前抑制容易产生混叠的高频信息。
+
+对应提交：
+6820c0d scale3均值缩放
+
+核心修改文件：
+sdk/app/scale_msi/scale3_normal_msi.c
+
+
+2. 优化目标本次修改的主要目标是改善缩小图像的主观质量，而不是节省 Scale3 输出缓冲区。
+具体目标包括：
+
+在最终降采样前进行简单低通滤波；
+降低亮度细节产生的摩尔纹和混叠；
+平滑斜边与轮廓，减轻阶梯锯齿；
+使用固定 2:1 比例降低算法复杂度；
+在原有 YUV420P 缓冲区内原地处理，避免额外申请整帧内存；
+保持原有 MSI 输出接口和 framebuff 生命周期不变。
+
+需要特别说明：当前实现不会降低 Scale3 帧池最初申请的 PSRAM 容量，因为缓冲区仍按照中间分辨率创建。它降低的是送往下游的有效图像尺寸和 fb-&gt;len。
+
+3. 修改前后的数据链路3.1 修改前Camera / VPP     |     vScale3 硬件缩放     |  直接生成最终尺寸 YUV420P     vframebuff     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
+
+如果 Scale3 直接把高分辨率图像缩到较小尺寸，硬件缩放过程中对高频纹理的预滤波不足，就可能产生混叠。
+3.2 修改后Camera / VPP     |     vScale3 硬件缩放     |  生成较高分辨率中间帧，例如 800×480     vYUV420P 中间缓冲区     |     |  Y：2×2 Box Average     |  U/V：固定位置抽样     v原地 2:1 降采样     |  输出 400×240     v更新 framebuff 元数据     |     vMSI 输出 -&gt; R_VIDEO_P0 / R_VIDEO_P1 -&gt; LCD
+
+以当前配套配置为例：
+
+
+
+阶段
+分辨率
+YUV420P 有效数据量
+
+
+
+Scale3 中间输出
+800×480
+576000 字节
+
+
+软件降采样输出
+400×240
+144000 字节
+
+
+宽、高各缩小一半，因此最终像素数量和有效数据量均变为原来的四分之一。
+
+4. 为什么均值降采样能改善摩尔纹和锯齿4.1 问题本质：缩小过程中的混叠缩小图像意味着目标图像的一个像素要代表源图中的一片区域。如果直接选择区域内的某一个像素，源图中比目标分辨率更细的纹理会被错误地映射成较低频率的条纹，这就是空间采样中的混叠。
+摩尔纹是混叠的一种典型表现。它并不是原始场景中真实存在的大条纹，而是细密纹理与目标像素网格相互干涉后形成的伪影。
+4.2 2×2 均值相当于简单低通滤波当前亮度分量的计算公式为：
+Yout(x, y) = (    Yin(2x,     2y)     +    Yin(2x + 1, 2y)     +    Yin(2x,     2y + 1) +    Yin(2x + 1, 2y + 1)) / 4
+
+它先把 2×2 区域内的亮度变化平均，再生成一个输出像素。这相当于使用下面的 Box Filter 卷积核：
+1/4 × [ 1  1 ]      [ 1  1 ]
+
+均值会削弱单像素级的明暗跳变和细密纹理，然后再执行 2:1 抽取，因此比直接隔点取样更不容易产生错误条纹。
+4.3 对锯齿的改善斜线穿过像素网格时，每个 2×2 区域内通常同时包含前景与背景。均值计算会生成介于二者之间的亮度值，使边缘产生有限的灰度过渡，而不是只有完全亮或完全暗两个状态。
+因此，最终显示出来的斜边会更平滑。这种效果属于缩放阶段的预滤波抗锯齿，不等同于 3D 渲染中的 MSAA，但二者都利用了区域覆盖信息改善边缘质量。
+
+5. YUV420P 内存布局算法处理的是三平面 YUV420P，缓冲区布局如下：
+buf | +-- Y 平面：W × H | +-- U 平面：(W / 2) × (H / 2) | +-- V 平面：(W / 2) × (H / 2)
+
+各平面的地址计算为：
+src_y_size = (uint32_t)src_w * src_h;src_u = buf + src_y_size;src_v = src_u + src_y_size / 4;
+
+YUV420P 的整帧数据量为：
+W × H + W × H / 4 + W × H / 4= W × H × 3 / 2
+
+降采样后，目标平面被紧凑地放到同一个缓冲区前部：
+dst_y_size = (uint32_t)out_w * out_h;dst_u = buf + dst_y_size;dst_v = dst_u + dst_y_size / 4;
+
+
+6. 核心实现分析6.1 函数接口新增函数为：
+static uint8_t scale3_yuv420p_downsample_2x2(    uint8_t *buf,    uint16_t src_w,    uint16_t src_h,    uint16_t *dst_w,    uint16_t *dst_h);
+
+参数含义：
+
+
+
+参数
+说明
+
+
+
+buf
+YUV420P 源缓冲区，同时作为目标缓冲区
+
+
+src_w、src_h
+Scale3 中间输出宽高
+
+
+dst_w、dst_h
+返回实际降采样后的宽高
+
+
+返回值
+1 表示成功，0 表示输入不满足处理条件
+
+
+6.2 尺寸检查与偶数约束if (!buf || src_w &lt; 4 || src_h &lt; 4 ||    (src_w &amp; 1) || (src_h &amp; 1))&#123;    return 0;&#125;out_w = (src_w &gt;&gt; 1) &amp; ~1U;out_h = (src_h &gt;&gt; 1) &amp; ~1U;
+
+YUV420P 要求宽高适合 2×2 色度采样，因此输出宽高继续保持偶数。
+当源尺寸除以 2 后为奇数时，代码会向下对齐到偶数。例如：
+322×242 -&gt; 160×120
+
+这种情况下会舍弃最右侧和最下侧各一个 2 像素块。常用的 800×480、320×240、168×128 均不会触发额外裁边。
+6.3 Cache 一致性Scale3 通过 DMA 向缓冲区写入数据，CPU 随后读取并修改该缓冲区，因此处理前先失效 D-Cache：
+sys_dcache_invalid_range((uint32_t *)buf, src_y_size * 3 / 2);
+
+处理完成后清理目标范围，确保下游 DMA 或其他硬件模块读到 CPU 写入的新数据：
+sys_dcache_clean_range((uint32_t *)buf, dst_y_size * 3 / 2);
+
+这一对操作是硬件缩放输出与 CPU 图像处理之间的重要边界，不能省略。
+6.4 Y 平面均值Y 平面按照两行、四列源数据一组处理，每次生成两个目标像素：
+uint32_t row0 = *(uint32_t *)(src_y0 + (x &lt;&lt; 1));uint32_t row1 = *(uint32_t *)(src_y1 + (x &lt;&lt; 1));sum = (row0 &amp; 0x00ff00ff) +      ((row0 &gt;&gt; 8) &amp; 0x00ff00ff) +      (row1 &amp; 0x00ff00ff) +      ((row1 &gt;&gt; 8) &amp; 0x00ff00ff);*(uint16_t *)(out_y + x) =    (uint16_t)(((sum &gt;&gt; 2) &amp; 0xff) |               ((sum &gt;&gt; 10) &amp; 0xff00));
+
+该实现使用 32 位读取和位运算同时累计两组 2×2 像素，减少逐像素循环、除法和存储次数。除以 4 通过右移 2 位完成。
+6.5 U&#x2F;V 平面处理当前色度分量没有计算 2×2 均值，而是从每个源色度块中选择左上角样本：
+dst_u[dst_row + x] = src_u[src_index];dst_v[dst_row + x] = src_v[src_index];
+
+由于 YUV420P 的 U&#x2F;V 本来就只有 Y 平面四分之一的采样数，Y 再缩小 2 倍后，U&#x2F;V 也必须继续缩小 2 倍，才能形成合法的目标 YUV420P 布局。
+这种实现速度较快，但意味着当前的“均值缩放”主要作用于亮度：
+
+明暗细节造成的摩尔纹和锯齿能够得到改善；
+彩色细纹造成的色度摩尔纹仍可能保留；
+如果后续需要进一步提升质量，可将 U&#x2F;V 也改为 2×2 均值。
+
+6.6 为什么可以原地处理处理顺序是 Y 平面在前、U&#x2F;V 平面在后，目标图像又比源图更小。目标数据始终写入缓冲区更靠前的位置：
+源布局：[           Y           ][    U    ][    V    ]目标布局：[  Y  ][ U ][ V ]
+
+Y 平面从前向后压缩时，写指针不会追上后续仍需读取的源行。完成整个 Y 平面后，再从原始 U&#x2F;V 区域读取色度数据并写到前部空出的区域，因此不需要第二块整帧缓冲区。
+
+7. 接入 Scale3 工作队列降采样发生在 scale3_normal_msi_work() 从消息队列取出普通帧之后、调用 msi_output_fb() 之前：
+uint16_t output_w = scale3-&gt;ow;uint16_t output_h = scale3-&gt;oh;scale3_yuv420p_downsample_2x2(    fb-&gt;data,    scale3-&gt;ow,    scale3-&gt;oh,    &amp;output_w,    &amp;output_h);ow = output_w;oh = output_h;
+
+处理完成后同步更新 framebuff 的描述信息：
+arg-&gt;yuv_arg.y_size = ow * oh;arg-&gt;yuv_arg.out_w  = ow;arg-&gt;yuv_arg.out_h  = oh;fb-&gt;len             = ow * oh * 3 / 2;
+
+这一步非常关键。下游不能继续使用中间分辨率解释已经压缩后的数据，否则会发生以下问题：
+
+Y&#x2F;U&#x2F;V 平面地址计算错误；
+下游读取超出有效目标帧的数据；
+LCD 显示花屏、错色或图像撕裂；
+帧长度统计和带宽计算错误。
+
+
+8. 普通帧与额外拍照帧的区别工作队列通过 datatag 区分普通连续帧和临时申请的额外帧：
+if (fb-&gt;datatag != (uint8_t)~0)&#123;    // 普通帧：执行 2×2 降采样&#125;else&#123;    // 额外拍照/缩略图帧：保持请求尺寸，直接输出&#125;
+
+因此，本次算法不会处理 datatag == 0xff 的额外拍照帧。这样可以避免拍照命令请求的特定分辨率被再次减半。
+不过，所有通过本模块帧池产生的普通帧都会进入降采样分支。该行为不仅影响 scale3_normal_msi2()，也可能影响调用 scale3_normal_msi() 的连续输出场景。后续若只希望特定 UI 使用该优化，建议增加独立使能标志，而不是仅依赖普通帧&#x2F;额外帧分类。
+
+9. 当前 UI 配套参数当前工作区中，Pocket Camera UI 在主界面预创建 Scale3 时使用：
+scale3_normal_msi2(    S_PREVIEW_SCALE3,    FSTYPE_YUV_P0,    800,    480);
+
+经过固定 2×2 降采样后，下游得到：
+400×240 YUV420P
+
+这里的 800×480 已不再代表最终 MSI 输出尺寸，而是“Scale3 中间尺寸”。这属于本次改动带来的接口语义变化。
+Pocket Camera 的各页面之后再次调用同名 S_PREVIEW_SCALE3 时，msi_new() 会复用已经创建的 MSI，因此实际尺寸由第一次创建时的 800×480 决定。这种行为依赖组件创建顺序，维护时需要格外注意。
+建议后续把两个概念显式区分：
+scale_w / scale_h：Scale3 硬件中间输出尺寸out_w / out_h：均值降采样后的最终输出尺寸
+
+
+10. 性能与内存分析10.1 CPU 运算量以 800×480 -&gt; 400×240 为例：
+
+Y 平面需要生成 96000 个目标像素；
+U 平面需要生成 24000 个目标样本；
+V 平面需要生成 24000 个目标样本；
+每帧需额外遍历约 144000 个目标采样值。
+
+算法没有乘法和通用除法，亮度平均主要使用加法、掩码与移位，适合算力有限的嵌入式平台。
+10.2 PSRAM 占用scale3_common() 仍按照 ow × oh × 3 / 2 为每个帧池节点分配缓冲区。默认 MAX_COUNT 为 3，因此 800×480 配置下仅像素缓冲区约占：
+800 × 480 × 3 / 2 × 3= 1,728,000 字节
+
+降采样完成后虽然 fb-&gt;len 只有 144000 字节，但底层 buffer 容量仍为 576000 字节。这是原地处理能够正常工作的前提，也是当前方案的内存代价。
+10.3 带宽变化
+
+
+位置
+单帧有效数据量
+相对中间帧
+
+
+
+Scale3 DMA 写入 PSRAM
+576000 字节
+100%
+
+
+CPU 处理后的下游有效帧
+144000 字节
+25%
+
+
+所以该方案会降低下游 MSI 传递的有效数据量，但不会降低 Scale3 写入中间帧所需的 DMA 带宽，反而增加了一次 CPU 读写与 Cache 维护。
+
+11. 当前实现的边界与风险11.1 U&#x2F;V 没有做均值滤波当前只对 Y 平面执行 2×2 均值。对于彩色网格、彩色织物等场景，色度混叠仍可能形成彩色摩尔纹。若实测仍有明显色彩条纹，应优先评估 U&#x2F;V 2×2 均值。
+11.2 API 尺寸语义发生变化原先调用者传入 ow、oh，下游就收到相同尺寸；修改后普通帧实际输出约为：
+(ow / 2 对齐到偶数) × (oh / 2 对齐到偶数)
+
+现有调用者如果仍把参数理解为最终分辨率，可能得到尺寸减半的画面。
+11.3 优化范围较宽降采样直接放在公共工作队列的普通帧输出分支中，没有独立配置开关。凡是使用该帧池的普通输出都会被处理。更稳妥的工程化方式是增加例如：
+uint8_t mean_downsample_enable : 1;
+
+并只在明确需要抗混叠的 UI 或产品配置中开启。
+11.4 实时性需要实机验证该算法运行在 workqueue 中，不在 Scale3 ISR 内直接执行，这避免了在中断上下文进行整帧处理。但 800×480 连续预览时，每帧都会增加 CPU 和 PSRAM 访问开销，需要结合实际帧率确认：
+
+workqueue 是否出现积压；
+Scale3 帧池是否频繁耗尽并打印 D；
+LCD 是否掉帧或延迟增加；
+CPU 占用和功耗是否可接受。
+
+11.5 视觉改善需要固定场景对比代码原理能够解释预期改善，但最终效果与摄像头传感器、ISP 锐化、Scale3 算法、LCD 二次缩放及场景纹理有关。不能只凭实现判断“摩尔纹已经消失”，应通过同机位 A&#x2F;B 测试确认。
+
+12. 建议验证方案12.1 测试场景建议准备以下固定测试目标：
+
+黑白等间距细条纹；
+横向、纵向及 30°&#x2F;45° 斜线；
+棋盘格和同心圆测试图；
+布料、纱窗、键盘和印刷网点；
+红绿或蓝黄相间的彩色细条纹；
+镜头缓慢平移时的动态纹理。
+
+12.2 A&#x2F;B 对照组
+
+
+组别
+处理链路
+
+
+
+A：原始方案
+Scale3 直接输出最终尺寸
+
+
+B：当前方案
+Scale3 输出 2 倍宽高，再做 Y 平面 2×2 均值
+
+
+C：完整均值方案
+Scale3 输出 2 倍宽高，Y&#x2F;U&#x2F;V 全部做 2×2 均值
+
+
+应确保三组测试使用相同传感器参数、曝光、增益、锐化、LCD 显示区域和拍摄距离。
+12.3 功能检查
+检查 arg-&gt;yuv_arg.out_w/out_h 是否为实际输出尺寸；
+检查 arg-&gt;yuv_arg.y_size == out_w × out_h；
+检查 fb-&gt;len == out_w × out_h × 3 / 2；
+检查 Y&#x2F;U&#x2F;V 平面地址和颜色是否正常；
+检查额外拍照帧是否保持请求分辨率；
+检查进入、退出和反复切换 UI 后 MSI 是否仍正常复用；
+检查连续运行时是否掉帧、花屏或出现帧池耗尽。
+
+12.4 视觉评价重点观察：
+
+高频区域是否仍出现大尺度明暗条纹；
+斜线边缘阶梯是否减轻；
+镜头移动时纹理是否闪烁；
+画面是否因 Box Filter 变得过于柔和；
+彩色条纹是否仍产生色度摩尔纹。
+
+
+13. 后续优化方向13.1 对 U&#x2F;V 同样执行 2×2 均值这是当前实现最直接的质量增强项。色度平面可使用与 Y 相同的计算思想：
+Uout = (U00 + U01 + U10 + U11) / 4Vout = (V00 + V01 + V10 + V11) / 4
+
+由于 U&#x2F;V 总采样数较少，额外计算量小于 Y 平面。
+13.2 增加显式开关把固定行为改为可配置行为：
+scale3_normal_msi2(..., mean_downsample_enable)
+
+或者通过 MSI 命令动态控制，使拍照、录像、预览和不同客户配置可以独立选择。
+13.3 明确中间尺寸与最终尺寸可把 API 改为同时传入最终输出尺寸，内部自动计算中间尺寸：
+最终需要 400×240-&gt; Scale3 自动配置为 800×480-&gt; 软件输出固定为 400×240
+
+这样调用者不必了解“传入尺寸会被减半”的隐含规则。
+13.4 根据画质与性能选择滤波核2×2 Box Filter 的优势是实现简单、速度快，但频率响应并不理想。如果平台性能允许，可以比较：
+
+2×2 Box Average：当前方案，速度最快；
+3×3 Gaussian：边缘更自然，计算和边界处理更复杂；
+双线性缩放：适合任意比例，但抗混叠能力取决于实现；
+多级缩放：适合更大倍率缩小，避免一次跨越过多源像素。
+
+
+14. 总结本次修改在 TXW82x Scale3 普通 YUV420P 输出链路中加入了原地 2×2 降采样。其核心价值不是简单地把宽高减半，而是在抽取像素前对 Y 分量进行区域均值，使高频亮度信息先被平滑，从而在一定程度上降低摩尔纹、斜边锯齿和动态闪烁。
+当前方案的典型链路为：
+VPP-&gt; Scale3 硬件生成 800×480 YUV420P-&gt; CPU 对 Y 分量执行 2×2 Box Average-&gt; U/V 分量固定位置抽样-&gt; 原地压缩为 400×240 YUV420P-&gt; 更新 out_w、out_h、y_size 和 fb-&gt;len-&gt; MSI 输出到 LCD 链路
+
+它在不增加第二块整帧缓冲区的前提下提供了低成本的缩放预滤波，但目前仍存在 U&#x2F;V 未均值、API 尺寸语义变化、公共输出路径影响范围较宽等限制。后续应以固定测试图进行 A&#x2F;B 对比，并结合帧率、CPU 占用与 PSRAM 带宽，决定是否进一步加入色度均值和独立功能开关。
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW82x Scale3</category>
+      </categories>
+      <tags>
+        <tag>C语言</tag>
+        <tag>TXW82x</tag>
+        <tag>嵌入式</tag>
+        <tag>BugFix</tag>
+        <tag>Scale3</tag>
+        <tag>YUV420P</tag>
+        <tag>图像缩放</tag>
+        <tag>摩尔纹</tag>
+        <tag>抗锯齿</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>TXW82x 平台 H.264 硬解码播放器 UI 组件开发文档</title>
     <url>/2026/06/22/TXW82x%E5%B9%B3%E5%8F%B0H264%E7%A1%AC%E8%A7%A3%E7%A0%81%E6%92%AD%E6%94%BE%E5%99%A8UI%E7%BB%84%E4%BB%B6%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
     <content><![CDATA[H264 Player UI 组件开发文档1. 概述h264_player_ui.c 是基于 LVGL 图形框架和 MSI（Media Stream Interface）媒体流管道实现的 H.264 硬解码播放器 UI 组件。运行于 TXW82x WiFi 摄像头 SoC（C-Sky CK804DF 内核）平台。
@@ -7079,6 +7079,468 @@ LCD 视频层竞争： R_VIDEO_P0 是全局 LCD 视频层 P0 通道，确保在�
         <tag>硬件解码</tag>
         <tag>LVGL</tag>
         <tag>UI组件</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>source/css 样式文档</title>
+    <url>/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[
+项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10
+
+
+目录
+架构概览
+
+文件分类
+
+模块详解
+
+主题系统
+全局样式
+布局组件
+内容排版
+卡片与表面
+页面专用
+响应式设计
+
+
+标签索引
+
+
+
+架构概览source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── responsive.css
+
+所有模块由 custom.css 通过 @import url(…) 统一引入，形成完整样式链路。
+
+文件分类
+
+
+分类
+标签
+包含文件
+
+
+
+主题系统
+theme &#x2F; variable &#x2F; light-mode &#x2F; dark-mode
+variables.css
+
+
+全局样式
+global &#x2F; background &#x2F; scrollbar &#x2F; base
+custom.css &#x2F; background.css &#x2F; base.css &#x2F; scrollbar.css
+
+
+布局组件
+layout &#x2F; component &#x2F; navigation &#x2F; header &#x2F; footer
+navigation.css &#x2F; header-text.css &#x2F; footer.css
+
+
+内容排版
+content &#x2F; typography &#x2F; code &#x2F; highlight &#x2F; table &#x2F; meta
+typography.css &#x2F; tables.css &#x2F; code-highlight.css &#x2F; post-meta.css
+
+
+卡片与表面
+card &#x2F; surface &#x2F; shadow
+cards.css
+
+
+页面专用
+page &#x2F; about
+about-page.css
+
+
+响应式设计
+responsive &#x2F; mobile &#x2F; media-query
+responsive.css
+
+
+
+模块详解主题系统variables.css - CSS 自定义属性
+标签:
+
+#theme
+#variable
+#light-mode
+#dark-mode
+
+
+功能:定义明亮模式与暗黑模式的 CSS 变量。
+
+主要变量:
+
+
+
+
+
+变量名
+用途
+
+
+
+–hl-bg
+代码块背景
+
+
+–primary-color
+主题色
+
+
+–hover-color
+悬停颜色
+
+
+–text-color
+正文颜色
+
+
+–card-bg
+卡片背景
+
+
+–card-border
+卡片边框
+
+
+–card-shadow
+卡片阴影
+
+
+
+主题选择器:
+html:not([data-theme&#x3D;”dark”])html[data-theme&#x3D;”dark”]
+
+
+
+全局样式custom.css - 主入口
+标签:
+
+#entry
+#import
+#aggregator
+
+
+功能:聚合所有 CSS 模块。
+
+引入顺序:
+
+
+
+variables.css
+background.css
+base.css
+scrollbar.css
+cards.css
+navigation.css
+code-highlight.css
+tables.css
+typography.css
+about-page.css
+header-text.css
+footer.css
+post-meta.css
+responsive.css
+
+
+background.css - 网站背景
+标签:
+
+#background
+#light-mode
+#dark-mode
+
+
+功能:根据主题切换背景图。
+
+背景图:
+
+
+
+
+
+模式
+图片
+
+
+
+明亮模式
+&#x2F;img&#x2F;light-bg.webp
+
+
+暗黑模式
+&#x2F;img&#x2F;dark-bg.webp
+
+
+
+目标元素:
+#web_bg
+
+
+
+base.css - 基础调整
+标签:
+
+#base
+#global
+
+
+功能:对 pre 元素统一设置圆角与间距。
+
+规则:
+border-radius: 8pxmargin: 1em 0
+
+
+
+scrollbar.css - 滚动条样式
+标签:
+
+#scrollbar
+#global
+
+
+功能:自定义 Webkit 滚动条。
+
+规格:
+
+
+
+
+
+属性
+数值
+
+
+
+宽度
+8px
+
+
+高度
+8px
+
+
+圆角
+4px
+
+
+
+布局组件navigation.css - 导航栏
+标签:
+
+#navigation
+#component
+#layout
+
+
+功能:控制导航栏颜色、悬停效果与固定导航栏样式。
+
+特性:
+
+标题强制白色
+下拉菜单悬停变蓝
+固定导航栏支持毛玻璃效果
+
+
+
+
+header-text.css - 页头文字
+功能:控制页面标题颜色。
+
+
+footer.css - 页脚
+功能:页脚文字统一白色。
+
+
+内容排版typography.css - 排版
+标签:
+
+#typography
+#content
+
+
+功能:
+
+页面标题居中
+正文两端对齐
+视频自适应
+Mermaid 透明背景
+
+
+
+
+tables.css - 表格
+功能:定义明亮与暗黑模式下的表格样式。
+
+
+code-highlight.css - 代码高亮
+标签:
+
+#code
+#highlight
+#vscode
+#dark-mode
+#light-mode
+#inline
+
+
+功能:
+
+代码块 (figure.highlight) 双主题 Token 配色：明亮 (GitHub Primer 风格) &#x2F; 暗黑 (VSCode Dark+ Modern)
+行内代码 (.container code) 双主题适配：明亮 #cf222e &#x2F; 暗黑 #ce9178
+
+
+
+
+post-meta.css - 文章元信息
+功能:控制文章标题、日期、标签等颜色。
+
+
+卡片与表面cards.css - 卡片表面
+标签:
+
+#card
+#surface
+#shadow
+
+
+功能:统一所有卡片容器样式。
+
+包含:
+
+文章卡片
+侧边栏
+分页按钮
+导航菜单
+TOC
+
+
+
+
+页面专用about-page.css - 关于页面
+标签:
+
+#about
+#page
+#hero
+#grid
+
+
+功能:构建完整 About 页面布局。
+
+模块:
+
+Hero 区域
+信息网格
+社交链接
+响应式布局
+
+
+
+
+响应式设计responsive.css - 移动端适配
+标签:
+
+#responsive
+#mobile
+
+
+功能:优化移动端文章信息区布局。
+
+调整:
+
+缩减 padding
+隐藏部分 meta
+标题两端对齐
+
+
+
+
+标签索引
+
+
+标签
+涉及文件
+
+
+
+#theme
+variables.css
+
+
+#background
+background.css
+
+
+#scrollbar
+scrollbar.css
+
+
+#navigation
+navigation.css
+
+
+#header
+header-text.css
+
+
+#footer
+footer.css
+
+
+#typography
+typography.css
+
+
+#table
+tables.css
+
+
+#code
+code-highlight.css
+
+
+#highlight
+code-highlight.css
+
+
+#vscode
+code-highlight.css
+
+
+#inline
+code-highlight.css
+
+
+#meta
+post-meta.css
+
+
+#card
+cards.css
+
+
+#about
+about-page.css
+
+
+#responsive
+responsive.css
+
+
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>Blog-Hexo</category>
+      </categories>
+      <tags>
+        <tag>CSS</tag>
+        <tag>Butterfly</tag>
+        <tag>Hexo</tag>
+        <tag>文档</tag>
+        <tag>样式</tag>
+        <tag>主题定制</tag>
+        <tag>前端</tag>
       </tags>
   </entry>
   <entry>
@@ -8556,468 +9018,6 @@ P3
         <tag>代码优化</tag>
         <tag>设计模式</tag>
         <tag>TXW828</tag>
-      </tags>
-  </entry>
-  <entry>
-    <title>source/css 样式文档</title>
-    <url>/2026/05/10/%E6%A0%B7%E5%BC%8F%E6%96%87%E6%A1%A3/</url>
-    <content><![CDATA[
-项目: Blog-Hexo (Butterfly 主题定制)入口文件: custom.css模块目录: modules&#x2F;最后更新: 2026-05-10
-
-
-目录
-架构概览
-
-文件分类
-
-模块详解
-
-主题系统
-全局样式
-布局组件
-内容排版
-卡片与表面
-页面专用
-响应式设计
-
-
-标签索引
-
-
-
-架构概览source/css/├── custom.css└── modules/    ├── variables.css    ├── background.css    ├── base.css    ├── scrollbar.css    ├── cards.css    ├── navigation.css    ├── code-highlight.css    ├── tables.css    ├── typography.css    ├── about-page.css    ├── header-text.css    ├── footer.css    ├── post-meta.css    └── responsive.css
-
-所有模块由 custom.css 通过 @import url(…) 统一引入，形成完整样式链路。
-
-文件分类
-
-
-分类
-标签
-包含文件
-
-
-
-主题系统
-theme &#x2F; variable &#x2F; light-mode &#x2F; dark-mode
-variables.css
-
-
-全局样式
-global &#x2F; background &#x2F; scrollbar &#x2F; base
-custom.css &#x2F; background.css &#x2F; base.css &#x2F; scrollbar.css
-
-
-布局组件
-layout &#x2F; component &#x2F; navigation &#x2F; header &#x2F; footer
-navigation.css &#x2F; header-text.css &#x2F; footer.css
-
-
-内容排版
-content &#x2F; typography &#x2F; code &#x2F; highlight &#x2F; table &#x2F; meta
-typography.css &#x2F; tables.css &#x2F; code-highlight.css &#x2F; post-meta.css
-
-
-卡片与表面
-card &#x2F; surface &#x2F; shadow
-cards.css
-
-
-页面专用
-page &#x2F; about
-about-page.css
-
-
-响应式设计
-responsive &#x2F; mobile &#x2F; media-query
-responsive.css
-
-
-
-模块详解主题系统variables.css - CSS 自定义属性
-标签:
-
-#theme
-#variable
-#light-mode
-#dark-mode
-
-
-功能:定义明亮模式与暗黑模式的 CSS 变量。
-
-主要变量:
-
-
-
-
-
-变量名
-用途
-
-
-
-–hl-bg
-代码块背景
-
-
-–primary-color
-主题色
-
-
-–hover-color
-悬停颜色
-
-
-–text-color
-正文颜色
-
-
-–card-bg
-卡片背景
-
-
-–card-border
-卡片边框
-
-
-–card-shadow
-卡片阴影
-
-
-
-主题选择器:
-html:not([data-theme&#x3D;”dark”])html[data-theme&#x3D;”dark”]
-
-
-
-全局样式custom.css - 主入口
-标签:
-
-#entry
-#import
-#aggregator
-
-
-功能:聚合所有 CSS 模块。
-
-引入顺序:
-
-
-
-variables.css
-background.css
-base.css
-scrollbar.css
-cards.css
-navigation.css
-code-highlight.css
-tables.css
-typography.css
-about-page.css
-header-text.css
-footer.css
-post-meta.css
-responsive.css
-
-
-background.css - 网站背景
-标签:
-
-#background
-#light-mode
-#dark-mode
-
-
-功能:根据主题切换背景图。
-
-背景图:
-
-
-
-
-
-模式
-图片
-
-
-
-明亮模式
-&#x2F;img&#x2F;light-bg.webp
-
-
-暗黑模式
-&#x2F;img&#x2F;dark-bg.webp
-
-
-
-目标元素:
-#web_bg
-
-
-
-base.css - 基础调整
-标签:
-
-#base
-#global
-
-
-功能:对 pre 元素统一设置圆角与间距。
-
-规则:
-border-radius: 8pxmargin: 1em 0
-
-
-
-scrollbar.css - 滚动条样式
-标签:
-
-#scrollbar
-#global
-
-
-功能:自定义 Webkit 滚动条。
-
-规格:
-
-
-
-
-
-属性
-数值
-
-
-
-宽度
-8px
-
-
-高度
-8px
-
-
-圆角
-4px
-
-
-
-布局组件navigation.css - 导航栏
-标签:
-
-#navigation
-#component
-#layout
-
-
-功能:控制导航栏颜色、悬停效果与固定导航栏样式。
-
-特性:
-
-标题强制白色
-下拉菜单悬停变蓝
-固定导航栏支持毛玻璃效果
-
-
-
-
-header-text.css - 页头文字
-功能:控制页面标题颜色。
-
-
-footer.css - 页脚
-功能:页脚文字统一白色。
-
-
-内容排版typography.css - 排版
-标签:
-
-#typography
-#content
-
-
-功能:
-
-页面标题居中
-正文两端对齐
-视频自适应
-Mermaid 透明背景
-
-
-
-
-tables.css - 表格
-功能:定义明亮与暗黑模式下的表格样式。
-
-
-code-highlight.css - 代码高亮
-标签:
-
-#code
-#highlight
-#vscode
-#dark-mode
-#light-mode
-#inline
-
-
-功能:
-
-代码块 (figure.highlight) 双主题 Token 配色：明亮 (GitHub Primer 风格) &#x2F; 暗黑 (VSCode Dark+ Modern)
-行内代码 (.container code) 双主题适配：明亮 #cf222e &#x2F; 暗黑 #ce9178
-
-
-
-
-post-meta.css - 文章元信息
-功能:控制文章标题、日期、标签等颜色。
-
-
-卡片与表面cards.css - 卡片表面
-标签:
-
-#card
-#surface
-#shadow
-
-
-功能:统一所有卡片容器样式。
-
-包含:
-
-文章卡片
-侧边栏
-分页按钮
-导航菜单
-TOC
-
-
-
-
-页面专用about-page.css - 关于页面
-标签:
-
-#about
-#page
-#hero
-#grid
-
-
-功能:构建完整 About 页面布局。
-
-模块:
-
-Hero 区域
-信息网格
-社交链接
-响应式布局
-
-
-
-
-响应式设计responsive.css - 移动端适配
-标签:
-
-#responsive
-#mobile
-
-
-功能:优化移动端文章信息区布局。
-
-调整:
-
-缩减 padding
-隐藏部分 meta
-标题两端对齐
-
-
-
-
-标签索引
-
-
-标签
-涉及文件
-
-
-
-#theme
-variables.css
-
-
-#background
-background.css
-
-
-#scrollbar
-scrollbar.css
-
-
-#navigation
-navigation.css
-
-
-#header
-header-text.css
-
-
-#footer
-footer.css
-
-
-#typography
-typography.css
-
-
-#table
-tables.css
-
-
-#code
-code-highlight.css
-
-
-#highlight
-code-highlight.css
-
-
-#vscode
-code-highlight.css
-
-
-#inline
-code-highlight.css
-
-
-#meta
-post-meta.css
-
-
-#card
-cards.css
-
-
-#about
-about-page.css
-
-
-#responsive
-responsive.css
-
-
-]]></content>
-      <categories>
-        <category>项目文档</category>
-        <category>Blog-Hexo</category>
-      </categories>
-      <tags>
-        <tag>CSS</tag>
-        <tag>Butterfly</tag>
-        <tag>Hexo</tag>
-        <tag>文档</tag>
-        <tag>样式</tag>
-        <tag>主题定制</tag>
-        <tag>前端</tag>
       </tags>
   </entry>
 </search>

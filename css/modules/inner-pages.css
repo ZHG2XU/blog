@@ -55,7 +55,82 @@
     border-radius: 16px;
 }
 
-/* Tags: remove generated random colors and use a restrained family palette. */
+/* Tags: a self-contained topic index; the page intentionally runs without
+   the long homepage aside so short content never leaves an empty column. */
+#body-wrap.type-tags #content-inner.layout.hide-aside {
+    max-width: 1080px;
+}
+
+#body-wrap.type-tags #page {
+    overflow: hidden;
+}
+
+.tags-directory__intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 32px;
+    align-items: end;
+    margin-bottom: 28px;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.tags-directory__copy small {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--ui-accent);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.66rem;
+    font-weight: 750;
+    letter-spacing: 0.15em;
+}
+
+.tags-directory__copy h2 {
+    margin: 0;
+    color: var(--ui-heading);
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(1.75rem, 3vw, 2.55rem);
+    font-weight: 680;
+    letter-spacing: -0.04em;
+    line-height: 1.25;
+}
+
+.tags-directory__copy p {
+    max-width: 620px;
+    margin: 12px 0 0;
+    color: var(--ui-text-muted);
+    font-size: 0.9rem;
+    line-height: 1.75;
+}
+
+.tags-directory__stats {
+    display: flex;
+    gap: 10px;
+}
+
+.tags-directory__stat {
+    display: grid;
+    min-width: 116px;
+    padding: 15px 17px;
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    background: var(--ui-surface-subtle);
+}
+
+.tags-directory__stat strong {
+    color: var(--ui-heading);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 1.3rem;
+    line-height: 1.1;
+}
+
+.tags-directory__stat span {
+    margin-top: 7px;
+    color: var(--ui-text-muted);
+    font-size: 0.72rem;
+}
+
+/* Remove generated random colors and use a restrained family palette. */
 #body-wrap.type-tags .tag-cloud-list {
     display: flex;
     flex-wrap: wrap;
@@ -65,11 +140,8 @@
 }
 
 #body-wrap.type-tags .tag-cloud-list::before {
-    flex: 0 0 100%;
-    margin-bottom: 8px;
-    color: var(--ui-text-muted);
-    content: "按主题浏览全部技术笔记";
-    font-size: 0.9rem;
+    display: none;
+    content: none;
 }
 
 #body-wrap.type-tags .tag-cloud-list a {
@@ -109,6 +181,43 @@
     color: var(--ui-accent) !important;
     box-shadow: 0 10px 24px rgba(35, 45, 41, 0.09);
     transform: translateY(-3px);
+}
+
+.tags-directory__footer {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 30px;
+    padding-top: 22px;
+    border-top: 1px solid var(--ui-border);
+    color: var(--ui-text-muted);
+    font-size: 0.82rem;
+}
+
+.tags-directory__footer a {
+    position: relative;
+    flex: 0 0 auto;
+    padding-right: 20px;
+    color: var(--ui-heading);
+    font-weight: 700;
+}
+
+.tags-directory__footer a::after {
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    content: "\2192";
+    transform: translateY(-52%);
+    transition: transform 0.2s ease;
+}
+
+.tags-directory__footer a:hover {
+    color: var(--ui-accent);
+}
+
+.tags-directory__footer a:hover::after {
+    transform: translate(4px, -52%);
 }
 
 /* Categories: turn the flat nested list into a readable topic directory. */
@@ -348,6 +457,9 @@ html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 3)
     #page-header.not-home-page:not(.post-bg) #page-site-info { top: 104px; }
     #body-wrap.type-categories .category-list-child { grid-template-columns: 1fr; }
     #body-wrap.type-about .about-grid { grid-template-columns: 1fr; }
+    .tags-directory__intro { grid-template-columns: 1fr; align-items: start; }
+    .tags-directory__stats { width: 100%; }
+    .tags-directory__stat { flex: 1 1 0; min-width: 0; }
 }
 
 @media screen and (max-width: 560px) {
@@ -355,4 +467,8 @@ html[data-theme="dark"] #body-wrap.type-tags .tag-cloud-list a:nth-child(4n + 3)
     #body-wrap.type-categories #page,
     #body-wrap.type-about #page { padding: 22px 18px; }
     #body-wrap.type-about .about-hero { grid-template-columns: 1fr; }
+    .tags-directory__intro { gap: 22px; margin-bottom: 22px; padding-bottom: 22px; }
+    .tags-directory__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tags-directory__stat { padding: 13px 14px; }
+    .tags-directory__footer { align-items: flex-start; flex-direction: column; gap: 12px; }
 }
