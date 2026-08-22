@@ -1,13 +1,13 @@
-<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>关于 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="HELLO · I AM ZHONG XU       用代码解决问题，用文字保存答案。                我是一名嵌入式软件工程师，关注设备上的界面、音视频与网络通信。         比起只让功能跑起来，我更喜欢理解系统为什么这样运转，并把过程整理成以后仍然有用的记录。                       阅读我的文章         和我聊">
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>关于 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="PROFILE &#x2F; 01          AVAILABLE FOR IDEAS              把复杂系统，拆成清楚答案。                你好，我是钟栩，一名嵌入式软件工程师。我在设备端构建界面、音视频与网络通信，         也把调试现场里的判断、取舍和验证，整理成可以再次使用的工程经验。">
 <meta property="og:type" content="website">
 <meta property="og:title" content="关于">
 <meta property="og:url" content="https://zhongxu.cyou/about/index.html">
 <meta property="og:site_name" content="ZHG2XU">
-<meta property="og:description" content="HELLO · I AM ZHONG XU       用代码解决问题，用文字保存答案。                我是一名嵌入式软件工程师，关注设备上的界面、音视频与网络通信。         比起只让功能跑起来，我更喜欢理解系统为什么这样运转，并把过程整理成以后仍然有用的记录。                       阅读我的文章         和我聊">
+<meta property="og:description" content="PROFILE &#x2F; 01          AVAILABLE FOR IDEAS              把复杂系统，拆成清楚答案。                你好，我是钟栩，一名嵌入式软件工程师。我在设备端构建界面、音视频与网络通信，         也把调试现场里的判断、取舍和验证，整理成可以再次使用的工程经验。">
 <meta property="og:locale" content="zh_CN">
 <meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
 <meta property="article:published_time" content="2023-12-31T16:00:00.000Z">
-<meta property="article:modified_time" content="2026-08-21T07:15:00.780Z">
+<meta property="article:modified_time" content="2026-08-22T02:34:36.448Z">
 <meta property="article:author" content="钟栩">
 <meta property="article:tag" content="嵌入式开发, LVGL, 音视频, H264, RTSP, 工程实践">
 <meta name="twitter:card" content="summary">
@@ -145,95 +145,147 @@
   isToc: false,
   pageType: 'page'
 }</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div class="ambient-flow" aria-hidden="true"><div class="ambient-flow__mesh"></div><div class="ambient-flow__orb ambient-flow__orb--one"></div><div class="ambient-flow__orb ambient-flow__orb--two"></div><div class="ambient-flow__orb ambient-flow__orb--three"></div><div class="ambient-flow__pointer"></div></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">21</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">63</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">9</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="page type-about" id="body-wrap"><header class="not-home-page fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="page-site-info"><h1 id="site-title">关于</h1></div></header><main class="layout hide-aside" id="content-inner"><div id="page"><div class="container" id="article-container">
-<div class="profile-page">
-  <section class="profile-hero">
-    <div class="profile-hero__copy">
-      <span class="profile-kicker">HELLO · I AM ZHONG XU</span>
-      <h1>用代码解决问题，<br>用文字保存答案。</h1>
-      <p>
-        我是一名嵌入式软件工程师，关注设备上的界面、音视频与网络通信。
-        比起只让功能跑起来，我更喜欢理解系统为什么这样运转，并把过程整理成以后仍然有用的记录。
+<div class="about-dossier">
+  <section class="dossier-hero">
+    <div class="dossier-hero__copy">
+      <div class="dossier-hero__topline">
+        <span>PROFILE / 01</span>
+        <span class="dossier-availability"><i aria-hidden="true"></i> AVAILABLE FOR IDEAS</span>
+      </div>
+      <h1>把复杂系统，<br><em>拆成清楚答案。</em></h1>
+      <p class="dossier-hero__lead">
+        你好，我是钟栩，一名嵌入式软件工程师。我在设备端构建界面、音视频与网络通信，
+        也把调试现场里的判断、取舍和验证，整理成可以再次使用的工程经验。
       </p>
-      <div class="profile-hero__actions">
-        <a class="profile-action profile-action--primary" href="/archives/">阅读我的文章</a>
-        <a class="profile-action" href="mailto:z18568601031@gmail.com">和我聊聊</a>
+      <div class="dossier-hero__actions">
+        <a class="dossier-button dossier-button--solid" href="/archives/">阅读工程记录 <span>↗</span></a>
+        <a class="dossier-button" href="mailto:z18568601031@gmail.com">和我联系 <span>→</span></a>
+      </div>
+      <div class="dossier-hero__coordinates" aria-label="个人信息">
+        <div><small>ROLE</small><strong>Embedded Engineer</strong></div>
+        <div><small>BASE</small><strong>China / UTC+8</strong></div>
+        <div><small>LANG</small><strong>C · C++ · JS</strong></div>
       </div>
     </div>
 
-    <div class="profile-portrait">
-      <div class="profile-portrait__frame">
+    <div class="dossier-portrait">
+      <div class="dossier-portrait__index" aria-hidden="true">ZX<br>01</div>
+      <div class="dossier-portrait__image">
         <img src="/img/avatar.webp" alt="钟栩的头像" loading='lazy'>
+        <span class="dossier-portrait__scanline" aria-hidden="true"></span>
       </div>
-      <div class="profile-portrait__caption">
-        <span>钟栩 / ZHG2XU</span>
-        <small>Embedded Software Engineer</small>
+      <div class="dossier-portrait__caption">
+        <div><strong>钟栩</strong><span>/ ZHG2XU</span></div>
+        <small>ENGINEER · WRITER · BUILDER</small>
       </div>
-      <span class="profile-portrait__mark">ZX</span>
+      <span class="dossier-portrait__stamp" aria-hidden="true">KEEP<br>BUILDING</span>
     </div>
   </section>
 
-  <section class="profile-facts" aria-label="个人信息概览">
-    <div><small>FOCUS</small><strong>Embedded · UI</strong></div>
-    <div><small>LANGUAGE</small><strong>C · C++</strong></div>
-    <div><small>INTEREST</small><strong>Audio · Video · Network</strong></div>
-    <div><small>STATUS</small><strong>Keep building</strong></div>
+  <div class="dossier-marquee" aria-label="技术方向">
+    <span>EMBEDDED SYSTEM</span><i></i>
+    <span>DEVICE UI</span><i></i>
+    <span>AUDIO / VIDEO</span><i></i>
+    <span>NETWORK PROTOCOL</span><i></i>
+    <span>ENGINEERING NOTES</span>
+  </div>
+
+  <section class="dossier-section dossier-focus">
+    <header class="dossier-section__head">
+      <div><span>02 / FOCUS</span><h2>我在解决什么</h2></div>
+      <p>技术栈是工具，真正持续积累的，是理解系统并让它变得可靠的方法。</p>
+    </header>
+
+    <div class="dossier-focus__grid">
+      <article class="focus-card focus-card--feature">
+        <div class="focus-card__top"><span>01</span><small>SYSTEM THINKING</small></div>
+        <div class="focus-card__body">
+          <h3>顺着数据流，<br>找到真正的问题。</h3>
+          <p>一次画面异常可能横跨采集、缓冲、解码与刷新时序。我更在意建立完整模型，而不是让现象暂时消失。</p>
+        </div>
+        <div class="focus-card__diagram" aria-hidden="true">
+          <span>INPUT</span><b></b><span>MODEL</span><b></b><span>OUTPUT</span>
+        </div>
+      </article>
+
+      <article class="focus-card">
+        <div class="focus-card__top"><span>02</span><small>DEVICE UI</small></div>
+        <h3>嵌入式界面</h3>
+        <p>LVGL、焦点管理、输入设备与主题架构，让设备 UI 稳定、清楚且易于迭代。</p>
+        <div class="focus-card__tags"><span>LVGL</span><span>GUI</span><span>ARCH</span></div>
+      </article>
+
+      <article class="focus-card">
+        <div class="focus-card__top"><span>03</span><small>MEDIA PIPELINE</small></div>
+        <h3>音视频链路</h3>
+        <p>从编解码到播放时序，处理缓冲、帧数据和弱网环境下的真实问题。</p>
+        <div class="focus-card__tags"><span>H.264</span><span>JPEG</span><span>OPUS</span></div>
+      </article>
+
+      <article class="focus-card">
+        <div class="focus-card__top"><span>04</span><small>CONNECTIVITY</small></div>
+        <h3>网络与协议</h3>
+        <p>关注数据怎样被组织、分片、重组和恢复，让通信链路更可观测。</p>
+        <div class="focus-card__tags"><span>UDP</span><span>RTP</span><span>RTSP</span></div>
+      </article>
+    </div>
   </section>
 
-  <section class="profile-story profile-section">
-    <div class="profile-section__heading">
-      <span>01 / STORY</span>
-      <h2>从问题现场出发</h2>
-    </div>
-    <div class="profile-story__body">
-      <p class="profile-story__lead">我喜欢那些需要顺着数据流、任务关系和时间顺序慢慢追踪的问题。</p>
-      <p>
-        嵌入式开发常常没有漂亮的错误提示。一次画面异常，可能来自缓存、缩放、解码或刷新时序；
-        一段声音中断，也可能横跨录音、编码、传输和播放多个环节。解决它们，需要耐心，也需要建立清楚的系统模型。
-      </p>
-      <p>
-        这个博客就是我的第二块调试面板。我在这里保留问题的上下文、尝试过的路径、最终选择和验证依据。
-        希望这些记录不仅帮助未来的自己，也能为遇到相似问题的人节省一点时间。
-      </p>
-    </div>
-  </section>
-
-  <section class="profile-section profile-expertise">
-    <div class="profile-section__heading">
-      <span>02 / EXPERTISE</span>
-      <h2>正在深入的方向</h2>
-      <p>技术边界会变化，但理解系统的方法可以持续积累。</p>
-    </div>
-    <div class="profile-expertise__grid">
-      <article><span>01</span><h3>嵌入式界面</h3><p>围绕 LVGL、输入设备、焦点管理和主题系统，构建清晰、稳定且易于迭代的设备 UI。</p><small>LVGL / GUI / Architecture</small></article>
-      <article><span>02</span><h3>音视频链路</h3><p>分析采集、编解码、缓冲与播放过程，处理 H.264、JPEG、Opus 等真实链路问题。</p><small>H.264 / JPEG / Opus</small></article>
-      <article><span>03</span><h3>网络与协议</h3><p>关注 UDP、RTP、RTSP 的传输组织、分片重组、状态管理和弱网络下的可用性。</p><small>UDP / RTP / RTSP</small></article>
-      <article><span>04</span><h3>工程表达</h3><p>把散落在代码和调试过程里的知识，整理成结构明确、可以验证和交接的工程文档。</p><small>Debug / Document / Handoff</small></article>
-    </div>
-  </section>
-
-  <section class="profile-method profile-section">
-    <div class="profile-section__heading">
-      <span>03 / METHOD</span>
-      <h2>我相信的工作方式</h2>
-    </div>
-    <ol class="profile-method__list">
-      <li><span>01</span><div><h3>先建立模型</h3><p>厘清数据从哪里来、经过什么、最终去哪里，再开始修改代码。</p></div></li>
-      <li><span>02</span><div><h3>让判断有依据</h3><p>使用日志、数据和对照实验缩小范围，不依赖似是而非的经验。</p></div></li>
-      <li><span>03</span><div><h3>为下一次维护</h3><p>修复眼前问题的同时，改善命名、边界与文档，让系统更容易被理解。</p></div></li>
+  <section class="dossier-section dossier-method">
+    <header class="dossier-section__head dossier-section__head--compact">
+      <div><span>03 / METHOD</span><h2>我的解题顺序</h2></div>
+    </header>
+    <ol class="method-track">
+      <li>
+        <span>01</span>
+        <div><small>OBSERVE</small><h3>先还原现场</h3><p>保留上下文，记录稳定复现条件，不让关键信息被猜测覆盖。</p></div>
+      </li>
+      <li>
+        <span>02</span>
+        <div><small>MODEL</small><h3>建立系统模型</h3><p>理清数据来源、任务关系、状态转移与时间顺序。</p></div>
+      </li>
+      <li>
+        <span>03</span>
+        <div><small>VERIFY</small><h3>让判断有依据</h3><p>用日志、数据和对照实验逐步缩小范围，分清因果与巧合。</p></div>
+      </li>
+      <li>
+        <span>04</span>
+        <div><small>HANDOFF</small><h3>为下一次维护</h3><p>改善命名、边界和文档，让解决方案可以被验证、理解和交接。</p></div>
+      </li>
     </ol>
   </section>
 
-  <section class="profile-contact">
-    <div>
-      <span>LET'S CONNECT</span>
-      <h2>如果你也在构建有趣的东西，<br>欢迎来和我交流。</h2>
+  <section class="dossier-section dossier-now">
+    <div class="dossier-now__statement">
+      <span>04 / NOW</span>
+      <h2>这个博客，<br>是我的第二块调试面板。</h2>
+      <p>我在这里保留问题的起点、走过的弯路、最终选择和验证依据。写作不是为了显得知道很多，而是确认自己真的把一件事想清楚了。</p>
+      <a href="/categories/">浏览项目知识地图 <span>→</span></a>
     </div>
-    <div class="profile-contact__links">
-      <a href="https://github.com/ZHG2XU" target="_blank" rel="noopener"><span>GitHub</span><small>代码与项目 ↗</small></a>
-      <a href="mailto:z18568601031@gmail.com"><span>Email</span><small>发送邮件 ↗</small></a>
-      <a href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" rel="noopener"><span>Douyin</span><small>生活与短片 ↗</small></a>
-      <a href="http://82.156.68.10:5212" target="_blank" rel="noopener"><span>Drive</span><small>文件与资料 ↗</small></a>
+    <div class="dossier-now__panel">
+      <div class="dossier-now__panel-head"><span>CURRENT SIGNAL</span><i></i></div>
+      <dl>
+        <div><dt>LEARNING</dt><dd>设备端 UI 架构与媒体链路</dd></div>
+        <div><dt>WRITING</dt><dd>工程复盘与设计文档</dd></div>
+        <div><dt>PRINCIPLE</dt><dd>Make it work. Make it clear.</dd></div>
+        <div><dt>STATUS</dt><dd class="is-active"><i></i> Keep building</dd></div>
+      </dl>
+      <div class="dossier-now__code" aria-hidden="true"><span>01</span><span>10</span><span>11</span><span>01</span><span>00</span><span>10</span><span>01</span></div>
     </div>
   </section>
+
+  <section class="dossier-contact">
+    <div class="dossier-contact__copy">
+      <span>05 / CONNECT</span>
+      <h2>有问题值得聊，<br>就有事情值得做。</h2>
+      <p>技术交流、项目想法，或只是打个招呼。</p>
+    </div>
+    <nav class="dossier-contact__links" aria-label="社交与联系方式">
+      <a href="https://github.com/ZHG2XU" target="_blank" rel="noopener"><span>GitHub<small>CODE / PROJECTS</small></span><i>↗</i></a>
+      <a href="mailto:z18568601031@gmail.com"><span>Email<small>HELLO / WORK</small></span><i>↗</i></a>
+      <a href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" rel="noopener"><span>Douyin<small>LIFE / CLIPS</small></span><i>↗</i></a>
+      <a href="http://82.156.68.10:5212" target="_blank" rel="noopener"><span>Drive<small>FILES / NOTES</small></span><i>↗</i></a>
+    </nav>
+  </section>
 </div>
-</div></div></main><footer id="footer" style="background: transparent;"><div class="footer-editorial"><div class="footer-editorial__intro"><small>FIELD NOTES / ZHG2XU</small><strong>把复杂的问题，写成可以再次使用的经验。</strong><p>关于嵌入式开发、音视频链路与界面架构的长期记录。</p></div><nav class="footer-editorial__nav" aria-label="页脚导航"><a href="/">首页</a><a href="/archives/">文章</a><a href="/categories/">分类</a><a href="/tags/">标签</a><a href="/about/">关于</a></nav></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script src="/js/custom.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><div class="search-heading"><small>SEARCH / NOTES</small><span class="search-dialog-title">搜索文章</span></div><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="输入关键词，查找技术笔记" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
+</div></div></main><footer id="footer" style="background: transparent;"><div class="footer-editorial"><div class="footer-editorial__intro"><small>FIELD NOTES / ZHG2XU</small><strong>把复杂的问题，写成可以再次使用的经验。</strong><p>关于嵌入式开发、音视频链路与界面架构的长期记录。</p></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script src="/js/custom.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><div class="search-heading"><small>SEARCH / NOTES</small><span class="search-dialog-title">搜索文章</span></div><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="输入关键词，查找技术笔记" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

@@ -4,22 +4,16 @@
     height: min(820px, 92svh);
     background:
         radial-gradient(circle at 82% 24%, rgba(205, 220, 157, 0.34), transparent 24%),
-        radial-gradient(circle at 14% 86%, rgba(240, 90, 40, 0.09), transparent 26%),
-        linear-gradient(rgba(30, 42, 36, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(30, 42, 36, 0.045) 1px, transparent 1px),
-        #f4f3ed !important;
-    background-size: auto, auto, 42px 42px, 42px 42px, auto !important;
+        radial-gradient(circle at 14% 86%, rgba(240, 90, 40, 0.09), transparent 26%) !important;
+    background-color: transparent !important;
     color: #17201c;
 }
 
 html[data-theme="dark"] #page-header.full_page {
     background:
         radial-gradient(circle at 82% 24%, rgba(217, 242, 61, 0.13), transparent 22%),
-        radial-gradient(circle at 14% 86%, rgba(255, 121, 80, 0.13), transparent 25%),
-        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-        #0c110f !important;
-    background-size: auto, auto, 42px 42px, 42px 42px, auto !important;
+        radial-gradient(circle at 14% 86%, rgba(255, 121, 80, 0.13), transparent 25%) !important;
+    background-color: transparent !important;
 }
 
 #page-header.full_page::before {
@@ -301,10 +295,7 @@ html[data-theme="dark"] #page-header.full_page.nav-fixed #nav {
     margin: 23px 0;
     border: 1px solid rgba(35, 45, 41, 0.09);
     border-radius: 12px;
-    background:
-        linear-gradient(rgba(35, 45, 41, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(35, 45, 41, 0.035) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background: rgba(35, 45, 41, 0.025);
 }
 
 .hero-terminal__map svg {
@@ -412,10 +403,7 @@ html[data-theme="dark"] .hero-terminal__line.is-accent code { color: #d9f23d; }
 
 html[data-theme="dark"] .hero-terminal__map {
     border-color: rgba(255, 255, 255, 0.08);
-    background:
-        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-    background-size: 24px 24px;
+    background: rgba(255, 255, 255, 0.025);
 }
 
 html[data-theme="dark"] .hero-terminal__map .map-link { stroke: #d9f23d; }
@@ -525,11 +513,7 @@ html[data-theme="dark"] .hero-terminal__footer span { border-color: rgba(255, 25
 
 /* Inner headers carry the same editorial identity without using stock imagery. */
 #page-header.not-home-page:not(.post-bg) {
-    background:
-        linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
-        #17201c !important;
-    background-size: 34px 34px, 34px 34px, auto !important;
+    background: transparent !important;
 }
 
 #page-header.post-bg:not([style*="url"]) {

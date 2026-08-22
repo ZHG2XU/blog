@@ -160,10 +160,15 @@ html[data-theme="dark"] #article-container code {
 .theme-particles {
     position: fixed;
     inset: 0;
-    z-index: 88;
+    z-index: 0;
     overflow: hidden;
     pointer-events: none;
     contain: strict;
+}
+
+#body-wrap {
+    position: relative;
+    z-index: 1;
 }
 
 .theme-particle {
@@ -737,6 +742,7 @@ html[data-theme="dark"] .cursor-trail > i:nth-child(even)::before {
 }
 
 #sidebar #sidebar-menus {
+    right: 0;
     width: min(86vw, 350px);
     padding: 26px 18px 24px;
     border-left: 1px solid var(--ui-border);
@@ -744,6 +750,12 @@ html[data-theme="dark"] .cursor-trail > i:nth-child(even)::before {
         radial-gradient(circle at 90% 4%, rgba(217, 242, 61, 0.13), transparent 24%),
         var(--ui-surface-solid);
     box-shadow: -24px 0 70px rgba(19, 27, 23, 0.18);
+    transform: translate3d(calc(100% + 80px), 0, 0);
+    transition: transform 0.5s ease;
+}
+
+#sidebar #sidebar-menus.open {
+    transform: translate3d(0, 0, 0);
 }
 
 #sidebar #sidebar-menus .avatar-img {
@@ -811,7 +823,8 @@ html[data-theme="dark"] .cursor-trail > i:nth-child(even)::before {
     overflow: hidden;
     margin-top: 72px;
     border-top: 1px solid var(--ui-border);
-    background: rgba(239, 237, 228, 0.72) !important;
+    background-color: rgba(239, 237, 228, 0.72) !important;
+    background-image: none !important;
     backdrop-filter: blur(20px) saturate(130%);
 }
 
@@ -832,7 +845,7 @@ html[data-theme="dark"] .cursor-trail > i:nth-child(even)::before {
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1.2fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 40px;
     align-items: end;
     width: min(calc(100% - 48px), 1180px);
@@ -920,7 +933,22 @@ html[data-theme="dark"] .cursor-trail > i:nth-child(even)::before {
 }
 
 html[data-theme="dark"] #footer {
-    background: rgba(14, 19, 17, 0.78) !important;
+    background-color: rgba(14, 19, 17, 0.78) !important;
+    background-image: none !important;
+}
+
+/* Blank space keeps the grid; reading surfaces use a quiet solid tone. */
+#body-wrap:not(.type-tags):not(.type-categories) #page,
+#post {
+    border-color: transparent !important;
+    background: #f4f3ed !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+}
+
+html[data-theme="dark"] #body-wrap:not(.type-tags):not(.type-categories) #page,
+html[data-theme="dark"] #post {
+    background: #121815 !important;
 }
 
 /* Floating utilities */

@@ -1,0 +1,401 @@
+/* Project-led category atlas. Loaded after the shared inner-page rules. */
+#body-wrap.type-categories #content-inner.layout.hide-aside {
+    width: min(calc(100% - 48px), 1280px);
+    max-width: 1280px;
+    padding: 42px 0 0;
+}
+
+#body-wrap.type-categories #page {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--ui-border) !important;
+    border-radius: 22px;
+    background: var(--ui-surface-solid) !important;
+    box-shadow: 14px 16px 0 rgba(31, 42, 37, 0.04) !important;
+}
+
+.categories-atlas,
+.categories-atlas * {
+    box-sizing: border-box;
+}
+
+.categories-atlas__hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+    gap: clamp(48px, 8vw, 110px);
+    align-items: end;
+    min-height: 400px;
+    padding: clamp(46px, 6vw, 76px);
+    overflow: hidden;
+    border-bottom: 1px solid var(--ui-border);
+    background:
+        linear-gradient(135deg, rgba(240, 90, 40, 0.075), transparent 52%),
+        radial-gradient(circle at 92% 5%, rgba(205, 220, 157, 0.34), transparent 29%);
+}
+
+.categories-atlas__hero::after {
+    position: absolute;
+    top: -68px;
+    right: -44px;
+    width: 240px;
+    height: 240px;
+    border: 1px solid color-mix(in srgb, var(--ui-accent) 22%, transparent);
+    border-radius: 50%;
+    content: "";
+    box-shadow:
+        0 0 0 34px color-mix(in srgb, var(--ui-accent) 4%, transparent),
+        0 0 0 68px color-mix(in srgb, var(--ui-accent) 3%, transparent);
+    pointer-events: none;
+}
+
+.categories-atlas__copy {
+    position: relative;
+    z-index: 1;
+}
+
+.categories-atlas__eyebrow,
+.categories-atlas__section-head small {
+    color: var(--ui-accent);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+}
+
+#page .categories-atlas__copy h2 {
+    max-width: 720px;
+    margin: 18px 0 22px;
+    color: var(--ui-heading);
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(2.35rem, 4.7vw, 4.15rem);
+    font-weight: 680;
+    letter-spacing: -0.06em;
+    line-height: 1.24;
+}
+
+.categories-atlas__copy p {
+    max-width: 680px;
+    margin: 0;
+    color: var(--ui-text-muted);
+    font-size: 0.96rem;
+    line-height: 1.95;
+}
+
+.categories-atlas__summary {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    border-top: 1px solid var(--ui-border);
+}
+
+.categories-atlas__stat {
+    display: grid;
+    grid-template-columns: 104px 1fr;
+    gap: 18px;
+    align-items: baseline;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--ui-border);
+}
+
+.categories-atlas__stat strong {
+    color: var(--ui-heading);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 1.25rem;
+    line-height: 1.1;
+}
+
+.categories-atlas__stat span {
+    color: var(--ui-text-muted);
+    font-size: 0.76rem;
+}
+
+.categories-atlas__index {
+    padding: clamp(44px, 6vw, 74px);
+}
+
+.categories-atlas__section-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+    align-items: end;
+    margin-bottom: 34px;
+}
+
+#page .categories-atlas__section-head h3 {
+    margin: 9px 0 0;
+    padding: 0;
+    color: var(--ui-heading);
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(1.7rem, 3vw, 2.5rem);
+    font-weight: 680;
+    letter-spacing: -0.04em;
+}
+
+#page .categories-atlas__section-head h3::before {
+    display: none;
+}
+
+.categories-atlas__section-head p {
+    max-width: 420px;
+    margin: 0 0 4px;
+    color: var(--ui-text-muted);
+    font-size: 0.82rem;
+    line-height: 1.75;
+    text-align: right;
+}
+
+.category-project-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-top: 1px solid var(--ui-border);
+    border-left: 1px solid var(--ui-border);
+}
+
+.category-project-card {
+    min-width: 0;
+    border-right: 1px solid var(--ui-border);
+    border-bottom: 1px solid var(--ui-border);
+}
+
+#page .category-project-card__link {
+    display: flex;
+    flex-direction: column;
+    min-height: 290px;
+    padding: 28px 30px 24px;
+    background: transparent;
+    color: inherit;
+    text-decoration: none;
+    transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+#page .category-project-card__link:hover,
+#page .category-project-card__link:focus-visible {
+    position: relative;
+    z-index: 1;
+    background:
+        linear-gradient(145deg, color-mix(in srgb, var(--ui-accent-soft) 68%, transparent), transparent 62%),
+        var(--ui-surface-subtle);
+    box-shadow: 0 16px 38px rgba(31, 42, 37, 0.08);
+    transform: translateY(-4px);
+}
+
+.category-project-card__meta,
+.category-project-card__footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: center;
+}
+
+.category-project-card__meta span,
+.category-project-card__meta small {
+    color: var(--ui-accent);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
+}
+
+.category-project-card__meta span {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--ui-border);
+    border-radius: 50%;
+}
+
+#page .category-project-card h4 {
+    margin: 38px 0 13px;
+    color: var(--ui-heading);
+    font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+    font-size: clamp(1.3rem, 2.2vw, 1.72rem);
+    font-weight: 680;
+    line-height: 1.35;
+}
+
+.category-project-card p {
+    max-width: 480px;
+    margin: 0;
+    color: var(--ui-text-muted);
+    font-size: 0.86rem;
+    line-height: 1.8;
+}
+
+.category-project-card__footer {
+    margin-top: auto;
+    padding-top: 24px;
+    color: var(--ui-text-muted);
+    font-size: 0.72rem;
+}
+
+.category-project-card__footer strong {
+    color: var(--ui-heading);
+    font-family: "Cascadia Code", Consolas, monospace;
+    font-size: 0.9rem;
+}
+
+.category-project-card__footer i {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--ui-border);
+    border-radius: 50%;
+    color: var(--ui-accent);
+    font-size: 0.95rem;
+    font-style: normal;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.category-project-card__link:hover .category-project-card__footer i {
+    border-color: var(--ui-accent);
+    background: var(--ui-accent);
+    color: #fff;
+    transform: rotate(10deg);
+}
+
+.categories-atlas__all {
+    display: flex;
+    justify-content: space-between;
+    gap: 28px;
+    align-items: center;
+    min-height: 92px;
+    padding: 22px clamp(30px, 6vw, 74px);
+    border-top: 1px solid var(--ui-border);
+    background: var(--ui-surface-subtle);
+}
+
+.categories-atlas__all > span {
+    color: var(--ui-text-muted);
+    font-size: 0.82rem;
+}
+
+#page .categories-atlas__all a {
+    display: inline-flex;
+    gap: 12px;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--ui-heading);
+    font-size: 0.82rem;
+    font-weight: 750;
+    text-decoration: none;
+}
+
+#page .categories-atlas__all a:hover {
+    color: var(--ui-accent);
+}
+
+.categories-atlas__all i {
+    color: var(--ui-accent);
+    font-size: 1rem;
+    font-style: normal;
+    transition: transform 0.2s ease;
+}
+
+.categories-atlas__all a:hover i {
+    transform: translateX(5px);
+}
+
+html[data-theme="dark"] #body-wrap.type-categories #page {
+    box-shadow: 14px 16px 0 rgba(0, 0, 0, 0.17) !important;
+}
+
+html[data-theme="dark"] .categories-atlas__hero {
+    background:
+        linear-gradient(135deg, rgba(255, 121, 80, 0.07), transparent 52%),
+        radial-gradient(circle at 92% 5%, rgba(217, 242, 61, 0.07), transparent 29%);
+}
+
+@media screen and (max-width: 860px) {
+    .categories-atlas__hero {
+        grid-template-columns: 1fr;
+        gap: 36px;
+        min-height: 0;
+    }
+
+    .categories-atlas__summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .categories-atlas__stat {
+        grid-template-columns: 1fr;
+        gap: 8px;
+        padding: 18px;
+        border-right: 1px solid var(--ui-border);
+    }
+
+    .categories-atlas__stat:last-child {
+        border-right: 0;
+    }
+}
+
+@media screen and (max-width: 680px) {
+    #body-wrap.type-categories #content-inner.layout.hide-aside {
+        width: calc(100% - 20px);
+        padding-top: 18px;
+    }
+
+    #body-wrap.type-categories #page {
+        border-radius: 16px;
+    }
+
+    .categories-atlas__hero,
+    .categories-atlas__index {
+        padding: 32px 22px;
+    }
+
+    #page .categories-atlas__copy h2 {
+        font-size: clamp(2rem, 10vw, 2.75rem);
+    }
+
+    .categories-atlas__hero::after {
+        top: -88px;
+        right: -88px;
+    }
+
+    .categories-atlas__summary {
+        grid-template-columns: 1fr;
+    }
+
+    .categories-atlas__stat {
+        grid-template-columns: 92px 1fr;
+        border-right: 0;
+    }
+
+    .categories-atlas__section-head {
+        display: grid;
+        gap: 16px;
+    }
+
+    .categories-atlas__section-head p {
+        text-align: left;
+    }
+
+    .category-project-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #page .category-project-card__link {
+        min-height: 260px;
+        padding: 24px 22px 20px;
+    }
+
+    .categories-atlas__all {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 24px 22px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #page .category-project-card__link,
+    .category-project-card__footer i,
+    .categories-atlas__all i {
+        transition: none;
+    }
+}
