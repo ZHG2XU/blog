@@ -1,0 +1,231 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>TXW82x MP4 兼容 Opus 音频封装开发文档 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="TXW82x MP4 兼容 Opus 音频封装开发文档1. 背景与目标项目 F:\TXW82X_MP4\txw82x 在提交 4ca5cd6（1、mp4: 增加 Opus 音频兼容处理）中，为现有 H.264 MP4 录制链路增加了 Opus 音频封装能力。改动目标是让录制器可以在 AAC 和 Opus 之间切换，同时保持无音频和原有 AAC 文件的行为不变，并生成播放器可识别的标准 MP4 音频">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TXW82x MP4 兼容 Opus 音频封装开发文档">
+<meta property="og:url" content="https://zhongxu.cyou/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="TXW82x MP4 兼容 Opus 音频封装开发文档1. 背景与目标项目 F:\TXW82X_MP4\txw82x 在提交 4ca5cd6（1、mp4: 增加 Opus 音频兼容处理）中，为现有 H.264 MP4 录制链路增加了 Opus 音频封装能力。改动目标是让录制器可以在 AAC 和 Opus 之间切换，同时保持无音频和原有 AAC 文件的行为不变，并生成播放器可识别的标准 MP4 音频">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-08-22T08:30:00.000Z">
+<meta property="article:modified_time" content="2026-08-22T09:07:36.534Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="Opus">
+<meta property="article:tag" content="MP4">
+<meta property="article:tag" content="音视频">
+<meta property="article:tag" content="封装">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "TXW82x MP4 兼容 Opus 音频封装开发文档",
+  "url": "https://zhongxu.cyou/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-08-22T08:30:00.000Z",
+  "dateModified": "2026-08-22T09:07:36.534Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'TXW82x MP4 兼容 Opus 音频封装开发文档',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div class="ambient-flow" aria-hidden="true"><div class="ambient-flow__mesh"></div><div class="ambient-flow__orb ambient-flow__orb--one"></div><div class="ambient-flow__orb ambient-flow__orb--two"></div><div class="ambient-flow__orb ambient-flow__orb--three"></div><div class="ambient-flow__pointer"></div></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">22</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">66</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">10</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">TXW82x MP4 兼容 Opus 音频封装开发文档</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><div class="post-info-kicker">FIELD NOTE / 2026.08.22</div><h1 class="post-title">TXW82x MP4 兼容 Opus 音频封装开发文档</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-22T08:30:00.000Z" title="发表于 2026-08-22 16:30:00">2026-08-22</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-22T09:07:36.534Z" title="更新于 2026-08-22 17:07:36">2026-08-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/">项目文档</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E9%A1%B9%E7%9B%AE%E6%96%87%E6%A1%A3/TXW82x/">TXW82x</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="TXW82x-MP4-兼容-Opus-音频封装开发文档"><a href="#TXW82x-MP4-兼容-Opus-音频封装开发文档" class="headerlink" title="TXW82x MP4 兼容 Opus 音频封装开发文档"></a>TXW82x MP4 兼容 Opus 音频封装开发文档</h1><h2 id="1-背景与目标"><a href="#1-背景与目标" class="headerlink" title="1. 背景与目标"></a>1. 背景与目标</h2><p>项目 <code>F:\TXW82X_MP4\txw82x</code> 在提交 <code>4ca5cd6</code>（<code>1、mp4: 增加 Opus 音频兼容处理</code>）中，为现有 H.264 MP4 录制链路增加了 Opus 音频封装能力。改动目标是让录制器可以在 AAC 和 Opus 之间切换，同时保持无音频和原有 AAC 文件的行为不变，并生成播放器可识别的标准 MP4 音频轨。</p>
+<h2 id="2-提交记录分析"><a href="#2-提交记录分析" class="headerlink" title="2. 提交记录分析"></a>2. 提交记录分析</h2><p>该项目此前的提交主要围绕 MP4 录制稳定性、帧率补帧、缩时录影、FatFs 和硬件视频链路展开。最新提交位于 <code>baby 支持屏端录制</code> 之后，工作区另外保留了 <code>project/project_config.h</code> 与 <code>sdk/app/ui/mp4_recorder_ui.c</code> 的本地改动。提交本身没有修改配置头文件，核心实现可归纳为以下五个文件：</p>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>文件</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Opus 编码</td>
+<td><code>sdk/app/audio_media_ctrl/opus/opus_encode.c</code></td>
+<td>修正音频帧时间间隔单位</td>
+</tr>
+<tr>
+<td>MP4 核心</td>
+<td><code>sdk/app/mp4/mp4_encode.h/.c</code></td>
+<td>增加编解码类型、Opus sample entry 和数据写入 API</td>
+</tr>
+<tr>
+<td>MSI 封装</td>
+<td><code>sdk/lib/video/miniMP4/mp4_encode_msi2.c</code></td>
+<td>识别 Opus、批量&#x2F;单帧写入并传递采样率</td>
+</tr>
+<tr>
+<td>录制 UI</td>
+<td><code>sdk/app/ui/mp4_recorder_ui.c</code></td>
+<td>将 AAC 专用状态改为通用音频状态，并支持编解码配置</td>
+</tr>
+</tbody></table>
+<h2 id="3-MP4-音频轨格式"><a href="#3-MP4-音频轨格式" class="headerlink" title="3. MP4 音频轨格式"></a>3. MP4 音频轨格式</h2><p>AAC 继续使用 <code>mp4a</code> + <code>esds</code>；Opus 改为：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">stsd</span><br><span class="line">└── Opus</span><br><span class="line">    └── dOps</span><br></pre></td></tr></table></figure>
+
+<p>新增 <code>mp4_opus</code> sample entry，并写入单声道、16 bit、采样率等字段。<code>dOps</code> 中当前使用版本 0、单声道、<code>pre-skip=0</code>、零增益和 mapping family 0，输入采样率来自 <code>mp4_set_audio_samplerate</code>，缺省值为 8000 Hz。这样可以避免把 Opus 数据误标记为 AAC，同时满足常见 MP4 播放器对 Opus 音频轨的识别要求。</p>
+<h2 id="4-API-与数据流变化"><a href="#4-API-与数据流变化" class="headerlink" title="4. API 与数据流变化"></a>4. API 与数据流变化</h2><h3 id="4-1-编解码类型"><a href="#4-1-编解码类型" class="headerlink" title="4.1 编解码类型"></a>4.1 编解码类型</h3><p><code>mp4_audio_codec</code> 新增三种状态：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">MP4_AUDIO_CODEC_NONE</span><br><span class="line">MP4_AUDIO_CODEC_AAC</span><br><span class="line">MP4_AUDIO_CODEC_OPUS</span><br></pre></td></tr></table></figure>
+
+<p><code>MP4_open_init</code> 和 <code>MP4_open_init_with_file</code> 从接收布尔值改为接收该枚举，并在 <code>mp4_key_msg</code> 中保存 <code>audio_codec</code>。非法枚举会直接拒绝初始化；<code>NONE</code> 表示不创建音频轨。</p>
+<h3 id="4-2-音频写入接口"><a href="#4-2-音频写入接口" class="headerlink" title="4.2 音频写入接口"></a>4.2 音频写入接口</h3><p>新增 <code>write_opus_data</code> 与 <code>write_opus_data_batch</code>。两者复用现有 mdat 写入、文件大小检查、sample table 更新和同步逻辑：</p>
+<ol>
+<li>检查音频轨和 Opus 编解码类型；</li>
+<li>将 Opus 帧写入 <code>mdat</code>；</li>
+<li>根据每帧 <code>duration</code> 更新 <code>stts</code>、<code>stsz</code>、<code>stco</code>；</li>
+<li>批量缓存不足时调用 <code>mp4_sync</code>，避免临时表溢出。</li>
+</ol>
+<h3 id="4-3-MSI-音频批处理"><a href="#4-3-MSI-音频批处理" class="headerlink" title="4.3 MSI 音频批处理"></a>4.3 MSI 音频批处理</h3><p><code>mp4_encode_audio_batch_write</code> 按编码器选择音频头长度：AAC 跳过 7 字节 ADTS 头，Opus 不跳过头部。帧时长优先读取 <code>AUDIO_INFO.time_interval</code>，没有元数据时回退到 1，批量和单帧路径都使用同一套 <code>sizes/durations</code> 信息。</p>
+<h2 id="5-时间戳修正"><a href="#5-时间戳修正" class="headerlink" title="5. 时间戳修正"></a>5. 时间戳修正</h2><p>Opus 编码线程原先将 <code>nsamples * FRAME_SIZE / samplerate</code> 作为时间间隔，实际结果不是毫秒。提交改为：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">s-&gt;audio_info.time_interval = s-&gt;audio_info.nsamples * <span class="number">1000</span> / s-&gt;samplerate;</span><br></pre></td></tr></table></figure>
+
+<p>修正后，MP4 音频 sample table 使用毫秒级帧时长，音视频播放时长和同步误差会更稳定。对于 48 kHz、固定 <code>FRAME_SIZE</code> 的 Opus 帧，应在目标板上重点检查首帧、长时间录制和停止收尾时的累计时长。</p>
+<h2 id="6-录制-UI-配置"><a href="#6-录制-UI-配置" class="headerlink" title="6. 录制 UI 配置"></a>6. 录制 UI 配置</h2><p>录制状态中的 <code>aac_msi</code> 改名为 <code>audio_msi</code>，并新增 <code>MP4_RECORD_AUDIO_CODEC</code> 宏，默认值仍为 <code>AAC_ENC</code>。启动录制时将编码器类型映射为 MP4 枚举，初始化失败时统一释放音频输出和编码器资源，停止录制也走同一清理路径。切换为 Opus 时，只需在工程配置中将该宏设为 <code>OPUS_ENC</code>，不需要修改 MP4 核心调用流程。</p>
+<h2 id="7-验证建议"><a href="#7-验证建议" class="headerlink" title="7. 验证建议"></a>7. 验证建议</h2><p>本提交没有提供主机单元测试，建议按以下顺序在 C-SKY CDK 和目标板上验证：</p>
+<ol>
+<li>分别用 AAC、Opus、无音频三种配置编译 <code>FLASH</code> 固件，确认 MP4 均能正常生成；</li>
+<li>使用 <code>ffprobe</code> 检查音频轨 codec、采样率、声道数、时长和每帧时间戳；</li>
+<li>使用手机端和桌面播放器验证 <code>Opus</code> 音轨可以播放，重点覆盖 iOS&#x2F;Android 端；</li>
+<li>连续录制超过 1 分钟，检查 <code>stts/stsz/stco</code> 是否完整、文件大小限制是否生效；</li>
+<li>在启动失败、存储写满和停止录制场景检查 <code>audio_msi</code>、MP4 MSI 及文件句柄是否全部释放。</li>
+</ol>
+<h2 id="8-风险与后续工作"><a href="#8-风险与后续工作" class="headerlink" title="8. 风险与后续工作"></a>8. 风险与后续工作</h2><ul>
+<li>当前 <code>dOps</code> 使用单声道和 mapping family 0，若后续支持多声道，需要同步扩展 channel mapping 字段。</li>
+<li><code>pre-skip</code> 暂设为 0，若编码器输出带有真实预跳过样本，应从 Opus 配置中传递该值。</li>
+<li>建议将 AAC&#x2F;Opus 的公共音频写入逻辑进一步抽象，减少 <code>write_aac_*</code> 与 <code>write_opus_*</code> 的重复代码。</li>
+<li>建议把 <code>MP4_RECORD_AUDIO_CODEC</code> 纳入正式配置菜单，并在构建产物中记录编码器选择，便于现场问题追踪。</li>
+</ul>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/">https://zhongxu.cyou/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/Opus/">Opus</a><a class="post-meta__tags" href="/tags/MP4/">MP4</a><a class="post-meta__tags" href="/tags/%E9%9F%B3%E8%A7%86%E9%A2%91/">音视频</a><a class="post-meta__tags" href="/tags/%E5%B0%81%E8%A3%85/">封装</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/" title="TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</div></div><div class="info-2"><div class="info-item-1">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿1. 优化背景TXW82x 的摄像头预览链路可以通过 Scale3 硬件将 VPP 图像直接缩放到 LCD 所需尺寸。直接缩放速度快、CPU 占用低，但当输入画面包含以下高频内容时，低分辨率输出容易出现视觉伪影：  细密布料、纱窗、网格和条纹产生彩色或明暗相间的摩尔纹； 斜线、文字边缘和物体轮廓出现阶梯状锯齿； 细节随镜头轻微移动而闪烁或跳变； 硬件一次性大比例缩小后，部分像素信息被直接跳过。  本次优化不改变摄像头、VPP 和 Scale3 的基础结...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI音频适配: sdk/lib/gui/intercom_ui/wechat_app/wechat_audio.c编解码库: sdk/lib/opus/Opus 版本: 1.5.1提交范围: 6c55dda 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 模块定位wechat_audio 将项目音频 stream、Flash 文件和 Opus API 封装为单任务异步作业接口：  wechat_audio_record_start()：开始录音...</div></div></div></a><a class="pagination-related" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AF%E6%A8%A1%E5%9D%97%E6%80%BB%E4%BD%93%E6%9E%B6%E6%9E%84%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息模块总体架构开发文档"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-17</div><div class="info-item-2">TXW81x 微信消息模块总体架构开发文档</div></div><div class="info-2"><div class="info-item-1"> 项目: TXW81x 可视对讲 UI模块: 微信式语音与表情消息阶段: UI、业务服务、UDP 与 Opus 链路整合提交范围: e9a2fb5 至 2440a8e分析基线: 2440a8e（2026-07-17）   1. 文档目标本文给后续开发者建立模块级心智模型，重点说明以下问题：  微信入口从哪里创建，页面由谁管理； 按键事件如何转换为录音、发送、播放等业务动作； UDP 收发线程、服务线程和音频线程如何协作； Opus 在本项目中承担什么职责； 哪些路径已经实现，哪些仍是预留能力； 维护时需要优先...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">22</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">66</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">10</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#TXW82x-MP4-%E5%85%BC%E5%AE%B9-Opus-%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3"><span class="toc-text">TXW82x MP4 兼容 Opus 音频封装开发文档</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-%E8%83%8C%E6%99%AF%E4%B8%8E%E7%9B%AE%E6%A0%87"><span class="toc-text">1. 背景与目标</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#2-%E6%8F%90%E4%BA%A4%E8%AE%B0%E5%BD%95%E5%88%86%E6%9E%90"><span class="toc-text">2. 提交记录分析</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#3-MP4-%E9%9F%B3%E9%A2%91%E8%BD%A8%E6%A0%BC%E5%BC%8F"><span class="toc-text">3. MP4 音频轨格式</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#4-API-%E4%B8%8E%E6%95%B0%E6%8D%AE%E6%B5%81%E5%8F%98%E5%8C%96"><span class="toc-text">4. API 与数据流变化</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#4-1-%E7%BC%96%E8%A7%A3%E7%A0%81%E7%B1%BB%E5%9E%8B"><span class="toc-text">4.1 编解码类型</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-2-%E9%9F%B3%E9%A2%91%E5%86%99%E5%85%A5%E6%8E%A5%E5%8F%A3"><span class="toc-text">4.2 音频写入接口</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-3-MSI-%E9%9F%B3%E9%A2%91%E6%89%B9%E5%A4%84%E7%90%86"><span class="toc-text">4.3 MSI 音频批处理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#5-%E6%97%B6%E9%97%B4%E6%88%B3%E4%BF%AE%E6%AD%A3"><span class="toc-text">5. 时间戳修正</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#6-%E5%BD%95%E5%88%B6-UI-%E9%85%8D%E7%BD%AE"><span class="toc-text">6. 录制 UI 配置</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#7-%E9%AA%8C%E8%AF%81%E5%BB%BA%E8%AE%AE"><span class="toc-text">7. 验证建议</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#8-%E9%A3%8E%E9%99%A9%E4%B8%8E%E5%90%8E%E7%BB%AD%E5%B7%A5%E4%BD%9C"><span class="toc-text">8. 风险与后续工作</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x MP4 兼容 Opus 音频封装开发文档">TXW82x MP4 兼容 Opus 音频封装开发文档</a><time datetime="2026-08-22T08:30:00.000Z" title="发表于 2026-08-22 16:30:00">2026-08-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/15/TXW82x-Scale3%E5%9D%87%E5%80%BC%E7%BC%A9%E6%94%BE%E6%8A%97%E6%91%A9%E5%B0%94%E7%BA%B9%E4%B8%8E%E6%8A%97%E9%94%AF%E9%BD%BF%E4%BC%98%E5%8C%96%E6%96%87%E6%A1%A3/" title="TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿">TXW82x Scale3 均值缩放优化：降低摩尔纹与锯齿</a><time datetime="2026-08-15T10:00:00.000Z" title="发表于 2026-08-15 18:00:00">2026-08-15</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1UI%E6%8E%A7%E5%88%B6%E5%B1%82%E4%B8%8E%E4%B8%9A%E5%8A%A1%E6%9C%8D%E5%8A%A1%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信 UI、控制层与业务服务开发文档">TXW81x 微信 UI、控制层与业务服务开发文档</a><time datetime="2026-07-17T12:30:00.000Z" title="发表于 2026-07-17 20:30:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E8%AF%AD%E9%9F%B3Opus%E4%B8%8EWCA%E9%9F%B3%E9%A2%91%E9%93%BE%E8%B7%AF%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信语音 Opus 与 WCA 音频链路开发文档">TXW81x 微信语音 Opus 与 WCA 音频链路开发文档</a><time datetime="2026-07-17T12:20:00.000Z" title="发表于 2026-07-17 20:20:00">2026-07-17</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/07/17/TXW81x%E5%BE%AE%E4%BF%A1%E6%B6%88%E6%81%AFUDP-v2%E5%8D%8F%E8%AE%AE%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW81x 微信消息 UDP v2 协议开发文档">TXW81x 微信消息 UDP v2 协议开发文档</a><time datetime="2026-07-17T12:10:00.000Z" title="发表于 2026-07-17 20:10:00">2026-07-17</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-editorial"><div class="footer-editorial__intro"><small>FIELD NOTES / ZHG2XU</small><strong>把复杂的问题，写成可以再次使用的经验。</strong><p>关于嵌入式开发、音视频链路与界面架构的长期记录。</p></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script src="/js/custom.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><div class="search-heading"><small>SEARCH / NOTES</small><span class="search-dialog-title">搜索文章</span></div><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="输入关键词，查找技术笔记" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>

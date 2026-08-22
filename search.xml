@@ -9020,4 +9020,85 @@ P3
         <tag>TXW828</tag>
       </tags>
   </entry>
+  <entry>
+    <title>TXW82x MP4 兼容 Opus 音频封装开发文档</title>
+    <url>/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/</url>
+    <content><![CDATA[TXW82x MP4 兼容 Opus 音频封装开发文档1. 背景与目标项目 F:\TXW82X_MP4\txw82x 在提交 4ca5cd6（1、mp4: 增加 Opus 音频兼容处理）中，为现有 H.264 MP4 录制链路增加了 Opus 音频封装能力。改动目标是让录制器可以在 AAC 和 Opus 之间切换，同时保持无音频和原有 AAC 文件的行为不变，并生成播放器可识别的标准 MP4 音频轨。
+2. 提交记录分析该项目此前的提交主要围绕 MP4 录制稳定性、帧率补帧、缩时录影、FatFs 和硬件视频链路展开。最新提交位于 baby 支持屏端录制 之后，工作区另外保留了 project/project_config.h 与 sdk/app/ui/mp4_recorder_ui.c 的本地改动。提交本身没有修改配置头文件，核心实现可归纳为以下五个文件：
+
+
+
+模块
+文件
+作用
+
+
+
+Opus 编码
+sdk/app/audio_media_ctrl/opus/opus_encode.c
+修正音频帧时间间隔单位
+
+
+MP4 核心
+sdk/app/mp4/mp4_encode.h/.c
+增加编解码类型、Opus sample entry 和数据写入 API
+
+
+MSI 封装
+sdk/lib/video/miniMP4/mp4_encode_msi2.c
+识别 Opus、批量&#x2F;单帧写入并传递采样率
+
+
+录制 UI
+sdk/app/ui/mp4_recorder_ui.c
+将 AAC 专用状态改为通用音频状态，并支持编解码配置
+
+
+3. MP4 音频轨格式AAC 继续使用 mp4a + esds；Opus 改为：
+stsd└── Opus    └── dOps
+
+新增 mp4_opus sample entry，并写入单声道、16 bit、采样率等字段。dOps 中当前使用版本 0、单声道、pre-skip=0、零增益和 mapping family 0，输入采样率来自 mp4_set_audio_samplerate，缺省值为 8000 Hz。这样可以避免把 Opus 数据误标记为 AAC，同时满足常见 MP4 播放器对 Opus 音频轨的识别要求。
+4. API 与数据流变化4.1 编解码类型mp4_audio_codec 新增三种状态：
+MP4_AUDIO_CODEC_NONEMP4_AUDIO_CODEC_AACMP4_AUDIO_CODEC_OPUS
+
+MP4_open_init 和 MP4_open_init_with_file 从接收布尔值改为接收该枚举，并在 mp4_key_msg 中保存 audio_codec。非法枚举会直接拒绝初始化；NONE 表示不创建音频轨。
+4.2 音频写入接口新增 write_opus_data 与 write_opus_data_batch。两者复用现有 mdat 写入、文件大小检查、sample table 更新和同步逻辑：
+
+检查音频轨和 Opus 编解码类型；
+将 Opus 帧写入 mdat；
+根据每帧 duration 更新 stts、stsz、stco；
+批量缓存不足时调用 mp4_sync，避免临时表溢出。
+
+4.3 MSI 音频批处理mp4_encode_audio_batch_write 按编码器选择音频头长度：AAC 跳过 7 字节 ADTS 头，Opus 不跳过头部。帧时长优先读取 AUDIO_INFO.time_interval，没有元数据时回退到 1，批量和单帧路径都使用同一套 sizes/durations 信息。
+5. 时间戳修正Opus 编码线程原先将 nsamples * FRAME_SIZE / samplerate 作为时间间隔，实际结果不是毫秒。提交改为：
+s-&gt;audio_info.time_interval = s-&gt;audio_info.nsamples * 1000 / s-&gt;samplerate;
+
+修正后，MP4 音频 sample table 使用毫秒级帧时长，音视频播放时长和同步误差会更稳定。对于 48 kHz、固定 FRAME_SIZE 的 Opus 帧，应在目标板上重点检查首帧、长时间录制和停止收尾时的累计时长。
+6. 录制 UI 配置录制状态中的 aac_msi 改名为 audio_msi，并新增 MP4_RECORD_AUDIO_CODEC 宏，默认值仍为 AAC_ENC。启动录制时将编码器类型映射为 MP4 枚举，初始化失败时统一释放音频输出和编码器资源，停止录制也走同一清理路径。切换为 Opus 时，只需在工程配置中将该宏设为 OPUS_ENC，不需要修改 MP4 核心调用流程。
+7. 验证建议本提交没有提供主机单元测试，建议按以下顺序在 C-SKY CDK 和目标板上验证：
+
+分别用 AAC、Opus、无音频三种配置编译 FLASH 固件，确认 MP4 均能正常生成；
+使用 ffprobe 检查音频轨 codec、采样率、声道数、时长和每帧时间戳；
+使用手机端和桌面播放器验证 Opus 音轨可以播放，重点覆盖 iOS&#x2F;Android 端；
+连续录制超过 1 分钟，检查 stts/stsz/stco 是否完整、文件大小限制是否生效；
+在启动失败、存储写满和停止录制场景检查 audio_msi、MP4 MSI 及文件句柄是否全部释放。
+
+8. 风险与后续工作
+当前 dOps 使用单声道和 mapping family 0，若后续支持多声道，需要同步扩展 channel mapping 字段。
+pre-skip 暂设为 0，若编码器输出带有真实预跳过样本，应从 Opus 配置中传递该值。
+建议将 AAC&#x2F;Opus 的公共音频写入逻辑进一步抽象，减少 write_aac_* 与 write_opus_* 的重复代码。
+建议把 MP4_RECORD_AUDIO_CODEC 纳入正式配置菜单，并在构建产物中记录编码器选择，便于现场问题追踪。
+
+]]></content>
+      <categories>
+        <category>项目文档</category>
+        <category>TXW82x</category>
+      </categories>
+      <tags>
+        <tag>Opus</tag>
+        <tag>MP4</tag>
+        <tag>音视频</tag>
+        <tag>封装</tag>
+      </tags>
+  </entry>
 </search>
