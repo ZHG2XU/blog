@@ -1,0 +1,552 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>AVI 传统格式（RIFF AVI 1.0）详解 | ZHG2XU</title><meta name="author" content="钟栩"><meta name="copyright" content="钟栩"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="从 RIFF 文件头、LIST、avih、strh、strf、movi 到 idx1，逐字段说明传统 AVI 1.0 的文件构成、样本定位、时间基和读写流程。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="AVI 传统格式（RIFF AVI 1.0）详解">
+<meta property="og:url" content="https://zhongxu.cyou/2026/08/22/AVI%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8FRIFF-AVI-1.0%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="ZHG2XU">
+<meta property="og:description" content="从 RIFF 文件头、LIST、avih、strh、strf、movi 到 idx1，逐字段说明传统 AVI 1.0 的文件构成、样本定位、时间基和读写流程。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://zhongxu.cyou/img/avatar.webp">
+<meta property="article:published_time" content="2026-08-21T16:00:00.000Z">
+<meta property="article:modified_time" content="2026-08-23T06:07:21.266Z">
+<meta property="article:author" content="钟栩">
+<meta property="article:tag" content="AVI">
+<meta property="article:tag" content="RIFF">
+<meta property="article:tag" content="容器格式">
+<meta property="article:tag" content="MJPEG">
+<meta property="article:tag" content="PCM">
+<meta property="article:tag" content="AVI-1.0">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://zhongxu.cyou/img/avatar.webp"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "AVI 传统格式（RIFF AVI 1.0）详解",
+  "url": "https://zhongxu.cyou/2026/08/22/AVI%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8FRIFF-AVI-1.0%E8%AF%A6%E8%A7%A3/",
+  "image": "https://zhongxu.cyou/img/avatar.webp",
+  "datePublished": "2026-08-21T16:00:00.000Z",
+  "dateModified": "2026-08-23T06:07:21.266Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "钟栩",
+      "url": "https://zhongxu.cyou"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/avatar.webp"><link rel="canonical" href="https://zhongxu.cyou/2026/08/22/AVI%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8FRIFF-AVI-1.0%E8%AF%A6%E8%A7%A3/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.5-b1"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#08111F')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":false,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":800,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '天',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.13.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'AVI 传统格式（RIFF AVI 1.0）详解',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><link rel="stylesheet" href="/css/custom.css"><meta name="generator" content="Hexo 7.3.0"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f5f7fb;"></div><div class="ambient-flow" aria-hidden="true"><div class="ambient-flow__mesh"></div><div class="ambient-flow__orb ambient-flow__orb--one"></div><div class="ambient-flow__orb ambient-flow__orb--two"></div><div class="ambient-flow__orb ambient-flow__orb--three"></div><div class="ambient-flow__pointer"></div></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">30</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">94</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">15</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg fixed" id="page-header" style="background-color: #13213A;"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ZHG2XU</span></a><a class="nav-page-title" href="/"><span class="site-name">AVI 传统格式（RIFF AVI 1.0）详解</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-house"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-box-archive"></i><span> 文章</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-layer-group"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><div class="post-info-kicker">FIELD NOTE / 2026.08.22</div><h1 class="post-title">AVI 传统格式（RIFF AVI 1.0）详解</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-08-21T16:00:00.000Z" title="发表于 2026-08-22 00:00:00">2026-08-22</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-08-23T06:07:21.266Z" title="更新于 2026-08-23 14:07:21">2026-08-23</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%8A%80%E6%9C%AF%E4%B8%93%E6%A0%8F/">技术专栏</a><i class="fas fa-angle-right post-meta-separator"></i><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E6%8A%80%E6%9C%AF%E4%B8%93%E6%A0%8F/%E9%9F%B3%E8%A7%86%E9%A2%91%E5%B0%81%E8%A3%85%E6%A0%BC%E5%BC%8F/">音视频封装格式</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="AVI-传统格式（RIFF-AVI-1-0）详解"><a href="#AVI-传统格式（RIFF-AVI-1-0）详解" class="headerlink" title="AVI 传统格式（RIFF AVI 1.0）详解"></a>AVI 传统格式（RIFF AVI 1.0）详解</h1><h3 id="格式定位"><a href="#格式定位" class="headerlink" title="格式定位"></a>格式定位</h3><p>AVI（Audio Video Interleave）是 Microsoft RIFF 家族中的音视频容器格式。它规定的是文件如何组织音频流、视频流、元数据和索引，并不规定视频必须使用某一种编码。一个 AVI 可以承载 Motion JPEG、未压缩 RGB、H.264、MPEG-4 Part 2，也可以承载 PCM、MP3 等音频。判断文件中真正的媒体格式，必须读取 <code>strf</code> 中的 <code>biCompression</code> 或 <code>wFormatTag</code>，不能只根据 <code>.avi</code> 扩展名判断。</p>
+<p>本文只讨论传统 AVI 1.0：文件由一个 RIFF <code>AVI </code> 主块组成，媒体数据通常集中在 <code>LIST(&#39;movi&#39;)</code> 中，索引通常使用 <code>idx1</code>。它的长度和偏移字段主要是 32 位，因此在接近 4 GiB 时会遇到限制。OpenDML 的大文件扩展另文说明。</p>
+<h3 id="RIFF-的基本单位"><a href="#RIFF-的基本单位" class="headerlink" title="RIFF 的基本单位"></a>RIFF 的基本单位</h3><p>RIFF 中最基本的单位是 Chunk：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Chunk</span><br><span class="line">├── ckid       4 字节 FourCC</span><br><span class="line">├── ckSize     4 字节 uint32 little-endian</span><br><span class="line">├── data       ckSize 字节</span><br><span class="line">└── padding    当 ckSize 为奇数时补 1 字节</span><br></pre></td></tr></table></figure>
+
+<p><code>ckSize</code> 只表示 data 的长度，不包括前面的 8 字节 Header，也不包括为了偶数字节对齐而补的 padding。读取器必须在读取 payload 后检查 <code>ckSize &amp; 1</code>，否则下一个 FourCC 会错一个字节。RIFF 的整数采用 little-endian，例如字节 <code>18 00 00 00</code> 表示十进制 24，而不是 0x18000000。</p>
+<p><code>LIST</code> 是一种特殊 Chunk。它的 data 开头又有一个 4 字节 list type，后面才是子 Chunk：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">LIST</span><br><span class="line">├── ckSize</span><br><span class="line">├── listType       例如 &#x27;AVI &#x27;、&#x27;hdrl&#x27;、&#x27;movi&#x27;</span><br><span class="line">└── child chunks</span><br></pre></td></tr></table></figure>
+
+<p>因此 <code>LIST</code> 的 <code>ckSize</code> 包含 list type，但子 Chunk 解析范围必须从 list type 后面开始。</p>
+<h3 id="AVI-总体文件结构"><a href="#AVI-总体文件结构" class="headerlink" title="AVI 总体文件结构"></a>AVI 总体文件结构</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">RIFF</span><br><span class="line">├── &#x27;AVI &#x27;</span><br><span class="line">├── LIST &#x27;hdrl&#x27;</span><br><span class="line">│   ├── avih</span><br><span class="line">│   └── LIST &#x27;strl&#x27;（视频轨）</span><br><span class="line">│       ├── strh</span><br><span class="line">│       └── strf</span><br><span class="line">│   └── LIST &#x27;strl&#x27;（音频轨）</span><br><span class="line">│       ├── strh</span><br><span class="line">│       └── strf</span><br><span class="line">├── LIST &#x27;movi&#x27;</span><br><span class="line">│   ├── 00dc / 00db 视频 sample</span><br><span class="line">│   ├── 01wb 音频 sample</span><br><span class="line">│   └── ...</span><br><span class="line">└── idx1</span><br></pre></td></tr></table></figure>
+
+<p>文件中可以有 <code>JUNK</code>、<code>INFO</code>、<code>odml</code> 等可选块，但解析器不能假设 <code>hdrl</code>、<code>movi</code>、<code>idx1</code> 一定紧邻。正确方法是遍历 RIFF 子块，根据 FourCC 建立索引，未知块按长度安全跳过。</p>
+<h3 id="RIFF-Header-字段"><a href="#RIFF-Header-字段" class="headerlink" title="RIFF Header 字段"></a>RIFF Header 字段</h3><table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th align="right">长度</th>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">4</td>
+<td><code>RIFF</code></td>
+<td>文件是 RIFF 容器</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">4</td>
+<td><code>riffSize</code></td>
+<td>从偏移 8 开始计算的 RIFF 数据长度</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">4</td>
+<td><code>AVI </code></td>
+<td>RIFF form type</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="right">不定</td>
+<td>子 Chunk</td>
+<td><code>hdrl</code>、<code>movi</code>、<code>idx1</code> 等</td>
+</tr>
+</tbody></table>
+<p>文件总长度通常为 <code>riffSize + 8</code>，但损坏文件可能存在不一致。安全读取器应同时检查实际文件长度，并以不越界为最高优先级。</p>
+<h3 id="avih-主-AVI-Header"><a href="#avih-主-AVI-Header" class="headerlink" title="avih 主 AVI Header"></a><code>avih</code> 主 AVI Header</h3><p><code>avih</code> 的 data 是一个 56 字节的 <code>MainAVIHeader</code>，字段均为 little-endian：</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th align="right">长度</th>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">4</td>
+<td><code>dwMicroSecPerFrame</code></td>
+<td>主视频轨的帧间隔，单位微秒</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">4</td>
+<td><code>dwMaxBytesPerSec</code></td>
+<td>最大建议数据率</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">4</td>
+<td><code>dwPaddingGranularity</code></td>
+<td>数据填充粒度</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="right">4</td>
+<td><code>dwFlags</code></td>
+<td><code>AVIF_HASINDEX</code> 等标志</td>
+</tr>
+<tr>
+<td align="right">16</td>
+<td align="right">4</td>
+<td><code>dwTotalFrames</code></td>
+<td>主视频轨的帧数</td>
+</tr>
+<tr>
+<td align="right">20</td>
+<td align="right">4</td>
+<td><code>dwInitialFrames</code></td>
+<td>交错播放的初始帧数</td>
+</tr>
+<tr>
+<td align="right">24</td>
+<td align="right">4</td>
+<td><code>dwStreams</code></td>
+<td>轨道数量</td>
+</tr>
+<tr>
+<td align="right">28</td>
+<td align="right">4</td>
+<td><code>dwSuggestedBufferSize</code></td>
+<td>建议读取缓冲大小</td>
+</tr>
+<tr>
+<td align="right">32</td>
+<td align="right">4</td>
+<td><code>dwWidth</code></td>
+<td>主视频宽度</td>
+</tr>
+<tr>
+<td align="right">36</td>
+<td align="right">4</td>
+<td><code>dwHeight</code></td>
+<td>主视频高度</td>
+</tr>
+<tr>
+<td align="right">40</td>
+<td align="right">4×4</td>
+<td><code>dwReserved</code></td>
+<td>保留字段，通常为 0</td>
+</tr>
+</tbody></table>
+<p><code>dwMicroSecPerFrame</code> 只是主视频时间间隔提示。更精确的轨道时间应读取对应 <code>strh</code> 的 <code>dwScale</code> 和 <code>dwRate</code>。<code>dwTotalFrames</code> 也不能无条件当作 <code>movi</code> 中 <code>00dc</code> chunk 数量，因为文件可能存在重复、损坏或多个视频轨道。</p>
+<h3 id="strl-轨道列表"><a href="#strl-轨道列表" class="headerlink" title="strl 轨道列表"></a><code>strl</code> 轨道列表</h3><p>每个媒体轨道都有一个 <code>LIST(&#39;strl&#39;)</code>。其中 <code>strh</code> 描述轨道类型、时间基和长度，<code>strf</code> 描述具体编码格式。视频轨道的 <code>strh.fccType</code> 是 <code>vids</code>，音频轨道是 <code>auds</code>。轨道编号由它们在 <code>hdrl</code> 中出现的顺序决定，并与 <code>movi</code> 中 chunk ID 的前两位对应。</p>
+<h3 id="strh-AVIStreamHeader"><a href="#strh-AVIStreamHeader" class="headerlink" title="strh AVIStreamHeader"></a><code>strh</code> AVIStreamHeader</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th align="right">长度</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>fccType</code></td>
+<td align="right">4</td>
+<td><code>vids</code> 或 <code>auds</code></td>
+</tr>
+<tr>
+<td><code>fccHandler</code></td>
+<td align="right">4</td>
+<td>编码器 FourCC，如 <code>MJPG</code></td>
+</tr>
+<tr>
+<td><code>dwFlags</code></td>
+<td align="right">4</td>
+<td>轨道标志</td>
+</tr>
+<tr>
+<td><code>wPriority</code></td>
+<td align="right">2</td>
+<td>播放优先级</td>
+</tr>
+<tr>
+<td><code>wLanguage</code></td>
+<td align="right">2</td>
+<td>语言标识</td>
+</tr>
+<tr>
+<td><code>dwInitialFrames</code></td>
+<td align="right">4</td>
+<td>初始交错帧</td>
+</tr>
+<tr>
+<td><code>dwScale</code></td>
+<td align="right">4</td>
+<td>时间单位分子</td>
+</tr>
+<tr>
+<td><code>dwRate</code></td>
+<td align="right">4</td>
+<td>每秒时间单位数</td>
+</tr>
+<tr>
+<td><code>dwStart</code></td>
+<td align="right">4</td>
+<td>起始时间单位</td>
+</tr>
+<tr>
+<td><code>dwLength</code></td>
+<td align="right">4</td>
+<td>轨道长度，单位由时间基定义</td>
+</tr>
+<tr>
+<td><code>dwSuggestedBufferSize</code></td>
+<td align="right">4</td>
+<td>建议缓冲区</td>
+</tr>
+<tr>
+<td><code>dwQuality</code></td>
+<td align="right">4</td>
+<td>质量提示</td>
+</tr>
+<tr>
+<td><code>dwSampleSize</code></td>
+<td align="right">4</td>
+<td>固定样本大小，0 表示可变</td>
+</tr>
+<tr>
+<td><code>rcFrame</code></td>
+<td align="right">16</td>
+<td>显示矩形</td>
+</tr>
+</tbody></table>
+<p>轨道时间计算为 <code>seconds = sample_time × dwScale / dwRate</code>。视频 25 fps 可以使用 <code>dwScale=1,dwRate=25</code>；音频轨则可能使用 <code>dwScale=block_align,dwRate=avg_bytes_per_sec</code>。因此不能把所有轨道都按“一个 chunk 一帧”处理。</p>
+<h3 id="视频-strf：BITMAPINFOHEADER"><a href="#视频-strf：BITMAPINFOHEADER" class="headerlink" title="视频 strf：BITMAPINFOHEADER"></a>视频 <code>strf</code>：BITMAPINFOHEADER</h3><p>视频 <code>strf</code> 通常以 BITMAPINFOHEADER 开头：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th align="right">长度</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>biSize</code></td>
+<td align="right">4</td>
+<td>结构大小，常为 40</td>
+</tr>
+<tr>
+<td><code>biWidth</code></td>
+<td align="right">4</td>
+<td>图像宽度</td>
+</tr>
+<tr>
+<td><code>biHeight</code></td>
+<td align="right">4</td>
+<td>高度；负值可表示 top-down</td>
+</tr>
+<tr>
+<td><code>biPlanes</code></td>
+<td align="right">2</td>
+<td>必须通常为 1</td>
+</tr>
+<tr>
+<td><code>biBitCount</code></td>
+<td align="right">2</td>
+<td>位深</td>
+</tr>
+<tr>
+<td><code>biCompression</code></td>
+<td align="right">4</td>
+<td>编码 FourCC，如 <code>MJPG</code></td>
+</tr>
+<tr>
+<td><code>biSizeImage</code></td>
+<td align="right">4</td>
+<td>图像数据大小提示</td>
+</tr>
+<tr>
+<td><code>biXPelsPerMeter</code></td>
+<td align="right">4</td>
+<td>水平分辨率元数据</td>
+</tr>
+<tr>
+<td><code>biYPelsPerMeter</code></td>
+<td align="right">4</td>
+<td>垂直分辨率元数据</td>
+</tr>
+<tr>
+<td><code>biClrUsed</code></td>
+<td align="right">4</td>
+<td>使用的颜色数</td>
+</tr>
+<tr>
+<td><code>biClrImportant</code></td>
+<td align="right">4</td>
+<td>重要颜色数</td>
+</tr>
+</tbody></table>
+<p>如果 <code>biCompression</code> 为 <code>MJPG</code>，<code>00dc</code> 的 payload 通常是一张完整 JPEG；如果为 <code>H264</code>，payload 的具体是 Annex-B 还是长度前缀仍需根据编码器约定确认。AVI 的 <code>strf</code> 只声明编码器，不会替代编码码流内部的 SPS&#x2F;PPS 或 JPEG Header。</p>
+<h3 id="音频-strf：WAVEFORMATEX"><a href="#音频-strf：WAVEFORMATEX" class="headerlink" title="音频 strf：WAVEFORMATEX"></a>音频 <code>strf</code>：WAVEFORMATEX</h3><table>
+<thead>
+<tr>
+<th>字段</th>
+<th align="right">长度</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>wFormatTag</code></td>
+<td align="right">2</td>
+<td>1 通常为 PCM</td>
+</tr>
+<tr>
+<td><code>nChannels</code></td>
+<td align="right">2</td>
+<td>声道数</td>
+</tr>
+<tr>
+<td><code>nSamplesPerSec</code></td>
+<td align="right">4</td>
+<td>采样率</td>
+</tr>
+<tr>
+<td><code>nAvgBytesPerSec</code></td>
+<td align="right">4</td>
+<td>平均字节率</td>
+</tr>
+<tr>
+<td><code>nBlockAlign</code></td>
+<td align="right">2</td>
+<td>一个音频块字节数</td>
+</tr>
+<tr>
+<td><code>wBitsPerSample</code></td>
+<td align="right">2</td>
+<td>位深</td>
+</tr>
+<tr>
+<td><code>cbSize</code></td>
+<td align="right">2</td>
+<td>扩展字段长度</td>
+</tr>
+</tbody></table>
+<p>PCM 的一致性检查是 <code>nBlockAlign = channels × bytes_per_sample</code>，<code>nAvgBytesPerSec = sample_rate × nBlockAlign</code>。若 <code>wFormatTag</code> 不是 PCM，不能用这些公式猜测每个 sample 的含义，应根据对应编码器规范解析。</p>
+<h3 id="movi-中的媒体-Chunk"><a href="#movi-中的媒体-Chunk" class="headerlink" title="movi 中的媒体 Chunk"></a><code>movi</code> 中的媒体 Chunk</h3><p>媒体 chunk 的 ID 通常由两位轨道号和两位类型组成：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">00dc  第一轨压缩视频</span><br><span class="line">00db  第一轨未压缩或旧式视频</span><br><span class="line">01wb  第二轨音频</span><br></pre></td></tr></table></figure>
+
+<p>chunk 的完整布局是 <code>ckid + size + payload + padding</code>。<code>size</code> 不含 Header。一个 <code>00dc</code> 可以是一帧，也可能是一个编码块，具体取决于 <code>dwSampleSize</code> 和编码器；读取器应使用轨道描述和索引共同判断。</p>
+<h3 id="idx1-索引项"><a href="#idx1-索引项" class="headerlink" title="idx1 索引项"></a><code>idx1</code> 索引项</h3><p>传统 <code>idx1</code> 的每项为 16 字节：</p>
+<table>
+<thead>
+<tr>
+<th align="right">偏移</th>
+<th align="right">长度</th>
+<th>字段</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="right">0</td>
+<td align="right">4</td>
+<td><code>ckid</code></td>
+<td>对应 <code>movi</code> chunk ID</td>
+</tr>
+<tr>
+<td align="right">4</td>
+<td align="right">4</td>
+<td><code>dwFlags</code></td>
+<td><code>AVIIF_KEYFRAME</code> 等标志</td>
+</tr>
+<tr>
+<td align="right">8</td>
+<td align="right">4</td>
+<td><code>dwChunkOffset</code></td>
+<td>chunk 偏移，基准存在实现差异</td>
+</tr>
+<tr>
+<td align="right">12</td>
+<td align="right">4</td>
+<td><code>dwChunkLength</code></td>
+<td>payload 长度</td>
+</tr>
+</tbody></table>
+<p>偏移可能相对 <code>movi</code> list 起点、<code>movi</code> data 起点或文件某个约定位置。可靠解析器要用 <code>ckid</code> 和 <code>dwChunkLength</code> 对候选位置做验证，而不是盲目套一个固定公式。</p>
+<h3 id="读取流程与写入流程"><a href="#读取流程与写入流程" class="headerlink" title="读取流程与写入流程"></a>读取流程与写入流程</h3><p>读取时先校验 RIFF&#x2F;form type，再遍历 <code>hdrl</code> 建立轨道表，然后定位 <code>movi</code> 和 <code>idx1</code>。播放第 N 帧时，从索引得到 chunk 偏移和长度，读取 payload，依据该轨道的 <code>strf</code> 交给 JPEG、H.264 或 PCM 解码器，最后使用 <code>strh</code> 时间基调度。没有 <code>idx1</code> 时，可以顺序扫描 <code>movi</code>，但随机 seek 会变慢。</p>
+<p>写入时通常先写带占位长度的 RIFF、<code>hdrl</code> 和 <code>strl</code>，随后写每个媒体 chunk 并记录其位置，结束时生成 <code>idx1</code>，最后回填 <code>avih</code>、<code>strh</code>、LIST size 和 RIFF size。任何一个前置 Box 长度变化，都可能导致索引偏移需要重算。</p>
+<h3 id="十六进制识别示例"><a href="#十六进制识别示例" class="headerlink" title="十六进制识别示例"></a>十六进制识别示例</h3><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">52 49 46 46 ?? ?? ?? ?? 41 56 49 20</span><br></pre></td></tr></table></figure>
+
+<p>其中 <code>52 49 46 46</code> 是 ASCII <code>RIFF</code>，<code>41 56 49 20</code> 是 ASCII <code>AVI </code>。在后续数据中搜索 <code>4C 49 53 54</code> 可以发现 LIST，搜索 <code>6D 6F 76 69</code> 可以定位 <code>movi</code>。但搜索字符串只能帮助定位，最终仍必须按 size 递归解析，不能把任意出现的字符当作有效 Chunk。</p>
+<h3 id="兼容性和错误处理"><a href="#兼容性和错误处理" class="headerlink" title="兼容性和错误处理"></a>兼容性和错误处理</h3><h2 id="RIFF-AVI-1-0-的字节级模型"><a href="#RIFF-AVI-1-0-的字节级模型" class="headerlink" title="RIFF AVI 1.0 的字节级模型"></a>RIFF AVI 1.0 的字节级模型</h2><h3 id="RIFF-头"><a href="#RIFF-头" class="headerlink" title="RIFF 头"></a>RIFF 头</h3><p>文件开头 12 字节依次为 <code>RIFF</code>、四字节小端 size 和 <code>AVI </code>。RIFF size 从 form type 开始计算到当前 RIFF 结束，因此常见完整文件中它等于文件长度减 8，而不是文件长度。若文件尾还有应用私有数据，验证器应区分“RIFF 外附加数据”和“RIFF size 错误”。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">00  52 49 46 46    ckID = RIFF</span><br><span class="line">04  xx xx xx xx    ckSize, little-endian</span><br><span class="line">08  41 56 49 20    formType = AVI&lt;space&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Chunk-和-LIST"><a href="#Chunk-和-LIST" class="headerlink" title="Chunk 和 LIST"></a>Chunk 和 LIST</h3><p>普通 chunk 的 <code>ckSize</code> 只统计 payload，奇数 payload 后的 padding 不计入长度。LIST 的 payload 先有四字节 list type，再有子 chunk。递归读取器应把父结束偏移作为硬边界，每读取一个子结构都检查 <code>offset + 8 + aligned_size</code> 是否仍在父范围内。</p>
+<h2 id="avih-主头字段"><a href="#avih-主头字段" class="headerlink" title="avih 主头字段"></a><code>avih</code> 主头字段</h2><h3 id="帧时长和最大速率"><a href="#帧时长和最大速率" class="headerlink" title="帧时长和最大速率"></a>帧时长和最大速率</h3><p><code>dwMicroSecPerFrame</code> 给出主视频的标称帧周期。25 fps 常见值为 40000，30 fps 可能用近似值 33333；精确时间仍可由视频 <code>strh.dwScale/dwRate</code> 表达。<code>dwMaxBytesPerSec</code> 是建议吞吐量，不应当成媒体数据精确码率。修复器无法从一两个帧可靠推导最大速率时，可以保留原值或根据完整文件统计并标记为估算。</p>
+<h3 id="标志和总帧数"><a href="#标志和总帧数" class="headerlink" title="标志和总帧数"></a>标志和总帧数</h3><p><code>dwFlags</code> 可声明存在索引、需要交错播放或其他行为。标志是能力&#x2F;状态提示，必须与实际内容核对。<code>dwTotalFrames</code> 通常以主视频轨道帧数为准；音频 chunk 数、rec list 数和全部 chunk 数都不是该字段的替代值。</p>
+<h3 id="显示尺寸"><a href="#显示尺寸" class="headerlink" title="显示尺寸"></a>显示尺寸</h3><p><code>dwWidth</code> 和 <code>dwHeight</code> 是电影级建议尺寸，视频 <code>strf</code> 中的 BITMAPINFOHEADER 还会给出该流宽高。二者不一致时，应优先保留轨道实际编码尺寸并报告头部不一致；不能为匹配 <code>avih</code> 而裁掉解码后的像素。</p>
+<h2 id="strh-流头字段"><a href="#strh-流头字段" class="headerlink" title="strh 流头字段"></a><code>strh</code> 流头字段</h2><h3 id="流类型与处理器"><a href="#流类型与处理器" class="headerlink" title="流类型与处理器"></a>流类型与处理器</h3><p><code>fccType</code> 常见为 <code>vids</code> 或 <code>auds</code>，<code>fccHandler</code> 表示编码处理器或 codec FourCC。视频 <code>strf.biCompression</code> 也会声明压缩类型，两者应兼容。未知 handler 不代表容器损坏，读取器仍可以列出 chunk 和时间信息，只是无法解码 payload。</p>
+<h3 id="时间基和长度"><a href="#时间基和长度" class="headerlink" title="时间基和长度"></a>时间基和长度</h3><p><code>dwScale/dwRate</code> 定义每个流单位的时长，<code>dwStart</code> 给出起始位置，<code>dwLength</code> 给出流长度。视频通常一个 sample 对应一个 frame；PCM 音频的 sample 单位可能由 <code>dwSampleSize</code> 和 <code>nBlockAlign</code> 决定。计算轨道时长时应使用 64 位有理数，避免先做整数除法丢失精度。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">duration_seconds = dwLength × dwScale / dwRate</span><br></pre></td></tr></table></figure>
+
+<h3 id="建议缓冲和-sample-size"><a href="#建议缓冲和-sample-size" class="headerlink" title="建议缓冲和 sample size"></a>建议缓冲和 sample size</h3><p><code>dwSuggestedBufferSize</code> 只是一项建议，不保证所有 chunk 都不超过该值。读取器必须以实际 <code>ckSize</code> 分配或扩容，并设置实现自己的安全上限。固定 sample 流可以使用 <code>dwSampleSize</code>，可变大小视频通常为 0。</p>
+<h2 id="strf-格式块"><a href="#strf-格式块" class="headerlink" title="strf 格式块"></a><code>strf</code> 格式块</h2><h3 id="BITMAPINFOHEADER"><a href="#BITMAPINFOHEADER" class="headerlink" title="BITMAPINFOHEADER"></a>BITMAPINFOHEADER</h3><p>视频格式块至少包含结构长度、宽高、平面数、位深、压缩 FourCC、图像大小和像素密度。<code>biSize</code> 允许结构扩展，解析器只读取自己理解的字段并按 <code>biSize</code> 跳过剩余扩展，不能假定 <code>strf</code> 永远正好 40 字节。<code>biHeight</code> 为负时通常表示 top-down 存储，对压缩视频的意义还应结合 codec 约定。</p>
+<h3 id="WAVEFORMATEX"><a href="#WAVEFORMATEX" class="headerlink" title="WAVEFORMATEX"></a>WAVEFORMATEX</h3><p>音频格式块包含 format tag、通道数、采样率、平均字节率、块对齐、每样本位数和扩展长度。PCM 应检查 <code>nBlockAlign = channels × bits_per_sample / 8</code>（整字节 PCM），<code>nAvgBytesPerSec = sample_rate × nBlockAlign</code>。压缩音频不能套用同一公式，必须按 format tag 的定义解释扩展数据。</p>
+<h2 id="movi-与-idx1-的闭环验证"><a href="#movi-与-idx1-的闭环验证" class="headerlink" title="movi 与 idx1 的闭环验证"></a><code>movi</code> 与 <code>idx1</code> 的闭环验证</h2><h3 id="顺序扫描-movi"><a href="#顺序扫描-movi" class="headerlink" title="顺序扫描 movi"></a>顺序扫描 <code>movi</code></h3><p>扫描时按 chunk header 和 aligned size 前进，遇到 <code>LIST rec </code> 时递归读取其中媒体 chunk。chunk ID 前两位映射到流号，必须小于 <code>dwStreams</code>，后两位决定压缩视频、未压缩视频、音频或其他数据。payload 中偶然出现的 FourCC 不参与扫描。</p>
+<h3 id="验证-idx1"><a href="#验证-idx1" class="headerlink" title="验证 idx1"></a>验证 <code>idx1</code></h3><p>每个索引项由 <code>ckid</code>、flags、offset、length 组成。因为历史实现对 offset 基准存在差异，读取器可以准备有限的候选基准：文件零点、<code>movi</code> list type 后、<code>movi</code> 数据首 chunk。对每个候选计算绝对位置，并验证 FourCC 与 size；只有能闭合的候选才可接受。不能在整个文件中无限搜索 FourCC 来“修正”索引，因为同名 chunk 数量可能很多。</p>
+<h3 id="关键帧标志"><a href="#关键帧标志" class="headerlink" title="关键帧标志"></a>关键帧标志</h3><p>MJPEG 的每帧通常可以随机解码，H.264 等编码则取决于码流。写入 <code>AVIIF_KEYFRAME</code> 前应查询编码器产生的 sample 属性或解析 payload；按固定帧号打标可能让 seek 从不可解码点开始。修复器若无法可靠判断，应保留未知状态而不是把所有视频 chunk 标为关键帧。</p>
+<h2 id="AVI-1-0-修复实例"><a href="#AVI-1-0-修复实例" class="headerlink" title="AVI 1.0 修复实例"></a>AVI 1.0 修复实例</h2><h3 id="头部尺寸修复"><a href="#头部尺寸修复" class="headerlink" title="头部尺寸修复"></a>头部尺寸修复</h3><p>若文件正常结束但 RIFF size 未回填，可先递归扫描所有完整 chunk，找到最后一个合法结束偏移。新的 RIFF size 为该偏移减 8；<code>LIST movi</code> size 为其 list type 起点到最后媒体子 chunk 结束的长度。每一层都独立计算，不能把同一个文件长度写入 RIFF、LIST 和媒体 chunk。</p>
+<h3 id="重建索引"><a href="#重建索引" class="headerlink" title="重建索引"></a>重建索引</h3><p>顺序扫描得到每个媒体 chunk 的绝对位置、ID、大小和轨道内 sample 序号后，可以生成新的 <code>idx1</code>。写入索引前必须选择并记录 offset 基准；生成后的每一项要反向读取目标 chunk 验证。若追加 <code>idx1</code> 改变文件尾，还要更新 RIFF size 和 <code>AVIF_HASINDEX</code> 标志。</p>
+<h2 id="AVI-1-0-测试与验证"><a href="#AVI-1-0-测试与验证" class="headerlink" title="AVI 1.0 测试与验证"></a>AVI 1.0 测试与验证</h2><h3 id="最小测试矩阵"><a href="#最小测试矩阵" class="headerlink" title="最小测试矩阵"></a>最小测试矩阵</h3><p>测试样本应覆盖单视频、音视频交错、多音轨、<code>rec </code> 子列表、奇数 chunk、无索引、错误索引、负高度位图、未知扩展 chunk、截断媒体 chunk 和错误父 size。每个测试都应验证读取器不会越界，且轨道数量、样本数量、时长、chunk 偏移和关键帧定位符合预期。</p>
+<h3 id="外部工具与人工核对"><a href="#外部工具与人工核对" class="headerlink" title="外部工具与人工核对"></a>外部工具与人工核对</h3><p>工具输出只能作为一层证据。应同时查看十六进制头部、递归 chunk 树、索引目标和实际解码结果。能播放不等于容器完全合法：播放器可能忽略错误索引并顺序扫描；同样，某个严格工具拒绝文件也不一定意味着媒体 payload 已损坏。诊断报告应明确错误所在层级。</p>
+<p>解析器必须处理未知 Chunk、奇数长度 padding、缺失索引、错误 RIFF size、负高度、多个音频轨道和不连续 chunk。遇到未知编码 FourCC 时可以保留轨道元数据并跳过 payload，不应把它误判为 MJPEG。对损坏文件，首先保证不越界，再尝试顺序扫描恢复；不能为了“尽量播放”而读取到文件范围之外。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou">钟栩</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://zhongxu.cyou/2026/08/22/AVI%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8FRIFF-AVI-1.0%E8%AF%A6%E8%A7%A3/">https://zhongxu.cyou/2026/08/22/AVI%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8FRIFF-AVI-1.0%E8%AF%A6%E8%A7%A3/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://zhongxu.cyou" target="_blank">ZHG2XU</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/AVI/">AVI</a><a class="post-meta__tags" href="/tags/RIFF/">RIFF</a><a class="post-meta__tags" href="/tags/%E5%AE%B9%E5%99%A8%E6%A0%BC%E5%BC%8F/">容器格式</a><a class="post-meta__tags" href="/tags/MJPEG/">MJPEG</a><a class="post-meta__tags" href="/tags/PCM/">PCM</a><a class="post-meta__tags" href="/tags/AVI-1-0/">AVI-1.0</a></div><div class="post-share"><div class="social-share" data-image="/img/avatar.webp" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related" href="/2026/08/22/OpenDML-AVI-2.0%E5%A4%A7%E6%96%87%E4%BB%B6%E6%89%A9%E5%B1%95%E8%AF%A6%E8%A7%A3/" title="OpenDML AVI 2.0 大文件扩展详解"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info"><div class="info-1"><div class="info-item-1">上一篇</div><div class="info-item-2">OpenDML AVI 2.0 大文件扩展详解</div></div><div class="info-2"><div class="info-item-1">OpenDML AVI 2.0 大文件扩展详解OpenDML 解决什么问题传统 AVI 建立在 RIFF 的 32 位 size 和 offset 字段之上。当视频码率较高、录制时间较长时，单个 RIFF 结构接近 4 GiB，idx1 和 stco 一类 32 位偏移无法表示后续数据。OpenDML AVI 2.0 不是完全替换 AVI 1.0，而是在原有 hdrl、strl、movi 思路上增加大文件扩展：用 AVIX 分段保存媒体数据，用 indx 主索引和 ix## 标准索引描述每个分段中的 chun...</div></div></div></a><a class="pagination-related" href="/2026/08/22/PCM%E9%9F%B3%E9%A2%91%E9%87%87%E6%A0%B7%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="PCM 音频采样数据参考手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">PCM 音频采样数据参考手册</div></div><div class="info-2"><div class="info-item-1">PCM 音频采样数据参考手册 PCM（Pulse Code Modulation，脉冲编码调制）是未经压缩的数字音频采样数据表示方式。它不是网络协议，也不是带文件头的容器；采样率、位深、声道数和字节序必须由上下文额外约定。  本文范围依据数字音频采样的通用定义、RIFF&#x2F;WAVE 对 PCM 的描述方式以及常见音频设备接口约定整理。PCM 本身没有一个唯一的文件级标准头，因此本文把“采样值如何表示”和“如何在容器&#x2F;接口中描述这些采样值”分开说明。 第一章 PCM 的定义与采样模型PCM 在...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/08/22/AVI%E5%AE%B9%E5%99%A8%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="AVI 1.0 + OpenDML AVI 2.0 参考手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-22</div><div class="info-item-2">AVI 1.0 + OpenDML AVI 2.0 参考手册</div></div><div class="info-2"><div class="info-item-1">AVI 1.0 + OpenDML AVI 2.0 参考手册 AVI（Audio Video Interleave）是基于 RIFF 的容器格式，不是编码格式，也不是网络协议。AVI 可以承载 MJPEG、H.264、PCM、MP3 等多种编码，但具体兼容性取决于 stream header、bitmap&#x2F;audio format 和实现。  本文将传统 RIFF AVI 1.0 与 OpenDML AVI 2.0 放在同一个容器系列中比较说明；两者的公共结构先统一介绍，分段、扩展索引和大文件偏移单...</div></div></div></a><a class="pagination-related" href="/2026/08/22/OpenDML-AVI-2.0%E5%A4%A7%E6%96%87%E4%BB%B6%E6%89%A9%E5%B1%95%E8%AF%A6%E8%A7%A3/" title="OpenDML AVI 2.0 大文件扩展详解"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-22</div><div class="info-item-2">OpenDML AVI 2.0 大文件扩展详解</div></div><div class="info-2"><div class="info-item-1">OpenDML AVI 2.0 大文件扩展详解OpenDML 解决什么问题传统 AVI 建立在 RIFF 的 32 位 size 和 offset 字段之上。当视频码率较高、录制时间较长时，单个 RIFF 结构接近 4 GiB，idx1 和 stco 一类 32 位偏移无法表示后续数据。OpenDML AVI 2.0 不是完全替换 AVI 1.0，而是在原有 hdrl、strl、movi 思路上增加大文件扩展：用 AVIX 分段保存媒体数据，用 indx 主索引和 ix## 标准索引描述每个分段中的 chun...</div></div></div></a><a class="pagination-related" href="/2026/08/22/MJPEG%E8%A7%86%E9%A2%91%E7%A0%81%E6%B5%81%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="MJPEG&#x2F;JPEG 视频码流参考手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-22</div><div class="info-item-2">MJPEG&#x2F;JPEG 视频码流参考手册</div></div><div class="info-2"><div class="info-item-1">MJPEG&#x2F;JPEG 视频码流参考手册 MJPEG（Motion JPEG）不是一种新的压缩算法，而是连续 JPEG 图像组成的视频表示方式。每一帧可独立解码，代价是码率通常高于 H.264&#x2F;H.265。  本文把 JPEG 图像码流和 MJPEG 连续帧组织分成两层：JPEG 层负责 marker、量化表、Huffman 表和扫描数据；MJPEG 层负责帧边界、时间信息以及 HTTP、AVI、RTP 等承载方式中的组织规则。 第一章 JPEG 与 MJPEG 的层次基本模型1JPEG(图...</div></div></div></a><a class="pagination-related" href="/2026/08/22/PCM%E9%9F%B3%E9%A2%91%E9%87%87%E6%A0%B7%E6%95%B0%E6%8D%AE%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="PCM 音频采样数据参考手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-22</div><div class="info-item-2">PCM 音频采样数据参考手册</div></div><div class="info-2"><div class="info-item-1">PCM 音频采样数据参考手册 PCM（Pulse Code Modulation，脉冲编码调制）是未经压缩的数字音频采样数据表示方式。它不是网络协议，也不是带文件头的容器；采样率、位深、声道数和字节序必须由上下文额外约定。  本文范围依据数字音频采样的通用定义、RIFF&#x2F;WAVE 对 PCM 的描述方式以及常见音频设备接口约定整理。PCM 本身没有一个唯一的文件级标准头，因此本文把“采样值如何表示”和“如何在容器&#x2F;接口中描述这些采样值”分开说明。 第一章 PCM 的定义与采样模型PCM 在...</div></div></div></a><a class="pagination-related" href="/2026/08/22/MP4_ISOBMFF%E5%AE%B9%E5%99%A8%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="MP4 &#x2F; ISO BMFF 参考手册"><div class="cover" style="background: var(--default-bg-color)"></div><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-08-22</div><div class="info-item-2">MP4 &#x2F; ISO BMFF 参考手册</div></div><div class="info-2"><div class="info-item-1">MP4 &#x2F; ISO BMFF 参考手册 MP4 是 ISO Base Media File Format（ISO BMFF）的常见文件扩展和配置。它是容器，不是 H.264 或 AAC 编码本身；同一 MP4 可以承载不同编码，必须读取 sample entry 和配置记录确认实际格式。  本文以 ISO Base Media File Format 的 Box、Track、Sample、Chunk 和时间表模型为主线，分别说明普通 MP4 文件与 fragmented MP4 在索引和媒体数据组织...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.webp" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/ loading='lazy'></div><div class="author-info-name">钟栩</div><div class="author-info-description">记录嵌入式开发、系统设计与问题解决</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">30</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">94</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">15</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/ZHG2XU"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/ZHG2XU" target="_blank" title=""><i class="fab fa-github"></i></a><a class="social-icon" href="mailto:z18568601031@gmail.com" target="_blank" title=""><i class="fas fa-envelope"></i></a><a class="social-icon" href="https://v.douyin.com/KlUiUNQ04Lc/" target="_blank" title=""><i class="fab fa-tiktok"></i></a><a class="social-icon" href="http://82.156.68.10:5212" target="_blank" title=""><i class="fas fa-folder-open"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">保持好奇，持续构建，把复杂的事情讲清楚。</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#AVI-%E4%BC%A0%E7%BB%9F%E6%A0%BC%E5%BC%8F%EF%BC%88RIFF-AVI-1-0%EF%BC%89%E8%AF%A6%E8%A7%A3"><span class="toc-text">AVI 传统格式（RIFF AVI 1.0）详解</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%BC%E5%BC%8F%E5%AE%9A%E4%BD%8D"><span class="toc-text">格式定位</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RIFF-%E7%9A%84%E5%9F%BA%E6%9C%AC%E5%8D%95%E4%BD%8D"><span class="toc-text">RIFF 的基本单位</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#AVI-%E6%80%BB%E4%BD%93%E6%96%87%E4%BB%B6%E7%BB%93%E6%9E%84"><span class="toc-text">AVI 总体文件结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#RIFF-Header-%E5%AD%97%E6%AE%B5"><span class="toc-text">RIFF Header 字段</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#avih-%E4%B8%BB-AVI-Header"><span class="toc-text">avih 主 AVI Header</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#strl-%E8%BD%A8%E9%81%93%E5%88%97%E8%A1%A8"><span class="toc-text">strl 轨道列表</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#strh-AVIStreamHeader"><span class="toc-text">strh AVIStreamHeader</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%A7%86%E9%A2%91-strf%EF%BC%9ABITMAPINFOHEADER"><span class="toc-text">视频 strf：BITMAPINFOHEADER</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%9F%B3%E9%A2%91-strf%EF%BC%9AWAVEFORMATEX"><span class="toc-text">音频 strf：WAVEFORMATEX</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#movi-%E4%B8%AD%E7%9A%84%E5%AA%92%E4%BD%93-Chunk"><span class="toc-text">movi 中的媒体 Chunk</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#idx1-%E7%B4%A2%E5%BC%95%E9%A1%B9"><span class="toc-text">idx1 索引项</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E8%AF%BB%E5%8F%96%E6%B5%81%E7%A8%8B%E4%B8%8E%E5%86%99%E5%85%A5%E6%B5%81%E7%A8%8B"><span class="toc-text">读取流程与写入流程</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%8D%81%E5%85%AD%E8%BF%9B%E5%88%B6%E8%AF%86%E5%88%AB%E7%A4%BA%E4%BE%8B"><span class="toc-text">十六进制识别示例</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%BC%E5%AE%B9%E6%80%A7%E5%92%8C%E9%94%99%E8%AF%AF%E5%A4%84%E7%90%86"><span class="toc-text">兼容性和错误处理</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#RIFF-AVI-1-0-%E7%9A%84%E5%AD%97%E8%8A%82%E7%BA%A7%E6%A8%A1%E5%9E%8B"><span class="toc-text">RIFF AVI 1.0 的字节级模型</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#RIFF-%E5%A4%B4"><span class="toc-text">RIFF 头</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Chunk-%E5%92%8C-LIST"><span class="toc-text">Chunk 和 LIST</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#avih-%E4%B8%BB%E5%A4%B4%E5%AD%97%E6%AE%B5"><span class="toc-text">avih 主头字段</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B8%A7%E6%97%B6%E9%95%BF%E5%92%8C%E6%9C%80%E5%A4%A7%E9%80%9F%E7%8E%87"><span class="toc-text">帧时长和最大速率</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%87%E5%BF%97%E5%92%8C%E6%80%BB%E5%B8%A7%E6%95%B0"><span class="toc-text">标志和总帧数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%98%BE%E7%A4%BA%E5%B0%BA%E5%AF%B8"><span class="toc-text">显示尺寸</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#strh-%E6%B5%81%E5%A4%B4%E5%AD%97%E6%AE%B5"><span class="toc-text">strh 流头字段</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%B5%81%E7%B1%BB%E5%9E%8B%E4%B8%8E%E5%A4%84%E7%90%86%E5%99%A8"><span class="toc-text">流类型与处理器</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%97%B6%E9%97%B4%E5%9F%BA%E5%92%8C%E9%95%BF%E5%BA%A6"><span class="toc-text">时间基和长度</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%BB%BA%E8%AE%AE%E7%BC%93%E5%86%B2%E5%92%8C-sample-size"><span class="toc-text">建议缓冲和 sample size</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#strf-%E6%A0%BC%E5%BC%8F%E5%9D%97"><span class="toc-text">strf 格式块</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#BITMAPINFOHEADER"><span class="toc-text">BITMAPINFOHEADER</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#WAVEFORMATEX"><span class="toc-text">WAVEFORMATEX</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#movi-%E4%B8%8E-idx1-%E7%9A%84%E9%97%AD%E7%8E%AF%E9%AA%8C%E8%AF%81"><span class="toc-text">movi 与 idx1 的闭环验证</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%A1%BA%E5%BA%8F%E6%89%AB%E6%8F%8F-movi"><span class="toc-text">顺序扫描 movi</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%AA%8C%E8%AF%81-idx1"><span class="toc-text">验证 idx1</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%85%B3%E9%94%AE%E5%B8%A7%E6%A0%87%E5%BF%97"><span class="toc-text">关键帧标志</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#AVI-1-0-%E4%BF%AE%E5%A4%8D%E5%AE%9E%E4%BE%8B"><span class="toc-text">AVI 1.0 修复实例</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%B4%E9%83%A8%E5%B0%BA%E5%AF%B8%E4%BF%AE%E5%A4%8D"><span class="toc-text">头部尺寸修复</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E9%87%8D%E5%BB%BA%E7%B4%A2%E5%BC%95"><span class="toc-text">重建索引</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#AVI-1-0-%E6%B5%8B%E8%AF%95%E4%B8%8E%E9%AA%8C%E8%AF%81"><span class="toc-text">AVI 1.0 测试与验证</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%9C%80%E5%B0%8F%E6%B5%8B%E8%AF%95%E7%9F%A9%E9%98%B5"><span class="toc-text">最小测试矩阵</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%96%E9%83%A8%E5%B7%A5%E5%85%B7%E4%B8%8E%E4%BA%BA%E5%B7%A5%E6%A0%B8%E5%AF%B9"><span class="toc-text">外部工具与人工核对</span></a></li></ol></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/TXW82x-MP4%E5%85%BC%E5%AE%B9Opus%E9%9F%B3%E9%A2%91%E5%B0%81%E8%A3%85%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3/" title="TXW82x MP4 兼容 Opus 音频封装：从编码帧到标准音频轨的完整改造">TXW82x MP4 兼容 Opus 音频封装：从编码帧到标准音频轨的完整改造</a><time datetime="2026-08-22T08:30:00.000Z" title="发表于 2026-08-22 16:30:00">2026-08-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/AAC%E9%9F%B3%E9%A2%91%E7%BC%96%E7%A0%81%E4%B8%8EADTS%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="AAC 音频编码与 ADTS/ADIF 参考手册">AAC 音频编码与 ADTS/ADIF 参考手册</a><time datetime="2026-08-21T16:00:00.000Z" title="发表于 2026-08-22 00:00:00">2026-08-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/H264%E8%A7%86%E9%A2%91%E7%BC%96%E7%A0%81%E4%B8%8E%E7%A0%81%E6%B5%81%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="H.264 视频编码与码流参考手册">H.264 视频编码与码流参考手册</a><time datetime="2026-08-21T16:00:00.000Z" title="发表于 2026-08-22 00:00:00">2026-08-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/AVI%E5%AE%B9%E5%99%A8%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="AVI 1.0 + OpenDML AVI 2.0 参考手册">AVI 1.0 + OpenDML AVI 2.0 参考手册</a><time datetime="2026-08-21T16:00:00.000Z" title="发表于 2026-08-22 00:00:00">2026-08-22</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/08/22/MP4_ISOBMFF%E5%AE%B9%E5%99%A8%E6%A0%BC%E5%BC%8F%E8%AF%A6%E8%A7%A3/" title="MP4 / ISO BMFF 参考手册">MP4 / ISO BMFF 参考手册</a><time datetime="2026-08-21T16:00:00.000Z" title="发表于 2026-08-22 00:00:00">2026-08-22</time></div></div></div></div></div></div></main><footer id="footer" style="background: transparent;"><div class="footer-editorial"><div class="footer-editorial__intro"><small>FIELD NOTES / ZHG2XU</small><strong>把复杂的问题，写成可以再次使用的经验。</strong><p>关于嵌入式开发、音视频链路与界面架构的长期记录。</p></div></div><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2022 - 2026 By 钟栩</span></div><div class="footer_custom_text">循此苦旅 以达繁星</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.5-b1"></script><script src="/js/main.js?v=5.5.5-b1"></script><div class="js-pjax"></div><script src="https://cdnjs.cloudflare.com/ajax/libs/pangu/4.0.7/pangu.min.js"></script><script> const initPangu = () => { if (typeof pangu !== 'undefined') { pangu.spacingPage(); } }; document.addEventListener('DOMContentLoaded', initPangu); document.addEventListener('pjax:complete', initPangu); </script><script src="/js/custom.js"></script><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><div class="search-heading"><small>SEARCH / NOTES</small><span class="search-dialog-title">搜索文章</span></div><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="输入关键词，查找技术笔记" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.5.5-b1"></script></div></div></body></html>
